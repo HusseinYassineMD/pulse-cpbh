@@ -34,4 +34,4 @@ services:
         fromService:
           type: web
           name: pulse-api
-          envVarKey: RENDER_EXTERNAL_URL
+          property: host
