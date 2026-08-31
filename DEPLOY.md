@@ -1,15 +1,35 @@
 # Deploy Pulse for your team
 
-## Fastest path (free, ~5 min)
+## Live demo (GitHub Pages)
 
-1. Push this repo to GitHub (already set up if you ran the publish step).
-2. Go to [Render Dashboard](https://dashboard.render.com) → sign in with GitHub.
-3. **New** → **Blueprint** → select the `pulse-cpbh` repo.
-4. Render reads `render.yaml` and creates **pulse-api** + **pulse-web**.
-5. Wait ~5–10 min for both services to go green.
-6. Open the **pulse-web** URL (e.g. `https://pulse-web-xxxx.onrender.com`) — share that with your team.
+**Share this URL with your team:**
 
-Demo data loads automatically on API startup (`seed_demo.py`).
+https://husseinyassinemd.github.io/pulse-cpbh-demo/
+
+- Public demo repo: [pulse-cpbh-demo](https://github.com/HusseinYassineMD/pulse-cpbh-demo)
+- Private source code stays in [pulse-cpbh](https://github.com/HusseinYassineMD/pulse-cpbh)
+- 15 sample CPBH posts, calendar, scheduling UI — all runs in-browser (no backend)
+
+### Redeploy after UI changes
+
+```bash
+chmod +x scripts/deploy-pages.sh
+./scripts/deploy-pages.sh
+```
+
+> **Note:** GitHub Pages is not available on private repos (free plan). The static demo lives in the separate public `pulse-cpbh-demo` repo.
+
+---
+
+## Full stack (optional — Render)
+
+For the live API + database (not needed for team preview):
+
+1. Go to [Render Dashboard](https://dashboard.render.com) → sign in with GitHub.
+2. **New** → **Blueprint** → select the `pulse-cpbh` repo.
+3. Render reads `render.yaml` and creates **pulse-api** + **pulse-web**.
+
+---
 
 ## What your team will see
 
@@ -17,13 +37,7 @@ Demo data loads automatically on API startup (`seed_demo.py`).
 - Schedule calendar, stats, thumbnails
 - Dry-run mode (no real social posting)
 
-## Notes
-
-- **Free tier** services sleep after ~15 min idle; first load may take 30–60s to wake up.
-- **Live generation** (`post exercise-apoe4`) needs Post_Creator on the server — demo data works without it.
-- For production: set `AUTH_ENABLED=true`, connect social tokens, `PUBLISH_DRY_RUN=false`.
-
-## Local dev (unchanged)
+## Local dev
 
 ```bash
 ./start.sh api
