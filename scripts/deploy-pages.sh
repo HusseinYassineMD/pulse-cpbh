@@ -11,6 +11,9 @@ echo "→ Building static demo (basePath=$BASE_PATH)..."
 cd "$WEB"
 GITHUB_PAGES=true NEXT_PUBLIC_DEMO_MODE=true NEXT_PUBLIC_BASE_PATH="$BASE_PATH" npx next build
 
+mkdir -p out/.github/workflows
+cp "$ROOT/scripts/pages-workflow.yml" out/.github/workflows/deploy.yml
+
 echo "→ Pushing to $DEMO_REPO..."
 cd out
 if [ ! -d .git ]; then
