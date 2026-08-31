@@ -9,11 +9,15 @@ import type {
   User,
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
+import { IS_DEMO_MODE } from "./base-path";
+import { demoApi } from "./demo-api";
 
-// Browser: same-origin proxy (/api → backend). Avoids CORS when dev server uses port 3001+.
+// Browser: same-origin proxy (/api → backend). Demo mode uses in-browser mock API.
 const API_BASE =
   typeof window !== "undefined"
-    ? "/api"
+    ? IS_DEMO_MODE
+      ? ""
+      : "/api"
     : process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 class ApiError extends Error {
@@ -50,7 +54,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
-export const api = {
+const liveApi = {
   auth: {
     register: (data: { email: string; name: string; password: string }) =>
       request<TokenResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
@@ -131,5 +135,7 @@ export const api = {
     disconnect: (id: string) => request<void>(`/accounts/${id}`, { method: "DELETE" }),
   },
 };
+
+export const api = IS_DEMO_MODE ? demoApi : liveApi;
 
 export { ApiError };

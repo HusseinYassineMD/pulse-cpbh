@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Zap, Calendar, Home, LayoutDashboard, Circle } from "lucide-react";
+import { FileText, Zap, Calendar, Home, LayoutDashboard, Circle, Globe } from "lucide-react";
 import { api } from "@/lib/api";
+import { IS_DEMO_MODE } from "@/lib/base-path";
 
 const nav = [
   { href: "/", label: "Home", icon: Home },
@@ -97,6 +98,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="flex-1 min-w-0 overflow-auto">
+        {IS_DEMO_MODE && (
+          <div className="bg-teal/10 border-b border-teal/20 px-6 py-2.5 flex items-center justify-center gap-2 text-sm text-teal">
+            <Globe className="w-4 h-4 shrink-0" />
+            <span>
+              Live demo preview — sample data only. Commands and publishing run in dry-run mode.
+            </span>
+          </div>
+        )}
         <div className="p-8 lg:p-10 max-w-6xl mx-auto">{children}</div>
       </main>
     </div>

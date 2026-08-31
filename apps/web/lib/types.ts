@@ -31,7 +31,7 @@ export interface Post {
   title: string;
   status: PostStatus;
   post_creator_id: string | null;
-  source_config?: { type?: string; command?: string } | null;
+  source_config?: { type?: string; command?: string; demo?: boolean } | null;
   created_at: string;
   updated_at: string;
   variants: PostVariant[];

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080">
+  <rect width="1080" height="1080" fill="#205369"/>
+  <rect x="40" y="40" width="1000" height="1000" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <text x="80" y="120" fill="#ffffff" font-family="Arial,sans-serif" font-size="28" font-weight="700">USC CPBH</text>
+  <text x="80" y="480" fill="#ffffff" font-family="Arial,sans-serif" font-size="52" font-weight="700">Brain Health</text>
+  <text x="80" y="560" fill="#dce6eb" font-family="Arial,sans-serif" font-size="34">Evidence-based tips for your team</text>
+</svg>
