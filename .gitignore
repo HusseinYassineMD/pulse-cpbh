@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+.next/
+out/
+dist/
+build/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+postgres_data/
+redis_data/
+minio_data/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Uploads (local dev)
+uploads/
+tmp/
+apps/api/media/
+
+# SQLite dev database
+pulse.db
+apps/api/pulse.db

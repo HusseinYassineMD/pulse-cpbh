@@ -1,0 +1,37 @@
+# Deploy: https://dashboard.render.com → New → Blueprint → connect this repo
+services:
+  - type: web
+    name: pulse-api
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: apps/api
+    buildCommand: pip install -r requirements.txt
+    startCommand: chmod +x start_prod.sh && ./start_prod.sh
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: AUTH_ENABLED
+        value: "false"
+      - key: PUBLISH_DRY_RUN
+        value: "true"
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./pulse.db
+
+  - type: web
+    name: pulse-web
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm start -- -p $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: API_URL
+        fromService:
+          type: web
+          name: pulse-api
+          envVarKey: RENDER_EXTERNAL_URL
