@@ -2,9 +2,15 @@
 
 ## GitHub Pages (live demo)
 
-**URL:** https://husseinyassinemd.github.io/pulse-cpbh/
+**URL:** https://husseinyassinemd.github.io/pulse-cpbh-demo/
 
-Every push to `main` deploys automatically via GitHub Actions.
+The main repo is private (GitHub Pages requires a public repo on free plans). Static builds deploy to **`pulse-cpbh-demo`**:
+
+```bash
+./scripts/deploy-github-pages.sh
+```
+
+Or push to `main` — the workflow builds automatically (enable Pages on the demo repo if needed).
 
 To refresh bundled posts/media before deploy:
 

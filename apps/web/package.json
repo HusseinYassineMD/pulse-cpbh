@@ -6,7 +6,7 @@
     "dev": "next dev",
     "dev:clean": "rm -rf .next && next dev",
     "build": "next build",
-    "build:pages": "GITHUB_PAGES=true NEXT_PUBLIC_STATIC_MODE=true NEXT_PUBLIC_BASE_PATH=/pulse-cpbh next build",
+    "build:pages": "GITHUB_PAGES=true NEXT_PUBLIC_STATIC_MODE=true NEXT_PUBLIC_BASE_PATH=/pulse-cpbh-demo next build",
     "start": "next start",
     "lint": "next lint"
   },

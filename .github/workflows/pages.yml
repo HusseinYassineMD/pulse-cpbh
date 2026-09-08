@@ -6,19 +6,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,19 +20,21 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install and build
+      - name: Build static site
         working-directory: apps/web
         env:
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_STATIC_MODE: "true"
-          NEXT_PUBLIC_BASE_PATH: /pulse-cpbh
+          NEXT_PUBLIC_BASE_PATH: /pulse-cpbh-demo
+        run: npm ci && npm run build
+
+      - name: Push to pulse-cpbh-demo
+        working-directory: apps/web/out
         run: |
-          npm ci
-          npm run build
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: apps/web/out
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git init
+          git checkout -b main
+          git add -A
+          git commit -m "Deploy Pulse from ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/HusseinYassineMD/pulse-cpbh-demo.git" main
