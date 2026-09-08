@@ -1,6 +1,6 @@
 # Pulse
 
-Schedule and auto-publish CPBH social content. No sign-in required for now.
+Schedule and auto-publish CPBH social content.
 
 ## Run
 
@@ -10,24 +10,16 @@ Schedule and auto-publish CPBH social content. No sign-in required for now.
 ./start.sh web     # terminal 2
 ```
 
-Open **http://localhost:3003** — lands directly on the home page.
+Open **http://localhost:3010**
 
-(Port 3000 may be used by another project on your machine.)
+## Workflow
 
-## Demo for your manager
+1. **Plan** — add content ideas and target dates
+2. **Home** — generate posts with the command bar (`post exercise-apoe4`)
+3. **Posts** — review slides and captions
+4. **Schedule** — set publish dates
 
-```bash
-./start.sh demo    # loads 5 sample posts + schedule
-```
-
-Then refresh the app. You'll see:
-- **Home** — stats filled in + 5 upcoming scheduled posts
-- **Schedule** — 5 upcoming + 4 in history
-- **Posts** — 15 CPBH-themed carousels with thumbnails, captions & mixed statuses
-
-## Home page
-
-Type a command → generate → schedule:
+## Commands
 
 ```
 post exercise-apoe4      → carousel + captions
@@ -35,9 +27,7 @@ story protein-maxing     → story slide
 captions apoe4           → text only
 ```
 
-Then open the post → **Schedule** or **Publish now**.
+## Later
 
-## Later (when you're ready)
-
-- Sign-in / accounts → set `AUTH_ENABLED=true`
-- Live publishing → connect social tokens in Settings, `PUBLISH_DRY_RUN=false`
+- Sign-in → set `AUTH_ENABLED=true`
+- Live publishing → connect accounts in Settings, `PUBLISH_DRY_RUN=false`

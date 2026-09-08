@@ -5,21 +5,21 @@ set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
+PULSE_WEB_PORT="${PULSE_WEB_PORT:-3010}"
+PULSE_API_PORT="${PULSE_API_PORT:-8010}"
+
 cmd="${1:-}"
 
 setup() {
   echo "Setting up Pulse (one-time)..."
 
-  # .env — only create if missing, defaults are fine
   [ -f .env ] || cp .env.example .env
 
-  # Python
   cd apps/api
   [ -d .venv ] || python3 -m venv .venv
   .venv/bin/pip install -q -r requirements.txt
   cd "$ROOT"
 
-  # Node
   cd apps/web
   [ -d node_modules ] || npm install
   cd "$ROOT"
@@ -28,41 +28,47 @@ setup() {
   echo "Done! Run:"
   echo "  ./start.sh api    (terminal 1)"
   echo "  ./start.sh web    (terminal 2)"
-  echo "  open http://localhost:3003"
+  echo "  open http://localhost:${PULSE_WEB_PORT}"
 }
 
-demo() {
+clear_data() {
   cd apps/api
   source .venv/bin/activate
-  python scripts/seed_demo.py --force
+  python scripts/clear_sample_data.py
   cd "$ROOT"
   echo ""
-  echo "Demo data loaded. Refresh http://localhost:3003"
+  echo "All sample posts and plan ideas removed."
 }
 
 api() {
   cd apps/api
   source .venv/bin/activate
-  echo "API → http://localhost:8000"
-  uvicorn app.main:app --reload --port 8000
+  echo "API → http://localhost:${PULSE_API_PORT}"
+  uvicorn app.main:app --reload --port "$PULSE_API_PORT"
 }
 
 web() {
   cd apps/web
-  echo "App → http://localhost:3003"
-  npm run dev
+  export API_URL="http://127.0.0.1:${PULSE_API_PORT}"
+  if [ "${2:-}" = "clean" ]; then
+    rm -rf .next
+    echo "Cleared Next.js cache (.next)"
+  fi
+  echo "App → http://localhost:${PULSE_WEB_PORT}"
+  npm run dev -- -p "$PULSE_WEB_PORT"
 }
 
 case "$cmd" in
   setup) setup ;;
   api)   api ;;
   web)   web ;;
-  demo)  demo ;;
+  clear) clear_data ;;
   *)
     echo "Usage:"
     echo "  ./start.sh setup   — install deps (first time only)"
     echo "  ./start.sh api     — start backend"
     echo "  ./start.sh web     — start frontend"
-    echo "  ./start.sh demo    — load demo posts for manager walkthrough"
+    echo "  ./start.sh web clean — start frontend (clear Next.js cache)"
+    echo "  ./start.sh clear   — remove all posts and plan ideas"
     ;;
 esac

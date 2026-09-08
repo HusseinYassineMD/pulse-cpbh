@@ -1,7 +1,11 @@
 import { useAuthStore } from "./auth-store";
 import type {
   CommandResult,
+  ContentIdea,
+  ContentFormat,
   DashboardResponse,
+  IdeaStatus,
+  PlanListResponse,
   Post,
   PostListResponse,
   Template,
@@ -9,16 +13,14 @@ import type {
   User,
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
-import { IS_DEMO_MODE } from "./base-path";
-import { demoApi } from "./demo-api";
 
-// Browser: same-origin proxy (/api → backend). Demo mode uses in-browser mock API.
-const API_BASE =
-  typeof window !== "undefined"
-    ? IS_DEMO_MODE
-      ? ""
-      : "/api"
-    : process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const serverApiBase = () => {
+  const raw = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
+  const origin = raw.startsWith("http") ? raw.replace(/\/$/, "") : `https://${raw}`;
+  return `${origin}/api/v1`;
+};
+
+const API_BASE = typeof window !== "undefined" ? "/api" : serverApiBase();
 
 class ApiError extends Error {
   constructor(
@@ -54,7 +56,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
-const liveApi = {
+export const api = {
   auth: {
     register: (data: { email: string; name: string; password: string }) =>
       request<TokenResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
@@ -100,6 +102,8 @@ const liveApi = {
 
     approve: (id: string) => request<Post>(`/posts/${id}/approve`, { method: "POST" }),
 
+    unapprove: (id: string) => request<Post>(`/posts/${id}/unapprove`, { method: "POST" }),
+
     updateVariant: (id: string, platform: string, caption: string) =>
       request(`/posts/${id}/variants/${platform}`, {
         method: "PATCH",
@@ -134,8 +138,41 @@ const liveApi = {
 
     disconnect: (id: string) => request<void>(`/accounts/${id}`, { method: "DELETE" }),
   },
-};
 
-export const api = IS_DEMO_MODE ? demoApi : liveApi;
+  plan: {
+    list: (params?: { status?: IdeaStatus; theme?: string }) => {
+      const search = new URLSearchParams();
+      if (params?.status) search.set("status", params.status);
+      if (params?.theme) search.set("theme", params.theme);
+      const qs = search.toString();
+      return request<PlanListResponse>(`/plan${qs ? `?${qs}` : ""}`);
+    },
+
+    create: (data: {
+      title: string;
+      theme?: string | null;
+      format?: ContentFormat;
+      target_date?: string | null;
+      owner?: string | null;
+      status?: IdeaStatus;
+      notes?: string | null;
+    }) => request<ContentIdea>("/plan", { method: "POST", body: JSON.stringify(data) }),
+
+    update: (
+      id: string,
+      data: Partial<{
+        title: string;
+        theme: string | null;
+        format: ContentFormat;
+        target_date: string | null;
+        owner: string | null;
+        status: IdeaStatus;
+        notes: string | null;
+      }>
+    ) => request<ContentIdea>(`/plan/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+    delete: (id: string) => request<void>(`/plan/${id}`, { method: "DELETE" }),
+  },
+};
 
 export { ApiError };

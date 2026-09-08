@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.core.database import Base, engine
-from app.routers import accounts, ai, auth, commands, dashboard, media, posts, schedule, templates
+import app.models  # noqa: F401 — register all models before create_all
+from app.routers import accounts, ai, auth, commands, dashboard, media, plan, posts, schedule, templates
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 settings = get_settings()
@@ -35,7 +36,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.web_url, "http://localhost:3000", "http://localhost:3001", "http://localhost:3003"],
+    allow_origins=[settings.web_url, "http://localhost:3000", "http://localhost:3001", "http://localhost:3003", "http://localhost:3010"],
     allow_origin_regex=r"http://localhost:\d+|https://.*\.onrender\.com|https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
@@ -51,6 +52,7 @@ app.include_router(media.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(schedule.router, prefix="/api/v1")
+app.include_router(plan.router, prefix="/api/v1")
 
 
 @app.get("/health")

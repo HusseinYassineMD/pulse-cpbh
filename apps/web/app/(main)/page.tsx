@@ -19,7 +19,6 @@ import {
 import { format, parseISO, isPast } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
-import { HeroMockup } from "@/components/hero-mockup";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
@@ -70,8 +69,7 @@ export default function HomePage() {
   return (
     <div className="space-y-10">
       {/* Hero */}
-      <div className="grid lg:grid-cols-2 gap-10 items-center animate-fade-in">
-        <div className="space-y-5">
+      <div className="max-w-2xl space-y-5 animate-fade-in">
           <div className="inline-flex flex-col gap-1.5">
             <div className="cpbh-badge">
               <Zap className="w-3.5 h-3.5 text-teal" />
@@ -101,8 +99,6 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-        <HeroMockup />
       </div>
 
       {/* Stats */}

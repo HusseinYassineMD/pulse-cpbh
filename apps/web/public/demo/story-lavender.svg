@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
-  <rect width="1080" height="1920" fill="#7864a0"/>
-  <rect x="40" y="40" width="1000" height="1840" fill="none" stroke="#ffffff" stroke-width="3"/>
-  <text x="80" y="120" fill="#ffffff" font-family="Arial,sans-serif" font-size="28" font-weight="700">USC CPBH</text>
-  <text x="80" y="900" fill="#ffffff" font-family="Arial,sans-serif" font-size="56" font-weight="700">Mindfulness</text>
-  <text x="80" y="990" fill="#ece8f4" font-family="Arial,sans-serif" font-size="38">3 breaths before your next meeting</text>
-</svg>

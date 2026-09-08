@@ -28,7 +28,10 @@ logger = logging.getLogger(__name__)
 
 def _media_url(post_id: UUID, filename: str) -> str:
     settings = get_settings()
-    return f"{settings.api_url}/api/v1/media/{post_id}/{filename}"
+    base = f"{settings.api_url}/api/v1/media/public/{post_id}/{filename}"
+    if settings.media_publish_key:
+        return f"{base}?key={settings.media_publish_key}"
+    return base
 
 
 async def publish_schedule_entry(db: AsyncSession, schedule_entry_id: UUID) -> None:

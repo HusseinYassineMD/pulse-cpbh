@@ -1,5 +1,3 @@
-import type { PostStatus } from "@/lib/types";
-
 const styles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   generating: "bg-accent/15 text-accent-foreground",
@@ -15,6 +13,9 @@ const styles: Record<string, string> = {
   completed: "bg-teal-light text-teal",
   running: "bg-accent/15 text-accent-foreground",
   cancelled: "bg-muted text-muted-foreground",
+  idea: "bg-muted text-muted-foreground",
+  in_production: "bg-sky/15 text-foreground",
+  on_hold: "bg-primary/10 text-primary",
 };
 
 export function StatusBadge({ status }: { status: string }) {

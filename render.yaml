@@ -12,12 +12,24 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.0"
+      - key: APP_ENV
+        value: production
       - key: AUTH_ENABLED
         value: "false"
       - key: PUBLISH_DRY_RUN
         value: "true"
       - key: DATABASE_URL
         value: sqlite+aiosqlite:///./pulse.db
+      - key: API_URL
+        fromService:
+          type: web
+          name: pulse-api
+          property: host
+      - key: WEB_URL
+        fromService:
+          type: web
+          name: pulse-web
+          property: host
 
   - type: web
     name: pulse-web

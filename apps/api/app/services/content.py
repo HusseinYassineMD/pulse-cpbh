@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.models import MediaAsset, Platform, Post, PostStatus, PostVariant
+from app.services.post_queries import load_post_for_response
 from app.services.storage import clear_post_media, post_media_dir, save_images
 from app.services.story import carousel_to_story, make_story_caption
 from app.services.templates import _post_creator_python
@@ -46,8 +47,7 @@ class ContentService:
 
         post.status = PostStatus.READY
         await self.db.flush()
-        await self.db.refresh(post, ["variants", "media_assets"])
-        return post
+        return await load_post_for_response(self.db, post_id)
 
     async def _get_post(self, post_id: UUID) -> Post:
         result = await self.db.execute(

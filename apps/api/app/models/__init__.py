@@ -2,9 +2,9 @@
 
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, Uuid, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text, Uuid, func
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -58,6 +58,21 @@ class PublishStatus(str, enum.Enum):
     RETRYING = "retrying"
 
 
+class IdeaStatus(str, enum.Enum):
+    IDEA = "idea"
+    APPROVED = "approved"
+    IN_PRODUCTION = "in_production"
+    SCHEDULED = "scheduled"
+    PUBLISHED = "published"
+    ON_HOLD = "on_hold"
+
+
+class ContentFormat(str, enum.Enum):
+    CAROUSEL = "carousel"
+    STORY = "story"
+    TEXT = "text"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -70,6 +85,7 @@ class User(Base):
 
     social_accounts: Mapped[list["SocialAccount"]] = relationship(back_populates="user")
     posts: Mapped[list["Post"]] = relationship(back_populates="user")
+    content_ideas: Mapped[list["ContentIdea"]] = relationship(back_populates="user")
 
 
 class SocialAccount(Base):
@@ -186,3 +202,25 @@ class AnalyticsSnapshot(Base):
     shares: Mapped[int] = mapped_column(Integer, default=0)
     clicks: Mapped[int] = mapped_column(Integer, default=0)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ContentIdea(Base):
+    __tablename__ = "content_ideas"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(500))
+    theme: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    format: Mapped[ContentFormat] = mapped_column(
+        Enum(ContentFormat, native_enum=False), default=ContentFormat.CAROUSEL
+    )
+    target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[IdeaStatus] = mapped_column(Enum(IdeaStatus, native_enum=False), default=IdeaStatus.IDEA)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="content_ideas")

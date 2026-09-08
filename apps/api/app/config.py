@@ -16,8 +16,9 @@ class Settings(BaseSettings):
     app_name: str = "Pulse"
     app_env: str = "development"
     secret_key: str = "dev-secret-change-in-production"
-    api_url: str = "http://localhost:8000"
-    web_url: str = "http://localhost:3000"
+    api_url: str = "http://localhost:8010"
+    web_url: str = "http://localhost:3010"
+    media_publish_key: str = "dev-media-key-change-me"
 
     # Default: SQLite (no Docker/Postgres required for local dev)
     database_url: str = "sqlite+aiosqlite:///./pulse.db"

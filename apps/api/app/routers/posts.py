@@ -19,6 +19,7 @@ from app.schemas import (
     PostVariantUpdate,
 )
 from app.services.content import ContentService
+from app.services.post_queries import load_post_for_response
 from app.services.serialize import post_to_response
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -65,7 +66,7 @@ async def create_post(
     )
     db.add(post)
     await db.flush()
-    await db.refresh(post, ["variants", "media_assets"])
+    post = await load_post_for_response(db, post.id)
     return post_to_response(post)
 
 
@@ -104,7 +105,7 @@ async def update_post(
         post.status = body.status
 
     await db.flush()
-    await db.refresh(post, ["variants", "media_assets"])
+    post = await load_post_for_response(db, post.id)
     return post_to_response(post)
 
 
@@ -136,7 +137,6 @@ async def generate_content(
         post = await service.generate(post_id)
     except (ValueError, FileNotFoundError, RuntimeError) as e:
         raise HTTPException(status_code=400, detail=str(e))
-    await db.refresh(post, ["variants", "media_assets"])
     return post_to_response(post)
 
 
@@ -154,7 +154,7 @@ async def submit_for_review(
         raise HTTPException(status_code=400, detail=f"Cannot review post in '{post.status}' status")
     post.status = PostStatus.IN_REVIEW
     await db.flush()
-    await db.refresh(post, ["variants", "media_assets"])
+    post = await load_post_for_response(db, post.id)
     return post_to_response(post)
 
 
@@ -168,9 +168,29 @@ async def approve_post(
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    if post.status not in (PostStatus.READY, PostStatus.IN_REVIEW):
+        raise HTTPException(status_code=400, detail=f"Cannot approve post in '{post.status}' status")
     post.status = PostStatus.APPROVED
     await db.flush()
-    await db.refresh(post, ["variants", "media_assets"])
+    post = await load_post_for_response(db, post.id)
+    return post_to_response(post)
+
+
+@router.post("/{post_id}/unapprove", response_model=PostResponse)
+async def unapprove_post(
+    post_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.status != PostStatus.APPROVED:
+        raise HTTPException(status_code=400, detail=f"Cannot unapprove post in '{post.status}' status")
+    post.status = PostStatus.IN_REVIEW
+    await db.flush()
+    post = await load_post_for_response(db, post.id)
     return post_to_response(post)
 
 

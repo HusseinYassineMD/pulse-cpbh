@@ -31,7 +31,7 @@ export interface Post {
   title: string;
   status: PostStatus;
   post_creator_id: string | null;
-  source_config?: { type?: string; command?: string; demo?: boolean } | null;
+  source_config?: { type?: string; command?: string } | null;
   created_at: string;
   updated_at: string;
   variants: PostVariant[];
@@ -93,4 +93,32 @@ export interface RecentPost {
 export interface DashboardResponse {
   stats: DashboardStats;
   recent_posts: RecentPost[];
+}
+
+export type IdeaStatus =
+  | "idea"
+  | "approved"
+  | "in_production"
+  | "scheduled"
+  | "published"
+  | "on_hold";
+
+export type ContentFormat = "carousel" | "story" | "text";
+
+export interface ContentIdea {
+  id: string;
+  title: string;
+  theme: string | null;
+  format: ContentFormat;
+  target_date: string | null;
+  owner: string | null;
+  status: IdeaStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PlanListResponse {
+  items: ContentIdea[];
+  total: number;
 }

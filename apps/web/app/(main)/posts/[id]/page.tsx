@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Check } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Check, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
@@ -42,7 +42,18 @@ export default function PostDetailPage() {
     onSuccess: (updated) => {
       queryClient.setQueryData(["post", id], updated);
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
+  });
+
+  const unapprove = useMutation({
+    mutationFn: () => api.posts.unapprove(id),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["post", id], updated);
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not unapprove"),
   });
 
   const saveCaption = useMutation({
@@ -64,6 +75,7 @@ export default function PostDetailPage() {
   const isGenerating = post.status === "generating";
   const hasContent = slides.length > 0;
   const canApprove = ["ready", "in_review"].includes(post.status);
+  const canUnapprove = post.status === "approved";
   const canSchedule = post.variants.length > 0 && !["draft", "generating"].includes(post.status);
   const availablePlatforms = post.variants.map((v) => v.platform);
 
@@ -105,6 +117,16 @@ export default function PostDetailPage() {
             >
               <Check className="w-4 h-4" />
               Approve
+            </button>
+          )}
+          {canUnapprove && (
+            <button
+              onClick={() => unapprove.mutate()}
+              disabled={unapprove.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-border bg-background text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50"
+            >
+              <Undo2 className="w-4 h-4" />
+              {unapprove.isPending ? "Updating..." : "Unapprove"}
             </button>
           )}
         </div>
