@@ -12,7 +12,7 @@ import type {
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
 
-const STORAGE_KEY = "pulse-static-overrides";
+const STORAGE_KEY = "pulse-static-overrides-v2";
 
 type Overrides = {
   posts: Record<string, Post>;
