@@ -1,0 +1,18 @@
+{
+  "items": [
+    {
+      "id": "ab83ba68-7a39-41de-909b-445825c4313f",
+      "title": "Test idea",
+      "theme": "Nutrition",
+      "format": "carousel",
+      "target_date": "2026-09-15",
+      "owner": "CPBH",
+      "assignee_email": null,
+      "status": "idea",
+      "notes": "test",
+      "created_at": "2026-09-08T20:35:43",
+      "updated_at": "2026-09-08T20:35:43"
+    }
+  ],
+  "total": 1
+}
