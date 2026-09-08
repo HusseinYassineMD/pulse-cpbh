@@ -40,6 +40,15 @@ clear_data() {
   echo "All sample posts and plan ideas removed."
 }
 
+export_pages() {
+  cd apps/api
+  source .venv/bin/activate
+  python scripts/export_static_data.py
+  cd "$ROOT"
+  echo ""
+  echo "Static data exported to apps/web/public/ (commit + push to update GitHub Pages)"
+}
+
 api() {
   cd apps/api
   source .venv/bin/activate
@@ -63,12 +72,14 @@ case "$cmd" in
   api)   api ;;
   web)   web ;;
   clear) clear_data ;;
+  export-pages) export_pages ;;
   *)
     echo "Usage:"
-    echo "  ./start.sh setup   — install deps (first time only)"
-    echo "  ./start.sh api     — start backend"
-    echo "  ./start.sh web     — start frontend"
-    echo "  ./start.sh web clean — start frontend (clear Next.js cache)"
-    echo "  ./start.sh clear   — remove all posts and plan ideas"
+    echo "  ./start.sh setup        — install deps (first time only)"
+    echo "  ./start.sh api          — start backend"
+    echo "  ./start.sh web          — start frontend"
+    echo "  ./start.sh web clean    — start frontend (clear Next.js cache)"
+    echo "  ./start.sh clear        — remove all posts and plan ideas"
+    echo "  ./start.sh export-pages — export posts/media for GitHub Pages"
     ;;
 esac

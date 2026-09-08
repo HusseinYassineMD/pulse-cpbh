@@ -1,0 +1,290 @@
+{
+  "items": [
+    {
+      "id": "abbf35b0-a642-404d-af20-9076c1027ce7",
+      "title": "Air Pollution and Your Brain",
+      "status": "ready",
+      "post_creator_id": null,
+      "source_config": {
+        "import": "images",
+        "slide_count": 4
+      },
+      "created_at": "2026-09-08T20:52:28",
+      "updated_at": "2026-09-08T20:52:28",
+      "variants": [
+        {
+          "id": "95d8d46b-908a-4b65-947f-8bd367ea27ad",
+          "platform": "instagram",
+          "caption": "Air pollution may change the brain \u2014 but not the same way for everyone.\n\nNew USC research shows dirty air was linked to thinner brain tissue in 23 of 34 areas studied \u2014 beyond just Alzheimer's-related regions. In older women, more pollution was linked to a brain that looked older. In younger men, the pattern was different \u2014 and flipped around age 65.\n\nThis is not a personal risk score. It shows a pattern across many people \u2014 not a prediction for any one person.\n\nCheck your local air quality. Exercise outside when the air is cleaner.\n\nDementia prevention works best when it's personal. Call our Dementia Prevention Clinic: (323) 442-6845\nBeverly Hills \u00b7 Los Angeles \u00b7 Pasadena\n\n#BrainHealth #AirPollution #USCCPBH #AlzheimersPrevention #Neuroscience",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "93b9040e-6cd4-4f3d-a1d1-494bb440666d",
+          "platform": "facebook",
+          "caption": "Air pollution may change the brain \u2014 but not the same way for everyone.\n\nNew USC research shows dirty air was linked to thinner brain tissue in 23 of 34 areas studied \u2014 beyond just Alzheimer's-related regions. In older women, more pollution was linked to a brain that looked older. In younger men, the pattern was different \u2014 and flipped around age 65.\n\nThis is not a personal risk score. It shows a pattern across many people \u2014 not a prediction for any one person.\n\nCheck your local air quality. Exercise outside when the air is cleaner.\n\nDementia prevention works best when it's personal. Call our Dementia Prevention Clinic: (323) 442-6845\nBeverly Hills \u00b7 Los Angeles \u00b7 Pasadena\n\n#BrainHealth #AirPollution #USCCPBH #AlzheimersPrevention #Neuroscience",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "0e8c4b63-5ff1-4aad-a9d6-dfd51ff65730",
+          "platform": "linkedin",
+          "caption": "Air pollution may change the brain \u2014 but not the same way for everyone.\n\nNew USC research shows dirty air was linked to thinner brain tissue in 23 of 34 areas studied \u2014 beyond just Alzheimer's-related regions. In older women, more pollution was linked to a brain that looked older. In younger men, the pattern was different \u2014 and flipped around age 65.\n\nThis is not a personal risk score. It shows a pattern across many people \u2014 not a prediction for any one person.\n\nCheck your local air quality. Exercise outside when the air is cleaner.\n\nDementia prevention works best when it's personal. Call our Dementia Prevention Clinic: (323) 442-6845\nBeverly Hills \u00b7 Los Angeles \u00b7 Pasadena\n\n#BrainHealth #AirPollution #USCCPBH #PrecisionMedicine #Neuroscience",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        }
+      ],
+      "media_assets": [
+        {
+          "id": "29875a21-3c47-436f-82a7-2df461e490c9",
+          "s3_key": "slide_01.png",
+          "mime_type": "image/png",
+          "sort_order": 0,
+          "alt_text": null,
+          "url": "/media/abbf35b0-a642-404d-af20-9076c1027ce7/slide_01.png"
+        },
+        {
+          "id": "c60f2eed-a6de-46b5-8089-9af887405d1e",
+          "s3_key": "slide_02.png",
+          "mime_type": "image/png",
+          "sort_order": 1,
+          "alt_text": null,
+          "url": "/media/abbf35b0-a642-404d-af20-9076c1027ce7/slide_02.png"
+        },
+        {
+          "id": "d9b5d0f4-73c1-49ef-a7be-86b456e1af4c",
+          "s3_key": "slide_03.png",
+          "mime_type": "image/png",
+          "sort_order": 2,
+          "alt_text": null,
+          "url": "/media/abbf35b0-a642-404d-af20-9076c1027ce7/slide_03.png"
+        },
+        {
+          "id": "bf79ce2e-ca93-4b28-86db-92b150ce6b06",
+          "s3_key": "slide_04.png",
+          "mime_type": "image/png",
+          "sort_order": 3,
+          "alt_text": null,
+          "url": "/media/abbf35b0-a642-404d-af20-9076c1027ce7/slide_04.png"
+        }
+      ]
+    },
+    {
+      "id": "bf226e66-8395-41ae-add1-34cc8aab061a",
+      "title": "Exercise, Sitting, and APOE4",
+      "status": "ready",
+      "post_creator_id": "exercise-apoe4",
+      "source_config": {
+        "import": "pdf",
+        "source_file": "Carousel_updated (1).pdf"
+      },
+      "created_at": "2026-09-08T20:51:15",
+      "updated_at": "2026-09-08T20:51:15",
+      "variants": [
+        {
+          "id": "781acbc1-88a9-4f77-ae5d-e9d81fa33fd4",
+          "platform": "instagram",
+          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity #Neuroinflammation #PersonalizedMedicine #ExerciseAndBrainHealth #DementiaPrevention",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "ccd11be9-48f1-4027-9cf8-84620fe08842",
+          "platform": "facebook",
+          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "5be96124-d062-471e-ab56-f4e9f3e41112",
+          "platform": "linkedin",
+          "caption": "For APOE4 carriers, physical activity and sedentary time may influence brain health through vascular, metabolic, and inflammatory pathways \u2014 especially before symptoms begin.\n\nAt the USC Center for Personalized Brain Health, we connect basic science on neuroinflammation and genetic risk (including APOE4) with personalized prevention in our Prevention Clinic.\n\nDr. Hussein Yassine's recent overview highlights findings from our umbrella review:\n\n\u2022 Physical activity linked to better cognition and lower dementia risk \u2014 benefits sometimes more pronounced in APOE4 carriers\n\u2022 Inactive APOE4 carriers often face higher cognitive risk, pointing to modifiable factors\n\u2022 Sedentary time matters independently: dementia risk rises after ~10 hours/day of sitting\n\u2022 The largest gains may come from moving out of the lowest activity category\n\nExercise is not a guaranteed shield against Alzheimer's disease. But for APOE4 carriers, becoming someone who moves throughout the day may be one of the most rational places to start.\n\nExplore personalized brain health prevention at https://keck.usc.edu/cpbh/ | Follow USC Center for Personalized Brain Health for evidence-based updates.\n\n\nRead the full evidence-based overview: https://www.yassinelab.org/p/exercise-sitting-and-apoe4\n\n#BrainHealth #APOE4 #AlzheimersResearch #USCCPBH #PrecisionMedicine #Neuroscience",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        }
+      ],
+      "media_assets": [
+        {
+          "id": "8d87f667-d9f4-455d-b4dd-173c5c25c0a2",
+          "s3_key": "slide_01.png",
+          "mime_type": "image/png",
+          "sort_order": 0,
+          "alt_text": null,
+          "url": "/media/bf226e66-8395-41ae-add1-34cc8aab061a/slide_01.png"
+        },
+        {
+          "id": "3055f9d9-5f67-4fb9-9d44-065c254d9cd8",
+          "s3_key": "slide_02.png",
+          "mime_type": "image/png",
+          "sort_order": 1,
+          "alt_text": null,
+          "url": "/media/bf226e66-8395-41ae-add1-34cc8aab061a/slide_02.png"
+        },
+        {
+          "id": "ea18d6b1-3e85-498d-8a67-e72aee85938e",
+          "s3_key": "slide_03.png",
+          "mime_type": "image/png",
+          "sort_order": 2,
+          "alt_text": null,
+          "url": "/media/bf226e66-8395-41ae-add1-34cc8aab061a/slide_03.png"
+        },
+        {
+          "id": "3bdceb12-b48e-4884-850a-bea0295b81cc",
+          "s3_key": "slide_04.png",
+          "mime_type": "image/png",
+          "sort_order": 3,
+          "alt_text": null,
+          "url": "/media/bf226e66-8395-41ae-add1-34cc8aab061a/slide_04.png"
+        }
+      ]
+    },
+    {
+      "id": "08763b28-d51d-4905-9369-de000893b638",
+      "title": "Not All Movement Protects the Brain",
+      "status": "in_review",
+      "post_creator_id": "exercise-apoe4",
+      "source_config": {
+        "import": "pdf",
+        "source_file": "Carousel_updated (1).pdf"
+      },
+      "created_at": "2026-09-08T20:47:44",
+      "updated_at": "2026-09-08T20:50:24",
+      "variants": [
+        {
+          "id": "dc1642ce-349a-44f4-a34c-cb997755b81f",
+          "platform": "instagram",
+          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity #Neuroinflammation #PersonalizedMedicine #ExerciseAndBrainHealth #DementiaPrevention",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "d7019bb7-1d7e-4674-b447-161eef648dc6",
+          "platform": "facebook",
+          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "dffbebf9-7161-4bde-b28c-69244047a36b",
+          "platform": "linkedin",
+          "caption": "For APOE4 carriers, physical activity and sedentary time may influence brain health through vascular, metabolic, and inflammatory pathways \u2014 especially before symptoms begin.\n\nAt the USC Center for Personalized Brain Health, we connect basic science on neuroinflammation and genetic risk (including APOE4) with personalized prevention in our Prevention Clinic.\n\nDr. Hussein Yassine's recent overview highlights findings from our umbrella review:\n\n\u2022 Physical activity linked to better cognition and lower dementia risk \u2014 benefits sometimes more pronounced in APOE4 carriers\n\u2022 Inactive APOE4 carriers often face higher cognitive risk, pointing to modifiable factors\n\u2022 Sedentary time matters independently: dementia risk rises after ~10 hours/day of sitting\n\u2022 The largest gains may come from moving out of the lowest activity category\n\nExercise is not a guaranteed shield against Alzheimer's disease. But for APOE4 carriers, becoming someone who moves throughout the day may be one of the most rational places to start.\n\nExplore personalized brain health prevention at https://keck.usc.edu/cpbh/ | Follow USC Center for Personalized Brain Health for evidence-based updates.\n\n\nRead the full evidence-based overview: https://www.yassinelab.org/p/exercise-sitting-and-apoe4\n\n#BrainHealth #APOE4 #AlzheimersResearch #USCCPBH #PrecisionMedicine #Neuroscience",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        }
+      ],
+      "media_assets": [
+        {
+          "id": "2b6082a0-1ca7-4cf3-ac3d-79074e2d4f46",
+          "s3_key": "slide_01.png",
+          "mime_type": "image/png",
+          "sort_order": 0,
+          "alt_text": null,
+          "url": "/media/08763b28-d51d-4905-9369-de000893b638/slide_01.png"
+        },
+        {
+          "id": "cacc61ae-aa07-4432-a6f3-71e7b48df12b",
+          "s3_key": "slide_02.png",
+          "mime_type": "image/png",
+          "sort_order": 1,
+          "alt_text": null,
+          "url": "/media/08763b28-d51d-4905-9369-de000893b638/slide_02.png"
+        },
+        {
+          "id": "ddcefa9e-5253-4202-92a8-822d31d82925",
+          "s3_key": "slide_03.png",
+          "mime_type": "image/png",
+          "sort_order": 2,
+          "alt_text": null,
+          "url": "/media/08763b28-d51d-4905-9369-de000893b638/slide_03.png"
+        },
+        {
+          "id": "a5fa7b89-f6dd-40ad-beb5-4f12e82d289c",
+          "s3_key": "slide_04.png",
+          "mime_type": "image/png",
+          "sort_order": 3,
+          "alt_text": null,
+          "url": "/media/08763b28-d51d-4905-9369-de000893b638/slide_04.png"
+        }
+      ]
+    },
+    {
+      "id": "b43d4edd-69e3-477d-b6b8-cf504e724b28",
+      "title": "Exercise, Sitting, and APOE4",
+      "status": "ready",
+      "post_creator_id": "exercise-apoe4",
+      "source_config": null,
+      "created_at": "2026-08-25T21:43:42",
+      "updated_at": "2026-08-25T21:43:43",
+      "variants": [
+        {
+          "id": "771fa684-7aef-4432-a2fe-3247fafb3660",
+          "platform": "instagram",
+          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity #Neuroinflammation #PersonalizedMedicine #ExerciseAndBrainHealth #DementiaPrevention",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "0b44fda5-63d7-4d3e-8c37-67806a535b51",
+          "platform": "facebook",
+          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        },
+        {
+          "id": "ba95a75d-05a7-4f59-b2d4-cacc9bb2becc",
+          "platform": "linkedin",
+          "caption": "For APOE4 carriers, physical activity and sedentary time may influence brain health through vascular, metabolic, and inflammatory pathways \u2014 especially before symptoms begin.\n\nAt the USC Center for Personalized Brain Health, we connect basic science on neuroinflammation and genetic risk (including APOE4) with personalized prevention in our Prevention Clinic.\n\nDr. Hussein Yassine's recent overview highlights findings from our umbrella review:\n\n\u2022 Physical activity linked to better cognition and lower dementia risk \u2014 benefits sometimes more pronounced in APOE4 carriers\n\u2022 Inactive APOE4 carriers often face higher cognitive risk, pointing to modifiable factors\n\u2022 Sedentary time matters independently: dementia risk rises after ~10 hours/day of sitting\n\u2022 The largest gains may come from moving out of the lowest activity category\n\nExercise is not a guaranteed shield against Alzheimer's disease. But for APOE4 carriers, becoming someone who moves throughout the day may be one of the most rational places to start.\n\nExplore personalized brain health prevention at https://keck.usc.edu/cpbh/ | Follow USC Center for Personalized Brain Health for evidence-based updates.\n\n\nRead the full evidence-based overview: https://www.yassinelab.org/p/exercise-sitting-and-apoe4\n\n#BrainHealth #APOE4 #AlzheimersResearch #USCCPBH #PrecisionMedicine #Neuroscience",
+          "ai_suggested_caption": null,
+          "hashtags": null,
+          "approval_status": "pending"
+        }
+      ],
+      "media_assets": [
+        {
+          "id": "def99d9c-c32d-4707-93fc-2db5497e47bf",
+          "s3_key": "slide_01.png",
+          "mime_type": "image/png",
+          "sort_order": 0,
+          "alt_text": null,
+          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_01.png"
+        },
+        {
+          "id": "b098f035-9729-465a-8761-9ac72e5ddc10",
+          "s3_key": "slide_02.png",
+          "mime_type": "image/png",
+          "sort_order": 1,
+          "alt_text": null,
+          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_02.png"
+        },
+        {
+          "id": "c1ce4148-2c01-4fe5-856e-e161799d0250",
+          "s3_key": "slide_03.png",
+          "mime_type": "image/png",
+          "sort_order": 2,
+          "alt_text": null,
+          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_03.png"
+        },
+        {
+          "id": "0c94d476-1e71-446e-9ef0-2a98a72bb0a2",
+          "s3_key": "slide_04.png",
+          "mime_type": "image/png",
+          "sort_order": 3,
+          "alt_text": null,
+          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_04.png"
+        }
+      ]
+    }
+  ],
+  "total": 4
+}

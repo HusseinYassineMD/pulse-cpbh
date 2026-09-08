@@ -1,4 +1,5 @@
 import { useAuthStore } from "./auth-store";
+import { isStaticMode } from "./base-path";
 import type {
   CommandResult,
   ContentIdea,
@@ -13,6 +14,7 @@ import type {
   User,
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
+import { staticApi } from "./static-api";
 
 const serverApiBase = () => {
   const raw = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
@@ -56,7 +58,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
-export const api = {
+export { ApiError };
+
+const liveApi = {
   auth: {
     register: (data: { email: string; name: string; password: string }) =>
       request<TokenResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
@@ -175,4 +179,4 @@ export const api = {
   },
 };
 
-export { ApiError };
+export const api = isStaticMode() ? staticApi : liveApi;
