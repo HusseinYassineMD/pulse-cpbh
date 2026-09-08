@@ -5,11 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Link2, Plus, Smartphone } from "lucide-react";
 import { api } from "@/lib/api";
+import { isStaticMode } from "@/lib/base-path";
+import { STATIC_DATA_VERSION } from "@/lib/static-config";
 import { AuthImage } from "@/components/auth-image";
 
 export default function StoriesPage() {
   const { data, isLoading } = useQuery({
-    queryKey: ["stories"],
+    queryKey: isStaticMode() ? ["stories", STATIC_DATA_VERSION] : ["stories"],
     queryFn: () => api.stories.list({ limit: 100 }),
   });
 
@@ -23,13 +25,15 @@ export default function StoriesPage() {
             <p className="text-muted-foreground mt-1">{data.total} saved · one image each</p>
           )}
         </div>
-        <Link
-          href="/stories/new"
-          className="inline-flex items-center gap-2 px-5 py-2.5 btn-primary text-sm transition-all hover:scale-[1.02]"
-        >
-          <Plus className="w-4 h-4" />
-          Add story
-        </Link>
+        {!isStaticMode() && (
+          <Link
+            href="/stories/new"
+            className="inline-flex items-center gap-2 px-5 py-2.5 btn-primary text-sm transition-all hover:scale-[1.02]"
+          >
+            <Plus className="w-4 h-4" />
+            Add story
+          </Link>
+        )}
       </div>
 
       {isLoading && (
@@ -44,9 +48,11 @@ export default function StoriesPage() {
         <div className="pulse-card p-16 text-center">
           <Smartphone className="w-12 h-12 mx-auto text-gray-200 mb-4" />
           <p className="text-muted-foreground mb-4">No stories yet</p>
-          <Link href="/stories/new" className="text-primary hover:underline font-semibold">
-            Add your first story →
-          </Link>
+          {!isStaticMode() && (
+            <Link href="/stories/new" className="text-primary hover:underline font-semibold">
+              Add your first story →
+            </Link>
+          )}
         </div>
       )}
 

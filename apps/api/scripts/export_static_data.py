@@ -14,14 +14,16 @@ from sqlalchemy.orm import selectinload
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.database import async_session
-from app.models import ContentIdea, Post
+from app.models import ContentIdea, Post, Story
 from app.services.serialize import post_to_response
+from app.services.story_serialize import story_to_response
 
 ROOT = Path(__file__).resolve().parents[2]
 WEB_PUBLIC = ROOT / "web" / "public"
 DATA_DIR = WEB_PUBLIC / "data"
 MEDIA_DIR = WEB_PUBLIC / "media"
 API_MEDIA = ROOT / "api" / "media" / "posts"
+API_STORY_MEDIA = ROOT / "api" / "media" / "stories"
 
 
 async def export_static() -> None:
@@ -34,6 +36,9 @@ async def export_static() -> None:
             )
         ).scalars().all()
         ideas = (await db.execute(select(ContentIdea))).scalars().all()
+        stories = (
+            await db.execute(select(Story).order_by(Story.created_at.desc()))
+        ).scalars().all()
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if MEDIA_DIR.exists():
@@ -73,7 +78,30 @@ async def export_static() -> None:
         for i in ideas
     ]
     (DATA_DIR / "plan.json").write_text(json.dumps({"items": plan_items, "total": len(plan_items)}, indent=2))
-    print(f"✓ Exported {len(items)} posts and {len(plan_items)} plan ideas → apps/web/public/")
+
+    story_items = []
+    for story in stories:
+        resp = story_to_response(story)
+        data = resp.model_dump(mode="json")
+        data["image_url"] = f"/media/stories/{story.id}/{story.image_key}"
+        story_items.append(data)
+
+        src = API_STORY_MEDIA / str(story.id)
+        if src.exists():
+            dest = MEDIA_DIR / "stories" / str(story.id)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(src, dest)
+
+    (DATA_DIR / "stories.json").write_text(
+        json.dumps({"version": 1, "items": story_items, "total": len(story_items)}, indent=2)
+    )
+
+    print(
+        f"✓ Exported {len(items)} posts, {len(story_items)} stories, "
+        f"and {len(plan_items)} plan ideas → apps/web/public/"
+    )
 
 
 def main() -> None:

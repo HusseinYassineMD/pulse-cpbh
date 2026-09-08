@@ -9,6 +9,8 @@ import type {
   PlanListResponse,
   Post,
   PostListResponse,
+  Story,
+  StoryListResponse,
   Template,
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
@@ -24,6 +26,7 @@ type PlanOverrides = {
 
 /** In-memory only — never merge deleted posts from localStorage. */
 const runtimePostPatches = new Map<string, Partial<Post>>();
+const runtimeStoryPatches = new Map<string, Partial<Story>>();
 
 function clearLegacyStorage() {
   if (typeof window === "undefined" || !isStaticMode()) return;
@@ -78,19 +81,42 @@ function applyPatches(post: Post): Post {
   return normalizePost(patch ? { ...post, ...patch } : post);
 }
 
-let seedPromise: Promise<{ posts: Post[]; plan: ContentIdea[] }> | null = null;
+function normalizeStory(story: Story): Story {
+  const raw =
+    story.image_url
+      ?.replace(/^\/pulse-cpbh(-demo)?/, "")
+      .replace(/^\/api\/media\/stories/, "/media/stories") || `/media/stories/${story.id}/image.png`;
+  const path = raw.startsWith("/media/stories/") ? raw : `/media/stories/${story.id}/image.png`;
+  return { ...story, image_url: withBasePath(path) };
+}
+
+function applyStoryPatches(story: Story): Story {
+  const patch = runtimeStoryPatches.get(story.id);
+  return normalizeStory(patch ? { ...story, ...patch } : story);
+}
+
+let seedPromise: Promise<{ posts: Post[]; stories: Story[]; plan: ContentIdea[] }> | null = null;
 
 async function loadSeed() {
   if (!seedPromise) {
     seedPromise = Promise.all([
       fetch(withBasePath("/data/posts.json")).then((r) => r.json()),
+      fetch(withBasePath("/data/stories.json"))
+        .then((r) => r.json())
+        .catch(() => ({ items: [] })),
       fetch(withBasePath("/data/plan.json")).then((r) => r.json()),
-    ]).then(([posts, plan]) => ({
+    ]).then(([posts, stories, plan]) => ({
       posts: (posts.items as Post[]).map(normalizePost),
+      stories: (stories.items as Story[]).map(normalizeStory),
       plan: plan.items as ContentIdea[],
     }));
   }
   return seedPromise;
+}
+
+async function getStories(): Promise<Story[]> {
+  const seed = await loadSeed();
+  return seed.stories.map(applyStoryPatches);
 }
 
 async function getPosts(): Promise<Post[]> {
@@ -188,19 +214,32 @@ export const staticApi = {
   },
 
   stories: {
-    list: async () => ({ items: [], total: 0 }),
-    get: async () => {
-      throw new Error("Stories are available on the local Pulse app only");
+    list: async (params?: { skip?: number; limit?: number }): Promise<StoryListResponse> => {
+      let items = await getStories();
+      const skip = params?.skip || 0;
+      const limit = params?.limit || 50;
+      return { items: items.slice(skip, skip + limit), total: items.length };
     },
+
+    get: async (id: string): Promise<Story> => {
+      const story = (await getStories()).find((s) => s.id === id);
+      if (!story) throw new Error("Story not found");
+      return story;
+    },
+
     create: async () => {
-      throw new Error("Stories are available on the local Pulse app only");
+      throw new Error("Adding stories requires the local Pulse app");
     },
-    update: async () => {
-      throw new Error("Stories are available on the local Pulse app only");
+
+    update: async (id: string, data: { title?: string; source_url?: string | null }) => {
+      runtimeStoryPatches.set(id, { ...runtimeStoryPatches.get(id), ...data });
+      return staticApi.stories.get(id);
     },
+
     replaceImage: async () => {
-      throw new Error("Stories are available on the local Pulse app only");
+      throw new Error("Adding stories requires the local Pulse app");
     },
+
     delete: async () => undefined,
   },
 
