@@ -1,4 +1,4 @@
-import { withBasePath } from "./base-path";
+import { isStaticMode, withBasePath } from "./base-path";
 import type {
   CommandResult,
   ContentFormat,
@@ -12,47 +12,48 @@ import type {
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
 
-const STORAGE_KEY = "pulse-static-overrides-v3";
-const DATA_VERSION_KEY = "pulse-data-version";
+/** Bump when bundled posts/media change — clears old browser caches. */
+export const STATIC_DATA_VERSION = 4;
 
-type Overrides = {
-  posts: Record<string, Post>;
+const PLAN_STORAGE_KEY = "pulse-plan-overrides";
+
+type PlanOverrides = {
   plan: Record<string, ContentIdea>;
   schedule: ScheduleItem[];
 };
 
-type PostsBundle = {
-  version?: number;
-  items: Post[];
-  total: number;
-};
+/** In-memory only — never merge deleted posts from localStorage. */
+const runtimePostPatches = new Map<string, Partial<Post>>();
 
-function loadOverrides(): Overrides {
+function clearLegacyStorage() {
+  if (typeof window === "undefined" || !isStaticMode()) return;
+  [
+    "pulse-static-overrides",
+    "pulse-static-overrides-v2",
+    "pulse-static-overrides-v3",
+    "pulse-data-version",
+  ].forEach((key) => localStorage.removeItem(key));
+}
+
+if (typeof window !== "undefined") {
+  clearLegacyStorage();
+}
+
+function loadPlanOverrides(): PlanOverrides {
   if (typeof window === "undefined") {
-    return { posts: {}, plan: {}, schedule: [] };
+    return { plan: {}, schedule: [] };
   }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { posts: {}, plan: {}, schedule: [] };
-    return JSON.parse(raw) as Overrides;
+    const raw = localStorage.getItem(PLAN_STORAGE_KEY);
+    if (!raw) return { plan: {}, schedule: [] };
+    return JSON.parse(raw) as PlanOverrides;
   } catch {
-    return { posts: {}, plan: {}, schedule: [] };
+    return { plan: {}, schedule: [] };
   }
 }
 
-function saveOverrides(overrides: Overrides) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
-}
-
-function syncDataVersion(version: number) {
-  if (typeof window === "undefined") return;
-  const current = localStorage.getItem(DATA_VERSION_KEY);
-  if (current !== String(version)) {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("pulse-static-overrides");
-    localStorage.removeItem("pulse-static-overrides-v2");
-    localStorage.setItem(DATA_VERSION_KEY, String(version));
-  }
+function savePlanOverrides(overrides: PlanOverrides) {
+  localStorage.setItem(PLAN_STORAGE_KEY, JSON.stringify(overrides));
 }
 
 function mediaPath(postId: string, s3Key: string) {
@@ -63,11 +64,18 @@ function normalizePost(post: Post): Post {
   return {
     ...post,
     media_assets: post.media_assets.map((a) => {
-      const raw = a.url?.replace(/^\/pulse-cpbh(-demo)?/, "").replace(/^\/api\/media/, "/media") || mediaPath(post.id, a.s3_key);
+      const raw =
+        a.url?.replace(/^\/pulse-cpbh(-demo)?/, "").replace(/^\/api\/media/, "/media") ||
+        mediaPath(post.id, a.s3_key);
       const path = raw.startsWith("/media/") ? raw : mediaPath(post.id, a.s3_key);
       return { ...a, url: withBasePath(path) };
     }),
   };
+}
+
+function applyPatches(post: Post): Post {
+  const patch = runtimePostPatches.get(post.id);
+  return normalizePost(patch ? { ...post, ...patch } : post);
 }
 
 let seedPromise: Promise<{ posts: Post[]; plan: ContentIdea[] }> | null = null;
@@ -77,57 +85,27 @@ async function loadSeed() {
     seedPromise = Promise.all([
       fetch(withBasePath("/data/posts.json")).then((r) => r.json()),
       fetch(withBasePath("/data/plan.json")).then((r) => r.json()),
-    ]).then(([posts, plan]) => {
-      const bundle = posts as PostsBundle;
-      if (bundle.version) syncDataVersion(bundle.version);
-      return {
-        posts: bundle.items.map(normalizePost),
-        plan: plan.items as ContentIdea[],
-      };
-    });
+    ]).then(([posts, plan]) => ({
+      posts: (posts.items as Post[]).map(normalizePost),
+      plan: plan.items as ContentIdea[],
+    }));
   }
   return seedPromise;
 }
 
 async function getPosts(): Promise<Post[]> {
   const seed = await loadSeed();
-  const overrides = loadOverrides();
-  const validIds = new Set(seed.posts.map((p) => p.id));
-
-  // Drop stale cached posts that were removed from the live bundle.
-  let pruned = false;
-  for (const id of Object.keys(overrides.posts)) {
-    if (!validIds.has(id)) {
-      delete overrides.posts[id];
-      pruned = true;
-    }
-  }
-  if (pruned) saveOverrides(overrides);
-
-  return seed.posts.map((p) => normalizePost(overrides.posts[p.id] || p));
+  return seed.posts.map(applyPatches);
 }
 
 async function getPlan(): Promise<ContentIdea[]> {
   const seed = await loadSeed();
-  const overrides = loadOverrides();
-  const validIds = new Set(seed.plan.map((i) => i.id));
-
-  let pruned = false;
-  for (const id of Object.keys(overrides.plan)) {
-    if (!validIds.has(id)) {
-      delete overrides.plan[id];
-      pruned = true;
-    }
-  }
-  if (pruned) saveOverrides(overrides);
-
+  const overrides = loadPlanOverrides();
   return seed.plan.map((i) => overrides.plan[i.id] || i);
 }
 
-function updatePost(post: Post) {
-  const overrides = loadOverrides();
-  overrides.posts[post.id] = post;
-  saveOverrides(overrides);
+function patchPost(id: string, patch: Partial<Post>) {
+  runtimePostPatches.set(id, { ...runtimePostPatches.get(id), ...patch });
 }
 
 function dashboardFrom(posts: Post[]): DashboardResponse {
@@ -186,27 +164,20 @@ export const staticApi = {
     },
 
     approve: async (id: string): Promise<Post> => {
-      const post = await staticApi.posts.get(id);
-      const updated = normalizePost({ ...post, status: "approved" });
-      updatePost(updated);
-      return updated;
+      patchPost(id, { status: "approved" });
+      return staticApi.posts.get(id);
     },
 
     unapprove: async (id: string): Promise<Post> => {
-      const post = await staticApi.posts.get(id);
-      const updated = normalizePost({ ...post, status: "in_review" });
-      updatePost(updated);
-      return updated;
+      patchPost(id, { status: "in_review" });
+      return staticApi.posts.get(id);
     },
 
     updateVariant: async (id: string, platform: string, caption: string) => {
       const post = await staticApi.posts.get(id);
-      const updated = normalizePost({
-        ...post,
-        variants: post.variants.map((v) => (v.platform === platform ? { ...v, caption } : v)),
-      });
-      updatePost(updated);
-      return updated.variants.find((v) => v.platform === platform)!;
+      const variants = post.variants.map((v) => (v.platform === platform ? { ...v, caption } : v));
+      patchPost(id, { variants });
+      return (await staticApi.posts.get(id)).variants.find((v) => v.platform === platform)!;
     },
 
     generate: async (id: string) => staticApi.posts.get(id),
@@ -217,7 +188,7 @@ export const staticApi = {
   },
 
   schedule: {
-    list: async (): Promise<ScheduleItem[]> => loadOverrides().schedule,
+    list: async (): Promise<ScheduleItem[]> => loadPlanOverrides().schedule,
     create: async () => {
       throw new Error("Scheduling requires the local Pulse API");
     },
@@ -264,9 +235,9 @@ export const staticApi = {
         created_at: now,
         updated_at: now,
       };
-      const overrides = loadOverrides();
+      const overrides = loadPlanOverrides();
       overrides.plan[idea.id] = idea;
-      saveOverrides(overrides);
+      savePlanOverrides(overrides);
       return idea;
     },
 
@@ -275,16 +246,16 @@ export const staticApi = {
       const existing = items.find((i) => i.id === id);
       if (!existing) throw new Error("Plan idea not found");
       const updated = { ...existing, ...data, updated_at: new Date().toISOString() };
-      const overrides = loadOverrides();
+      const overrides = loadPlanOverrides();
       overrides.plan[id] = updated;
-      saveOverrides(overrides);
+      savePlanOverrides(overrides);
       return updated;
     },
 
     delete: async (id: string) => {
-      const overrides = loadOverrides();
+      const overrides = loadPlanOverrides();
       delete overrides.plan[id];
-      saveOverrides(overrides);
+      savePlanOverrides(overrides);
     },
   },
 };

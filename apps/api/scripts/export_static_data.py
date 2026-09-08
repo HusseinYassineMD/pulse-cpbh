@@ -54,7 +54,7 @@ async def export_static() -> None:
             shutil.copytree(src, dest)
 
     (DATA_DIR / "posts.json").write_text(
-        json.dumps({"version": 3, "items": items, "total": len(items)}, indent=2)
+        json.dumps({"version": 4, "items": items, "total": len(items)}, indent=2)
     )
 
     plan_items = [

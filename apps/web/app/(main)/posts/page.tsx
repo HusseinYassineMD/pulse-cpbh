@@ -5,13 +5,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Layers, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { api } from "@/lib/api";
+import { isStaticMode } from "@/lib/base-path";
+import { STATIC_DATA_VERSION } from "@/lib/static-api";
 import { AuthImage } from "@/components/auth-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
 
 export default function PostsPage() {
   const { data, isLoading } = useQuery({
-    queryKey: ["posts"],
+    queryKey: isStaticMode() ? ["posts", STATIC_DATA_VERSION] : ["posts"],
     queryFn: () => api.posts.list({ limit: 50 }),
   });
 
