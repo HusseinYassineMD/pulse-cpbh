@@ -16,7 +16,9 @@ Open **http://localhost:3010**
 2. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
 3. Connect repo `HusseinYassineMD/pulse-cpbh` → apply `render.yaml`
 4. Wait for **pulse-api** and **pulse-web** to deploy (free tier ~2–5 min cold start)
-5. Open the **pulse-web** URL (e.g. `https://pulse-web.onrender.com`)
+5. Open **https://pulse-cpbh-web.onrender.com** (after blueprint deploy)
+
+**One-click:** [Deploy on Render](https://render.com/deploy?repo=https://github.com/HusseinYassineMD/pulse-cpbh)
 
 Re-deploys happen automatically on every push to `main` once the blueprint is linked.
 

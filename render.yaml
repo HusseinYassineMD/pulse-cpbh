@@ -1,7 +1,7 @@
 # Deploy: https://dashboard.render.com → New → Blueprint → connect this repo
 services:
   - type: web
-    name: pulse-api
+    name: pulse-cpbh-api
     runtime: python
     region: oregon
     plan: free
@@ -23,16 +23,16 @@ services:
       - key: API_URL
         fromService:
           type: web
-          name: pulse-api
+          name: pulse-cpbh-api
           property: host
       - key: WEB_URL
         fromService:
           type: web
-          name: pulse-web
+          name: pulse-cpbh-web
           property: host
 
   - type: web
-    name: pulse-web
+    name: pulse-cpbh-web
     runtime: node
     region: oregon
     plan: free
@@ -45,5 +45,5 @@ services:
       - key: API_URL
         fromService:
           type: web
-          name: pulse-api
+          name: pulse-cpbh-api
           property: host
