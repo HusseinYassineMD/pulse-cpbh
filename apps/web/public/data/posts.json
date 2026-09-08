@@ -215,76 +215,7 @@
           "url": "/media/08763b28-d51d-4905-9369-de000893b638/slide_04.png"
         }
       ]
-    },
-    {
-      "id": "b43d4edd-69e3-477d-b6b8-cf504e724b28",
-      "title": "Exercise, Sitting, and APOE4",
-      "status": "ready",
-      "post_creator_id": "exercise-apoe4",
-      "source_config": null,
-      "created_at": "2026-08-25T21:43:42",
-      "updated_at": "2026-08-25T21:43:43",
-      "variants": [
-        {
-          "id": "771fa684-7aef-4432-a2fe-3247fafb3660",
-          "platform": "instagram",
-          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity #Neuroinflammation #PersonalizedMedicine #ExerciseAndBrainHealth #DementiaPrevention",
-          "ai_suggested_caption": null,
-          "hashtags": null,
-          "approval_status": "pending"
-        },
-        {
-          "id": "0b44fda5-63d7-4d3e-8c37-67806a535b51",
-          "platform": "facebook",
-          "caption": "If you carry APOE4, how much you move \u2014 and how long you sit \u2014 may shape your brain health long before memory symptoms begin.\n\nOur team recently published an umbrella review on APOE4, physical activity, and brain health. The strongest signals came from studies of younger or cognitively healthy adults: physical activity was linked to better cognition, lower dementia risk, and healthier brain markers \u2014 sometimes more clearly in APOE4 carriers.\n\nWhy this matters for APOE4 carriers:\nAPOE4 is not only an Alzheimer's risk gene. It influences blood vessels, inflammation, and how the brain uses energy \u2014 systems that exercise can influence.\n\nResearch also shows that long sitting time matters on its own. In a large UK Biobank study, dementia risk began to rise after about 10 hours per day of sedentary time.\n\nThe encouraging part: the benefit is not linear. Moving from sedentary to somewhat active may matter more than going from active to perfectly optimized.\n\nPractical first steps:\n\u2192 Stand and move for 2\u20135 minutes every 30\u201360 minutes\n\u2192 Take a 10-minute walk after meals\n\u2192 Track your baseline steps, then increase gradually\n\u2192 Build toward 150 minutes/week of moderate activity plus strength training\n\nA morning workout helps \u2014 but it does not fully cancel 8\u201310 hours of uninterrupted sitting. For brain health, your daily movement pattern matters.\n\nSave this post for later. Share with someone navigating APOE4 risk. Talk with our Prevention Clinic about personalized brain health \u2014 link in bio.\n\n#BrainHealth #APOE4 #AlzheimersPrevention #USCCPBH #PhysicalActivity",
-          "ai_suggested_caption": null,
-          "hashtags": null,
-          "approval_status": "pending"
-        },
-        {
-          "id": "ba95a75d-05a7-4f59-b2d4-cacc9bb2becc",
-          "platform": "linkedin",
-          "caption": "For APOE4 carriers, physical activity and sedentary time may influence brain health through vascular, metabolic, and inflammatory pathways \u2014 especially before symptoms begin.\n\nAt the USC Center for Personalized Brain Health, we connect basic science on neuroinflammation and genetic risk (including APOE4) with personalized prevention in our Prevention Clinic.\n\nDr. Hussein Yassine's recent overview highlights findings from our umbrella review:\n\n\u2022 Physical activity linked to better cognition and lower dementia risk \u2014 benefits sometimes more pronounced in APOE4 carriers\n\u2022 Inactive APOE4 carriers often face higher cognitive risk, pointing to modifiable factors\n\u2022 Sedentary time matters independently: dementia risk rises after ~10 hours/day of sitting\n\u2022 The largest gains may come from moving out of the lowest activity category\n\nExercise is not a guaranteed shield against Alzheimer's disease. But for APOE4 carriers, becoming someone who moves throughout the day may be one of the most rational places to start.\n\nExplore personalized brain health prevention at https://keck.usc.edu/cpbh/ | Follow USC Center for Personalized Brain Health for evidence-based updates.\n\n\nRead the full evidence-based overview: https://www.yassinelab.org/p/exercise-sitting-and-apoe4\n\n#BrainHealth #APOE4 #AlzheimersResearch #USCCPBH #PrecisionMedicine #Neuroscience",
-          "ai_suggested_caption": null,
-          "hashtags": null,
-          "approval_status": "pending"
-        }
-      ],
-      "media_assets": [
-        {
-          "id": "def99d9c-c32d-4707-93fc-2db5497e47bf",
-          "s3_key": "slide_01.png",
-          "mime_type": "image/png",
-          "sort_order": 0,
-          "alt_text": null,
-          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_01.png"
-        },
-        {
-          "id": "b098f035-9729-465a-8761-9ac72e5ddc10",
-          "s3_key": "slide_02.png",
-          "mime_type": "image/png",
-          "sort_order": 1,
-          "alt_text": null,
-          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_02.png"
-        },
-        {
-          "id": "c1ce4148-2c01-4fe5-856e-e161799d0250",
-          "s3_key": "slide_03.png",
-          "mime_type": "image/png",
-          "sort_order": 2,
-          "alt_text": null,
-          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_03.png"
-        },
-        {
-          "id": "0c94d476-1e71-446e-9ef0-2a98a72bb0a2",
-          "s3_key": "slide_04.png",
-          "mime_type": "image/png",
-          "sort_order": 3,
-          "alt_text": null,
-          "url": "/media/b43d4edd-69e3-477d-b6b8-cf504e724b28/slide_04.png"
-        }
-      ]
     }
   ],
-  "total": 4
+  "total": 3
 }

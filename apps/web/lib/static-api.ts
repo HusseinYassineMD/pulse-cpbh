@@ -42,7 +42,7 @@ function normalizePost(post: Post): Post {
     ...post,
     media_assets: post.media_assets.map((a) => ({
       ...a,
-      url: withBasePath(a.url || `/media/${post.id}/${a.s3_key}`),
+      url: withBasePath(a.url?.replace(/^\/pulse-cpbh(-demo)?/, "") || `/media/${post.id}/${a.s3_key}`),
     })),
   };
 }
