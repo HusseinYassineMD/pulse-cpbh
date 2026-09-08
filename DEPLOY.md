@@ -1,18 +1,18 @@
 # Deploy Pulse
 
-## GitHub Pages (live demo)
+## GitHub Pages (live)
 
-**URL:** https://husseinyassinemd.github.io/pulse-cpbh-demo/
+**URL:** https://husseinyassinemd.github.io/pulse-cpbh/
 
-The main repo is private (GitHub Pages requires a public repo on free plans). Static builds deploy to **`pulse-cpbh-demo`**:
+Every push to `main` deploys automatically via GitHub Actions.
+
+Manual deploy:
 
 ```bash
 ./scripts/deploy-github-pages.sh
 ```
 
-Or push to `main` — the workflow builds automatically (enable Pages on the demo repo if needed).
-
-To refresh bundled posts/media before deploy:
+Refresh bundled posts/media before deploy:
 
 ```bash
 ./start.sh export-pages
@@ -21,7 +21,7 @@ git commit -m "Update GitHub Pages content"
 git push
 ```
 
-The Pages site runs in **static mode** — your saved carousels, approve/unapprove, caption edits, and Plan changes persist in the browser (localStorage). Post generation and scheduling need the local app.
+The Pages site runs in **static mode** — saved carousels, approve/unapprove, caption edits, and Plan changes persist in the browser (localStorage). Post generation and scheduling need the local app.
 
 ## Local dev (full API)
 
