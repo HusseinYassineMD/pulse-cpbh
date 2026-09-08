@@ -14,6 +14,7 @@ import type {
   Template,
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
+import { DEFAULT_PLAN_TEAM, assignmentMailto } from "./plan-team";
 
 export { STATIC_DATA_VERSION };
 
@@ -269,14 +270,18 @@ export const staticApi = {
       return { items, total: items.length };
     },
 
+    team: async () => DEFAULT_PLAN_TEAM,
+
     create: async (data: {
       title: string;
       theme?: string | null;
       format?: ContentFormat;
       target_date?: string | null;
       owner?: string | null;
+      assignee_email?: string | null;
       status?: IdeaStatus;
       notes?: string | null;
+      notify_assignee?: boolean;
     }): Promise<ContentIdea> => {
       const now = new Date().toISOString();
       const idea: ContentIdea = {
@@ -286,6 +291,7 @@ export const staticApi = {
         format: data.format ?? "carousel",
         target_date: data.target_date ?? null,
         owner: data.owner ?? null,
+        assignee_email: data.assignee_email ?? null,
         status: data.status ?? "idea",
         notes: data.notes ?? null,
         created_at: now,
@@ -294,18 +300,33 @@ export const staticApi = {
       const overrides = loadPlanOverrides();
       overrides.plan[idea.id] = idea;
       savePlanOverrides(overrides);
+      if (data.notify_assignee && data.assignee_email) {
+        window.open(assignmentMailto(idea, data.assignee_email), "_blank");
+      }
       return idea;
     },
 
-    update: async (id: string, data: Partial<ContentIdea>): Promise<ContentIdea> => {
+    update: async (id: string, data: Partial<ContentIdea> & { notify_assignee?: boolean }): Promise<ContentIdea> => {
       const items = await getPlan();
       const existing = items.find((i) => i.id === id);
       if (!existing) throw new Error("Plan idea not found");
-      const updated = { ...existing, ...data, updated_at: new Date().toISOString() };
+      const { notify_assignee, ...patch } = data;
+      const updated = { ...existing, ...patch, updated_at: new Date().toISOString() };
       const overrides = loadPlanOverrides();
       overrides.plan[id] = updated;
       savePlanOverrides(overrides);
+      if (notify_assignee && updated.assignee_email) {
+        window.open(assignmentMailto(updated, updated.assignee_email), "_blank");
+      }
       return updated;
+    },
+
+    notify: async (id: string) => {
+      const items = await getPlan();
+      const idea = items.find((i) => i.id === id);
+      if (!idea?.assignee_email) throw new Error("No assignee email on this idea");
+      window.open(assignmentMailto(idea, idea.assignee_email), "_blank");
+      return { ok: true, message: "Opened email draft in your mail app" };
     },
 
     delete: async (id: string) => {

@@ -4,28 +4,24 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import {
+  ArrowRight,
   CalendarDays,
   Lightbulb,
+  Mail,
   Plus,
   Trash2,
   X,
   ClipboardList,
+  ListTodo,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import { StatusBadge } from "@/components/ui/status-badge";
+import {
+  DEFAULT_PLAN_TEAM,
+  THEME_SUGGESTIONS,
+  isParkingStatus,
+  isQueueStatus,
+} from "@/lib/plan-team";
 import type { ContentFormat, ContentIdea, IdeaStatus } from "@/lib/types";
-
-const THEMES = [
-  "Genetics",
-  "Nutrition",
-  "Exercise",
-  "Mindfulness",
-  "Sleep",
-  "Social",
-  "Heart-brain",
-  "Newsletter",
-  "Other",
-];
 
 const STATUSES: IdeaStatus[] = [
   "idea",
@@ -36,50 +32,110 @@ const STATUSES: IdeaStatus[] = [
   "on_hold",
 ];
 
-const FORMATS: ContentFormat[] = ["carousel", "text"];
+const FORMATS: ContentFormat[] = ["carousel", "story", "text"];
 
-const FILTER_TABS: { label: string; value: IdeaStatus | "all" }[] = [
-  { label: "All", value: "all" },
-  { label: "Ideas", value: "idea" },
-  { label: "Approved", value: "approved" },
-  { label: "In production", value: "in_production" },
-  { label: "Scheduled", value: "scheduled" },
-  { label: "On hold", value: "on_hold" },
-];
+type ViewMode = "split" | "all";
 
 const emptyForm = {
   title: "",
-  theme: "Nutrition",
+  theme: "",
   format: "carousel" as ContentFormat,
   target_date: "",
-  owner: "CPBH",
+  assigneeKey: "",
+  customEmail: "",
   status: "idea" as IdeaStatus,
   notes: "",
+  notify_assignee: true,
 };
+
+function assigneeFromKey(key: string, team: { name: string; email: string }[]) {
+  if (!key) return { owner: null as string | null, assignee_email: null as string | null };
+  if (key === "__custom__") return { owner: null, assignee_email: null };
+  const member = team.find((m) => m.email === key);
+  if (!member) return { owner: null, assignee_email: null };
+  return { owner: member.name, assignee_email: member.email };
+}
 
 export default function PlanPage() {
   const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [filter, setFilter] = useState<IdeaStatus | "all">("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [notifyMsg, setNotifyMsg] = useState("");
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["plan", filter],
-    queryFn: () => api.plan.list(filter === "all" ? undefined : { status: filter }),
+  const { data: team = DEFAULT_PLAN_TEAM } = useQuery({
+    queryKey: ["plan-team"],
+    queryFn: () => api.plan.team(),
   });
 
+  const { data, isLoading } = useQuery({
+    queryKey: ["plan"],
+    queryFn: () => api.plan.list(),
+  });
+
+  const items = data?.items ?? [];
+
+  const filteredItems = useMemo(() => {
+    if (viewMode === "split") return items;
+    if (filter === "all") return items;
+    return items.filter((i) => i.status === filter);
+  }, [items, viewMode, filter]);
+
+  const parkingLot = useMemo(
+    () =>
+      items
+        .filter((i) => isParkingStatus(i.status))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [items]
+  );
+
+  const workQueue = useMemo(() => {
+    const priority: Record<string, number> = {
+      in_production: 0,
+      approved: 1,
+      scheduled: 2,
+      published: 3,
+    };
+    return items
+      .filter((i) => isQueueStatus(i.status))
+      .sort((a, b) => {
+        const da = a.target_date ? parseISO(a.target_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.target_date ? parseISO(b.target_date).getTime() : Number.MAX_SAFE_INTEGER;
+        if (da !== db) return da - db;
+        return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
+      });
+  }, [items]);
+
+  const counts = useMemo(
+    () => ({
+      total: items.length,
+      parking: parkingLot.length,
+      queue: workQueue.length,
+      scheduled: items.filter((i) => i.status === "scheduled").length,
+    }),
+    [items, parkingLot.length, workQueue.length]
+  );
+
   const create = useMutation({
-    mutationFn: () =>
-      api.plan.create({
+    mutationFn: () => {
+      const picked =
+        form.assigneeKey === "__custom__"
+          ? { owner: form.customEmail.split("@")[0] || null, assignee_email: form.customEmail.trim() || null }
+          : assigneeFromKey(form.assigneeKey, team);
+      return api.plan.create({
         title: form.title.trim(),
-        theme: form.theme,
+        theme: form.theme.trim() || null,
         format: form.format,
         target_date: form.target_date || null,
-        owner: form.owner.trim() || null,
+        owner: picked.owner,
+        assignee_email: picked.assignee_email,
         status: form.status,
         notes: form.notes.trim() || null,
-      }),
+        notify_assignee: form.notify_assignee && !!picked.assignee_email,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plan"] });
       setForm(emptyForm);
@@ -90,8 +146,18 @@ export default function PlanPage() {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<ContentIdea> }) => api.plan.update(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<ContentIdea> & { notify_assignee?: boolean } }) =>
+      api.plan.update(id, patch),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan"] }),
+  });
+
+  const notify = useMutation({
+    mutationFn: (id: string) => api.plan.notify(id),
+    onSuccess: (res) => {
+      setNotifyMsg(res.message);
+      setTimeout(() => setNotifyMsg(""), 4000);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not send email"),
   });
 
   const remove = useMutation({
@@ -99,15 +165,7 @@ export default function PlanPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan"] }),
   });
 
-  const counts = useMemo(() => {
-    const items = data?.items ?? [];
-    return {
-      total: items.length,
-      ideas: items.filter((i) => i.status === "idea").length,
-      inProgress: items.filter((i) => ["approved", "in_production"].includes(i.status)).length,
-      scheduled: items.filter((i) => i.status === "scheduled").length,
-    };
-  }, [data]);
+  const moveToQueue = (id: string) => update.mutate({ id, patch: { status: "approved" } });
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -118,8 +176,8 @@ export default function PlanPage() {
             <ClipboardList className="w-8 h-8 text-primary" />
             Plan
           </h1>
-          <p className="text-muted-foreground mt-2 max-w-xl">
-            Drop every post idea here — theme, target date, and status — so you always know what to work on next.
+          <p className="text-muted-foreground mt-2 max-w-2xl">
+            Capture ideas in the parking lot, assign owners, email them, then drive production through the work queue.
           </p>
         </div>
         <button
@@ -131,27 +189,38 @@ export default function PlanPage() {
         </button>
       </div>
 
+      {notifyMsg && (
+        <p className="text-sm text-teal-700 bg-teal-50 border border-teal-200 px-4 py-2 rounded-lg">{notifyMsg}</p>
+      )}
+
       <div className="grid sm:grid-cols-4 gap-4">
-        <StatCard label="Total ideas" value={counts.total} icon={Lightbulb} />
-        <StatCard label="Backlog" value={counts.ideas} icon={ClipboardList} accent="muted" />
-        <StatCard label="In progress" value={counts.inProgress} icon={CalendarDays} accent="sky" />
+        <StatCard label="Total" value={counts.total} icon={Lightbulb} />
+        <StatCard label="Parking lot" value={counts.parking} icon={Lightbulb} accent="muted" />
+        <StatCard label="Work queue" value={counts.queue} icon={ListTodo} accent="sky" />
         <StatCard label="Scheduled" value={counts.scheduled} icon={CalendarDays} accent="teal" />
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {FILTER_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setFilter(tab.value)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              filter === tab.value
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-secondary text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <ViewTab active={viewMode === "split"} onClick={() => setViewMode("split")}>
+          Parking lot + Queue
+        </ViewTab>
+        <ViewTab active={viewMode === "all"} onClick={() => setViewMode("all")}>
+          All items
+        </ViewTab>
+        {viewMode === "all" &&
+          (["all", ...STATUSES] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                filter === s
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {s === "all" ? "All" : s.replace(/_/g, " ")}
+            </button>
+          ))}
       </div>
 
       {showForm && (
@@ -168,22 +237,23 @@ export default function PlanPage() {
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="APOE4 myths vs facts"
+                placeholder="Any title — free text"
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
               />
             </Field>
             <Field label="Theme">
-              <select
+              <input
+                list="theme-suggestions"
                 value={form.theme}
                 onChange={(e) => setForm({ ...form, theme: e.target.value })}
+                placeholder="Type any theme or pick a suggestion"
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              >
-                {THEMES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+              />
+              <datalist id="theme-suggestions">
+                {THEME_SUGGESTIONS.map((t) => (
+                  <option key={t} value={t} />
                 ))}
-              </select>
+              </datalist>
             </Field>
             <Field label="Target date">
               <input
@@ -206,13 +276,32 @@ export default function PlanPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Owner">
-              <input
-                value={form.owner}
-                onChange={(e) => setForm({ ...form, owner: e.target.value })}
+            <Field label="Assign to">
+              <select
+                value={form.assigneeKey}
+                onChange={(e) => setForm({ ...form, assigneeKey: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              />
+              >
+                <option value="">Unassigned</option>
+                {team.map((m) => (
+                  <option key={m.email} value={m.email}>
+                    {m.name} ({m.email})
+                  </option>
+                ))}
+                <option value="__custom__">Other email…</option>
+              </select>
             </Field>
+            {form.assigneeKey === "__custom__" && (
+              <Field label="Email">
+                <input
+                  type="email"
+                  value={form.customEmail}
+                  onChange={(e) => setForm({ ...form, customEmail: e.target.value })}
+                  placeholder="name@usc.edu"
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
+                />
+              </Field>
+            )}
             <Field label="Status">
               <select
                 value={form.status}
@@ -235,6 +324,16 @@ export default function PlanPage() {
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
               />
             </Field>
+            <label className="sm:col-span-2 flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.notify_assignee}
+                onChange={(e) => setForm({ ...form, notify_assignee: e.target.checked })}
+                className="rounded border-border"
+              />
+              <Mail className="w-4 h-4 text-muted-foreground" />
+              Email assignee when saved
+            </label>
           </div>
           <button
             onClick={() => create.mutate()}
@@ -246,79 +345,273 @@ export default function PlanPage() {
         </div>
       )}
 
-      <div className="pulse-card overflow-hidden">
-        {isLoading && <p className="p-8 text-muted-foreground text-sm">Loading plan…</p>}
-        {!isLoading && data?.items.length === 0 && (
-          <div className="p-16 text-center">
-            <Lightbulb className="w-12 h-12 mx-auto text-gray-200 mb-4" />
-            <p className="text-muted-foreground mb-2">No ideas yet</p>
-            <p className="text-sm text-muted-foreground">Add your first content idea using the button above</p>
-          </div>
-        )}
-        {data && data.items.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-secondary/50 text-left">
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Idea</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Theme</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Target</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Format</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Owner</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 font-semibold text-muted-foreground">Notes</th>
-                  <th className="px-4 py-3 w-10" />
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((idea) => (
-                  <tr key={idea.id} className="border-b border-border/60 hover:bg-secondary/30 transition-colors">
-                    <td className="px-4 py-3 font-medium max-w-[200px]">{idea.title}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-secondary text-muted-foreground">
-                        {idea.theme || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
-                      {idea.target_date ? format(parseISO(idea.target_date), "MMM d, yyyy") : "TBD"}
-                    </td>
-                    <td className="px-4 py-3 capitalize text-muted-foreground">{idea.format}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{idea.owner || "—"}</td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={idea.status}
-                        onChange={(e) =>
-                          update.mutate({ id: idea.id, patch: { status: e.target.value as IdeaStatus } })
-                        }
-                        className="text-xs border border-border rounded-lg px-2 py-1 bg-background capitalize"
-                      >
-                        {STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {s.replace(/_/g, " ")}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[220px] truncate" title={idea.notes || ""}>
-                      {idea.notes || "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => remove.mutate(idea.id)}
-                        className="text-muted-foreground hover:text-red-600 p-1"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {isLoading && <p className="text-muted-foreground text-sm">Loading plan…</p>}
+
+      {!isLoading && viewMode === "split" && (
+        <div className="space-y-8">
+          <IdeaSection
+            title="Parking lot"
+            subtitle="Raw ideas and on-hold items — capture anything here"
+            icon={Lightbulb}
+            empty="No ideas in the parking lot yet"
+            ideas={parkingLot}
+            team={team}
+            onUpdate={(id, patch) => update.mutate({ id, patch })}
+            onDelete={(id) => remove.mutate(id)}
+            onNotify={(id) => notify.mutate(id)}
+            onMoveToQueue={moveToQueue}
+            showMoveToQueue
+          />
+          <IdeaSection
+            title="Work queue"
+            subtitle="Approved and in-flight content — sorted by target date"
+            icon={ListTodo}
+            empty="Nothing in the queue — move an idea from the parking lot"
+            ideas={workQueue}
+            team={team}
+            onUpdate={(id, patch) => update.mutate({ id, patch })}
+            onDelete={(id) => remove.mutate(id)}
+            onNotify={(id) => notify.mutate(id)}
+          />
+        </div>
+      )}
+
+      {!isLoading && viewMode === "all" && (
+        <IdeaSection
+          title="All plan items"
+          subtitle={filter === "all" ? "Every idea across all statuses" : `Filtered: ${filter.replace(/_/g, " ")}`}
+          icon={ClipboardList}
+          empty="No items match this filter"
+          ideas={filteredItems}
+          team={team}
+          onUpdate={(id, patch) => update.mutate({ id, patch })}
+          onDelete={(id) => remove.mutate(id)}
+          onNotify={(id) => notify.mutate(id)}
+          onMoveToQueue={moveToQueue}
+          showMoveToQueue
+        />
+      )}
     </div>
+  );
+}
+
+function IdeaSection({
+  title,
+  subtitle,
+  icon: Icon,
+  empty,
+  ideas,
+  team,
+  onUpdate,
+  onDelete,
+  onNotify,
+  onMoveToQueue,
+  showMoveToQueue,
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+  empty: string;
+  ideas: ContentIdea[];
+  team: { name: string; email: string }[];
+  onUpdate: (id: string, patch: Partial<ContentIdea> & { notify_assignee?: boolean }) => void;
+  onDelete: (id: string) => void;
+  onNotify: (id: string) => void;
+  onMoveToQueue?: (id: string) => void;
+  showMoveToQueue?: boolean;
+}) {
+  return (
+    <div className="pulse-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-border bg-secondary/30 flex items-center gap-3">
+        <Icon className="w-5 h-5 text-primary" />
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        <span className="ml-auto text-sm font-medium tabular-nums text-muted-foreground">{ideas.length}</span>
+      </div>
+      {ideas.length === 0 ? (
+        <p className="p-10 text-center text-sm text-muted-foreground">{empty}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-secondary/50 text-left">
+                <th className="px-4 py-3 font-semibold text-muted-foreground">Title</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">Theme</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">Target</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">Assignee</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">Notes</th>
+                <th className="px-4 py-3 w-24" />
+              </tr>
+            </thead>
+            <tbody>
+              {ideas.map((idea) => (
+                <IdeaRow
+                  key={idea.id}
+                  idea={idea}
+                  team={team}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  onNotify={onNotify}
+                  onMoveToQueue={onMoveToQueue}
+                  showMoveToQueue={showMoveToQueue && isParkingStatus(idea.status)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IdeaRow({
+  idea,
+  team,
+  onUpdate,
+  onDelete,
+  onNotify,
+  onMoveToQueue,
+  showMoveToQueue,
+}: {
+  idea: ContentIdea;
+  team: { name: string; email: string }[];
+  onUpdate: (id: string, patch: Partial<ContentIdea> & { notify_assignee?: boolean }) => void;
+  onDelete: (id: string) => void;
+  onNotify: (id: string) => void;
+  onMoveToQueue?: (id: string) => void;
+  showMoveToQueue?: boolean;
+}) {
+  const [title, setTitle] = useState(idea.title);
+
+  const saveTitle = () => {
+    const trimmed = title.trim();
+    if (trimmed && trimmed !== idea.title) onUpdate(idea.id, { title: trimmed });
+  };
+
+  const assigneeValue = idea.assignee_email || "";
+
+  return (
+    <tr className="border-b border-border/60 hover:bg-secondary/30 transition-colors">
+      <td className="px-4 py-2 min-w-[180px]">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          className="w-full font-medium bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 text-sm"
+        />
+      </td>
+      <td className="px-4 py-2">
+        <input
+          defaultValue={idea.theme || ""}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v !== (idea.theme || "")) onUpdate(idea.id, { theme: v || null });
+          }}
+          placeholder="Theme"
+          className="w-full max-w-[140px] text-xs bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5"
+        />
+      </td>
+      <td className="px-4 py-2 whitespace-nowrap text-muted-foreground">
+        <input
+          type="date"
+          defaultValue={idea.target_date || ""}
+          onChange={(e) => onUpdate(idea.id, { target_date: e.target.value || null })}
+          className="text-xs border border-border rounded-lg px-2 py-1 bg-background"
+        />
+      </td>
+      <td className="px-4 py-2">
+        <select
+          value={assigneeValue}
+          onChange={(e) => {
+            const email = e.target.value;
+            if (!email) {
+              onUpdate(idea.id, { owner: null, assignee_email: null });
+              return;
+            }
+            const member = team.find((m) => m.email === email);
+            onUpdate(idea.id, { owner: member?.name ?? email, assignee_email: email });
+          }}
+          className="text-xs border border-border rounded-lg px-2 py-1 bg-background max-w-[160px]"
+        >
+          <option value="">Unassigned</option>
+          {team.map((m) => (
+            <option key={m.email} value={m.email}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-4 py-2">
+        <select
+          value={idea.status}
+          onChange={(e) => onUpdate(idea.id, { status: e.target.value as IdeaStatus })}
+          className="text-xs border border-border rounded-lg px-2 py-1 bg-background capitalize"
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s.replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-4 py-2 text-muted-foreground max-w-[180px]">
+        <input
+          defaultValue={idea.notes || ""}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v !== (idea.notes || "")) onUpdate(idea.id, { notes: v || null });
+          }}
+          placeholder="—"
+          className="w-full text-xs bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 truncate"
+        />
+      </td>
+      <td className="px-4 py-2">
+        <div className="flex items-center gap-1">
+          {showMoveToQueue && onMoveToQueue && (
+            <button
+              onClick={() => onMoveToQueue(idea.id)}
+              className="text-primary hover:bg-primary/10 p-1 rounded"
+              title="Move to work queue"
+            >
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+          {idea.assignee_email && (
+            <button
+              onClick={() => onNotify(idea.id)}
+              className="text-muted-foreground hover:text-primary p-1 rounded"
+              title="Email assignee"
+            >
+              <Mail className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(idea.id)}
+            className="text-muted-foreground hover:text-red-600 p-1 rounded"
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ViewTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+        active ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

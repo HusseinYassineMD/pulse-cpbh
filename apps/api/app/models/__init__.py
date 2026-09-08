@@ -233,6 +233,7 @@ class ContentIdea(Base):
     )
     target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    assignee_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[IdeaStatus] = mapped_column(Enum(IdeaStatus, native_enum=False), default=IdeaStatus.IDEA)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

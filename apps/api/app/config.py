@@ -56,6 +56,27 @@ class Settings(BaseSettings):
     publish_dry_run: bool = True
     auth_enabled: bool = False
 
+    # Plan — team roster as "Name:email,Name:email"
+    plan_team: str = "CPBH Team:cpbh@usc.edu,Hussein Yassine:hy@usc.edu,Aishwarya Jagadish:aish@usc.edu"
+
+    # SMTP (optional — assignments log to console when unset)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
+
+    def plan_team_members(self) -> list[dict[str, str]]:
+        members: list[dict[str, str]] = []
+        for entry in self.plan_team.split(","):
+            entry = entry.strip()
+            if not entry or ":" not in entry:
+                continue
+            name, email = entry.split(":", 1)
+            members.append({"name": name.strip(), "email": email.strip()})
+        return members
+
     @property
     def is_development(self) -> bool:
         return self.app_env == "development"

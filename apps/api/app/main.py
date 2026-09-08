@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.core.database import Base, engine
-import app.models  # noqa: F401 — register all models before create_all
+from app.core.migrations import run_migrations
+import app.models  # noqa: F401 — register models before create_all
 from app.routers import accounts, ai, auth, commands, dashboard, media, plan, posts, schedule, stories, templates
 from app.services.scheduler import start_scheduler, stop_scheduler
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await run_migrations(engine)
     start_scheduler()
     logger.info("Pulse ready — scheduler active, dry_run=%s", settings.publish_dry_run)
     yield

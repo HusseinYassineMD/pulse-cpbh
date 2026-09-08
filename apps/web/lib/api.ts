@@ -200,14 +200,18 @@ const liveApi = {
       return request<PlanListResponse>(`/plan${qs ? `?${qs}` : ""}`);
     },
 
+    team: () => request<{ name: string; email: string }[]>("/plan/team"),
+
     create: (data: {
       title: string;
       theme?: string | null;
       format?: ContentFormat;
       target_date?: string | null;
       owner?: string | null;
+      assignee_email?: string | null;
       status?: IdeaStatus;
       notes?: string | null;
+      notify_assignee?: boolean;
     }) => request<ContentIdea>("/plan", { method: "POST", body: JSON.stringify(data) }),
 
     update: (
@@ -218,10 +222,15 @@ const liveApi = {
         format: ContentFormat;
         target_date: string | null;
         owner: string | null;
+        assignee_email: string | null;
         status: IdeaStatus;
         notes: string | null;
+        notify_assignee: boolean;
       }>
     ) => request<ContentIdea>(`/plan/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+    notify: (id: string) =>
+      request<{ ok: boolean; message: string }>(`/plan/${id}/notify`, { method: "POST" }),
 
     delete: (id: string) => request<void>(`/plan/${id}`, { method: "DELETE" }),
   },

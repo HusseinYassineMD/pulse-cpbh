@@ -70,6 +70,7 @@ async def export_static() -> None:
             "format": i.format.value,
             "target_date": i.target_date.isoformat() if i.target_date else None,
             "owner": i.owner,
+            "assignee_email": i.assignee_email,
             "status": i.status.value,
             "notes": i.notes,
             "created_at": i.created_at.isoformat(),

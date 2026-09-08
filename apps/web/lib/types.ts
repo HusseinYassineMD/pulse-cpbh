@@ -126,6 +126,7 @@ export interface ContentIdea {
   format: ContentFormat;
   target_date: string | null;
   owner: string | null;
+  assignee_email: string | null;
   status: IdeaStatus;
   notes: string | null;
   created_at: string;
