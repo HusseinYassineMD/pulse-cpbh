@@ -7,17 +7,23 @@ import { useEffect, useState } from "react";
 export function AuthImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const token = useAuthStore((s) => s.accessToken);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const resolvedSrc = withBasePath(src);
+  const [failed, setFailed] = useState(false);
+  const resolvedSrc = withBasePath(src.replace(/^\/api\/media/, "/media"));
+  const staticMode = isStaticMode();
 
   useEffect(() => {
-    if (isStaticMode()) return;
+    if (staticMode) return;
+    setFailed(false);
 
     let revoked: string | null = null;
     const headers: Record<string, string> = {};
     if (token) headers.Authorization = `Bearer ${token}`;
 
     fetch(resolvedSrc, { headers })
-      .then((r) => r.blob())
+      .then((r) => {
+        if (!r.ok) throw new Error("load failed");
+        return r.blob();
+      })
       .then((blob) => {
         const url = URL.createObjectURL(blob);
         revoked = url;
@@ -28,10 +34,20 @@ export function AuthImage({ src, alt, className }: { src: string; alt: string; c
     return () => {
       if (revoked) URL.revokeObjectURL(revoked);
     };
-  }, [resolvedSrc, token]);
+  }, [resolvedSrc, token, staticMode]);
 
-  if (isStaticMode()) {
-    return <img src={resolvedSrc} alt={alt} className={className} />;
+  if (staticMode) {
+    if (failed) {
+      return <div className={`bg-gray-100 ${className}`} />;
+    }
+    return (
+      <img
+        src={resolvedSrc}
+        alt={alt}
+        className={className}
+        onError={() => setFailed(true)}
+      />
+    );
   }
 
   if (!blobUrl) {

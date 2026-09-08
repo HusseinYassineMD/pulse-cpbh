@@ -53,7 +53,9 @@ async def export_static() -> None:
             dest = MEDIA_DIR / str(post.id)
             shutil.copytree(src, dest)
 
-    (DATA_DIR / "posts.json").write_text(json.dumps({"items": items, "total": len(items)}, indent=2))
+    (DATA_DIR / "posts.json").write_text(
+        json.dumps({"version": 3, "items": items, "total": len(items)}, indent=2)
+    )
 
     plan_items = [
         {

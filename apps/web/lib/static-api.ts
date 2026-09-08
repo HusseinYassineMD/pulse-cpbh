@@ -12,12 +12,19 @@ import type {
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
 
-const STORAGE_KEY = "pulse-static-overrides-v2";
+const STORAGE_KEY = "pulse-static-overrides-v3";
+const DATA_VERSION_KEY = "pulse-data-version";
 
 type Overrides = {
   posts: Record<string, Post>;
   plan: Record<string, ContentIdea>;
   schedule: ScheduleItem[];
+};
+
+type PostsBundle = {
+  version?: number;
+  items: Post[];
+  total: number;
 };
 
 function loadOverrides(): Overrides {
@@ -37,13 +44,29 @@ function saveOverrides(overrides: Overrides) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides));
 }
 
+function syncDataVersion(version: number) {
+  if (typeof window === "undefined") return;
+  const current = localStorage.getItem(DATA_VERSION_KEY);
+  if (current !== String(version)) {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("pulse-static-overrides");
+    localStorage.removeItem("pulse-static-overrides-v2");
+    localStorage.setItem(DATA_VERSION_KEY, String(version));
+  }
+}
+
+function mediaPath(postId: string, s3Key: string) {
+  return `/media/${postId}/${s3Key}`;
+}
+
 function normalizePost(post: Post): Post {
   return {
     ...post,
-    media_assets: post.media_assets.map((a) => ({
-      ...a,
-      url: withBasePath(a.url?.replace(/^\/pulse-cpbh(-demo)?/, "") || `/media/${post.id}/${a.s3_key}`),
-    })),
+    media_assets: post.media_assets.map((a) => {
+      const raw = a.url?.replace(/^\/pulse-cpbh(-demo)?/, "").replace(/^\/api\/media/, "/media") || mediaPath(post.id, a.s3_key);
+      const path = raw.startsWith("/media/") ? raw : mediaPath(post.id, a.s3_key);
+      return { ...a, url: withBasePath(path) };
+    }),
   };
 }
 
@@ -54,10 +77,14 @@ async function loadSeed() {
     seedPromise = Promise.all([
       fetch(withBasePath("/data/posts.json")).then((r) => r.json()),
       fetch(withBasePath("/data/plan.json")).then((r) => r.json()),
-    ]).then(([posts, plan]) => ({
-      posts: (posts.items as Post[]).map(normalizePost),
-      plan: plan.items as ContentIdea[],
-    }));
+    ]).then(([posts, plan]) => {
+      const bundle = posts as PostsBundle;
+      if (bundle.version) syncDataVersion(bundle.version);
+      return {
+        posts: bundle.items.map(normalizePost),
+        plan: plan.items as ContentIdea[],
+      };
+    });
   }
   return seedPromise;
 }
@@ -65,21 +92,36 @@ async function loadSeed() {
 async function getPosts(): Promise<Post[]> {
   const seed = await loadSeed();
   const overrides = loadOverrides();
-  const merged = seed.posts.map((p) => normalizePost(overrides.posts[p.id] || p));
-  for (const p of Object.values(overrides.posts)) {
-    if (!merged.find((m) => m.id === p.id)) merged.unshift(normalizePost(p));
+  const validIds = new Set(seed.posts.map((p) => p.id));
+
+  // Drop stale cached posts that were removed from the live bundle.
+  let pruned = false;
+  for (const id of Object.keys(overrides.posts)) {
+    if (!validIds.has(id)) {
+      delete overrides.posts[id];
+      pruned = true;
+    }
   }
-  return merged;
+  if (pruned) saveOverrides(overrides);
+
+  return seed.posts.map((p) => normalizePost(overrides.posts[p.id] || p));
 }
 
 async function getPlan(): Promise<ContentIdea[]> {
   const seed = await loadSeed();
   const overrides = loadOverrides();
-  const merged = seed.plan.map((i) => overrides.plan[i.id] || i);
-  for (const i of Object.values(overrides.plan)) {
-    if (!merged.find((m) => m.id === i.id)) merged.unshift(i);
+  const validIds = new Set(seed.plan.map((i) => i.id));
+
+  let pruned = false;
+  for (const id of Object.keys(overrides.plan)) {
+    if (!validIds.has(id)) {
+      delete overrides.plan[id];
+      pruned = true;
+    }
   }
-  return merged;
+  if (pruned) saveOverrides(overrides);
+
+  return seed.plan.map((i) => overrides.plan[i.id] || i);
 }
 
 function updatePost(post: Post) {
@@ -145,24 +187,24 @@ export const staticApi = {
 
     approve: async (id: string): Promise<Post> => {
       const post = await staticApi.posts.get(id);
-      const updated = { ...post, status: "approved" as const };
+      const updated = normalizePost({ ...post, status: "approved" });
       updatePost(updated);
       return updated;
     },
 
     unapprove: async (id: string): Promise<Post> => {
       const post = await staticApi.posts.get(id);
-      const updated = { ...post, status: "in_review" as const };
+      const updated = normalizePost({ ...post, status: "in_review" });
       updatePost(updated);
       return updated;
     },
 
     updateVariant: async (id: string, platform: string, caption: string) => {
       const post = await staticApi.posts.get(id);
-      const updated = {
+      const updated = normalizePost({
         ...post,
         variants: post.variants.map((v) => (v.platform === platform ? { ...v, caption } : v)),
-      };
+      });
       updatePost(updated);
       return updated.variants.find((v) => v.platform === platform)!;
     },
