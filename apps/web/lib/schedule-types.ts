@@ -4,6 +4,7 @@ export interface ScheduleItem {
   id: string;
   post_id: string;
   post_title: string;
+  content_type?: string;
   scheduled_at: string;
   timezone: string;
   status: ScheduleStatus;

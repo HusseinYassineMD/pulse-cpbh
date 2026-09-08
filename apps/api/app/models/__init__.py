@@ -85,6 +85,7 @@ class User(Base):
 
     social_accounts: Mapped[list["SocialAccount"]] = relationship(back_populates="user")
     posts: Mapped[list["Post"]] = relationship(back_populates="user")
+    stories: Mapped[list["Story"]] = relationship(back_populates="user")
     content_ideas: Mapped[list["ContentIdea"]] = relationship(back_populates="user")
 
 
@@ -154,6 +155,22 @@ class MediaAsset(Base):
     alt_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     post: Mapped["Post"] = relationship(back_populates="media_assets")
+
+
+class Story(Base):
+    __tablename__ = "stories"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(500))
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_key: Mapped[str] = mapped_column(String(255), default="image.png")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="stories")
 
 
 class ScheduleEntry(Base):

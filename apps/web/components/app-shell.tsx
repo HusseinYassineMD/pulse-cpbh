@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { FileText, Zap, Calendar, Home, LayoutDashboard, Circle, Settings, ClipboardList } from "lucide-react";
+import { FileText, Zap, Calendar, Home, LayoutDashboard, Circle, Settings, ClipboardList, Smartphone } from "lucide-react";
 import { api } from "@/lib/api";
 
 const nav = [
@@ -11,6 +11,7 @@ const nav = [
   { href: "/plan", label: "Plan", icon: ClipboardList },
   { href: "/calendar", label: "Schedule", icon: Calendar },
   { href: "/posts", label: "Posts", icon: FileText },
+  { href: "/stories", label: "Stories", icon: Smartphone },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

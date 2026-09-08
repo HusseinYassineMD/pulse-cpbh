@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.models import MediaAsset, Platform, Post, PostStatus, PostVariant
 from app.services.post_queries import load_post_for_response
 from app.services.storage import clear_post_media, post_media_dir, save_images
-from app.services.story import carousel_to_story, make_story_caption
+from app.services.story import carousel_to_story
 from app.services.templates import _post_creator_python
 
 
@@ -140,11 +140,11 @@ class ContentService:
             story_path = dest_dir / "story_01.png"
             carousel_to_story(content.image_paths[0], story_path)
 
-            ig_caption = content.captions.get("instagram", "")
-            short = make_story_caption(ig_caption)
-            self.db.add(
-                PostVariant(post_id=post.id, platform=Platform.INSTAGRAM, caption=short)
-            )
+            for platform_key in ("instagram", "facebook"):
+                platform = platform_map.get(platform_key)
+                if platform:
+                    self.db.add(PostVariant(post_id=post.id, platform=platform, caption=""))
+
             self.db.add(
                 MediaAsset(
                     post_id=post.id,

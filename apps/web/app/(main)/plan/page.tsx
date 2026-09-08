@@ -36,7 +36,7 @@ const STATUSES: IdeaStatus[] = [
   "on_hold",
 ];
 
-const FORMATS: ContentFormat[] = ["carousel", "story", "text"];
+const FORMATS: ContentFormat[] = ["carousel", "text"];
 
 const FILTER_TABS: { label: string; value: IdeaStatus | "all" }[] = [
   { label: "All", value: "all" },

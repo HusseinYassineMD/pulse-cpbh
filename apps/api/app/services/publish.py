@@ -34,6 +34,19 @@ def _media_url(post_id: UUID, filename: str) -> str:
     return base
 
 
+def _content_type(post: Post) -> str:
+    if post.source_config and post.source_config.get("type") == "story":
+        return "story"
+    return "feed"
+
+
+def _media_urls_for_post(post: Post) -> list[str]:
+    assets = sorted(post.media_assets, key=lambda a: a.sort_order)
+    if _content_type(post) == "story":
+        return [_media_url(post.id, assets[0].s3_key)] if assets else []
+    return [_media_url(post.id, a.s3_key) for a in assets]
+
+
 async def publish_schedule_entry(db: AsyncSession, schedule_entry_id: UUID) -> None:
     settings = get_settings()
 
@@ -50,11 +63,23 @@ async def publish_schedule_entry(db: AsyncSession, schedule_entry_id: UUID) -> N
         return
 
     post = entry.post
+    content_type = _content_type(post)
     platforms = [Platform(p) for p in entry.platform_targets]
     all_success = True
     any_success = False
 
     for platform in platforms:
+        if content_type == "story" and platform not in (Platform.INSTAGRAM, Platform.FACEBOOK):
+            attempt = PublishAttempt(
+                schedule_entry_id=entry.id,
+                platform=platform,
+                status=PublishStatus.FAILED,
+                error_message=f"{platform.value} does not support stories",
+            )
+            db.add(attempt)
+            all_success = False
+            continue
+
         variant = next((v for v in post.variants if v.platform == platform), None)
         if not variant:
             continue
@@ -78,7 +103,11 @@ async def publish_schedule_entry(db: AsyncSession, schedule_entry_id: UUID) -> N
         if settings.publish_dry_run:
             attempt.status = PublishStatus.SUCCESS
             attempt.platform_post_id = f"dry-run-{attempt.id}"
-            attempt.error_message = "Dry-run mode — connect accounts & set PUBLISH_DRY_RUN=false to go live"
+            label = "story" if content_type == "story" else "post"
+            attempt.error_message = (
+                f"Dry-run: would publish {label} to {platform.value} — "
+                "connect accounts & set PUBLISH_DRY_RUN=false to go live"
+            )
             any_success = True
             continue
 
@@ -88,13 +117,14 @@ async def publish_schedule_entry(db: AsyncSession, schedule_entry_id: UUID) -> N
             all_success = False
             continue
 
-        media_urls = [_media_url(post.id, a.s3_key) for a in post.media_assets]
+        media_urls = _media_urls_for_post(post)
         pub_result = await publish_to_platform(
             platform=platform,
             access_token=account.access_token_enc,
             caption=variant.caption,
             media_urls=media_urls,
             account_id=account.account_id,
+            content_type=content_type,
         )
 
         if pub_result.success:

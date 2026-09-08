@@ -6,7 +6,7 @@ import { Layers, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { api } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
-import { STATIC_DATA_VERSION } from "@/lib/static-api";
+import { STATIC_DATA_VERSION } from "@/lib/static-config";
 import { AuthImage } from "@/components/auth-image";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
@@ -28,7 +28,7 @@ export default function PostsPage() {
           )}
         </div>
         <Link
-          href="/"
+          href="/posts/new"
           className="inline-flex items-center gap-2 px-5 py-2.5 btn-primary text-sm transition-all hover:scale-[1.02]"
         >
           <Sparkles className="w-4 h-4" />
@@ -58,7 +58,6 @@ export default function PostsPage() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
           {data.items.map((post) => {
             const thumb = post.media_assets[0]?.url;
-            const isStory = post.source_config?.type === "story";
             const platforms = post.variants.map((v) => v.platform);
 
             return (
@@ -67,7 +66,7 @@ export default function PostsPage() {
                 href={`/posts/${post.id}`}
                 className="pulse-card-hover overflow-hidden group"
               >
-                <div className={`relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden ${isStory ? "aspect-[9/16] max-h-52" : "aspect-[4/3]"}`}>
+                <div className="relative bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden aspect-[4/3]">
                   {thumb ? (
                     <>
                       <AuthImage

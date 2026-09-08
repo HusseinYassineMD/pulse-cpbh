@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from uuid import UUID
 
 import httpx
 
@@ -18,6 +17,9 @@ class PublishResult:
     error: str | None = None
 
 
+ContentType = str  # "feed" | "story"
+
+
 class BasePublisher(ABC):
     platform: Platform
 
@@ -28,6 +30,7 @@ class BasePublisher(ABC):
         caption: str,
         media_urls: list[str],
         account_id: str,
+        content_type: ContentType = "feed",
     ) -> PublishResult:
         ...
 
@@ -41,14 +44,37 @@ class InstagramPublisher(BasePublisher):
         caption: str,
         media_urls: list[str],
         account_id: str,
+        content_type: ContentType = "feed",
     ) -> PublishResult:
+        if not media_urls:
+            return PublishResult(success=False, error="No media to publish")
+
         async with httpx.AsyncClient() as client:
             try:
+                if content_type == "story":
+                    return await self._publish_story(client, access_token, media_urls[0], account_id)
                 if len(media_urls) == 1:
                     return await self._publish_single(client, access_token, caption, media_urls[0], account_id)
                 return await self._publish_carousel(client, access_token, caption, media_urls, account_id)
             except Exception as e:
                 return PublishResult(success=False, error=str(e))
+
+    async def _publish_story(
+        self, client: httpx.AsyncClient, token: str, media_url: str, account_id: str
+    ) -> PublishResult:
+        create_resp = await client.post(
+            f"https://graph.facebook.com/v21.0/{account_id}/media",
+            params={"image_url": media_url, "media_type": "STORIES", "access_token": token},
+        )
+        create_resp.raise_for_status()
+        creation_id = create_resp.json()["id"]
+
+        publish_resp = await client.post(
+            f"https://graph.facebook.com/v21.0/{account_id}/media_publish",
+            params={"creation_id": creation_id, "access_token": token},
+        )
+        publish_resp.raise_for_status()
+        return PublishResult(success=True, platform_post_id=publish_resp.json()["id"])
 
     async def _publish_single(
         self, client: httpx.AsyncClient, token: str, caption: str, media_url: str, account_id: str
@@ -108,9 +134,15 @@ class FacebookPublisher(BasePublisher):
         caption: str,
         media_urls: list[str],
         account_id: str,
+        content_type: ContentType = "feed",
     ) -> PublishResult:
+        if not media_urls:
+            return PublishResult(success=False, error="No media to publish")
+
         async with httpx.AsyncClient() as client:
             try:
+                if content_type == "story":
+                    return await self._publish_story(client, access_token, media_urls[0], account_id)
                 if len(media_urls) == 1:
                     resp = await client.post(
                         f"https://graph.facebook.com/v21.0/{account_id}/photos",
@@ -131,6 +163,24 @@ class FacebookPublisher(BasePublisher):
             except Exception as e:
                 return PublishResult(success=False, error=str(e))
 
+    async def _publish_story(
+        self, client: httpx.AsyncClient, token: str, media_url: str, account_id: str
+    ) -> PublishResult:
+        photo_resp = await client.post(
+            f"https://graph.facebook.com/v21.0/{account_id}/photos",
+            params={"url": media_url, "published": "false", "access_token": token},
+        )
+        photo_resp.raise_for_status()
+        photo_id = photo_resp.json()["id"]
+
+        story_resp = await client.post(
+            f"https://graph.facebook.com/v21.0/{account_id}/photo_stories",
+            params={"photo_id": photo_id, "access_token": token},
+        )
+        story_resp.raise_for_status()
+        data = story_resp.json()
+        return PublishResult(success=True, platform_post_id=data.get("id") or photo_id)
+
 
 class LinkedInPublisher(BasePublisher):
     platform = Platform.LINKEDIN
@@ -141,7 +191,11 @@ class LinkedInPublisher(BasePublisher):
         caption: str,
         media_urls: list[str],
         account_id: str,
+        content_type: ContentType = "feed",
     ) -> PublishResult:
+        if content_type == "story":
+            return PublishResult(success=False, error="LinkedIn does not support stories")
+
         async with httpx.AsyncClient() as client:
             try:
                 headers = {
@@ -176,6 +230,8 @@ PUBLISHERS: dict[Platform, BasePublisher] = {
     Platform.LINKEDIN: LinkedInPublisher(),
 }
 
+STORY_PLATFORMS = {Platform.INSTAGRAM, Platform.FACEBOOK}
+
 
 async def publish_to_platform(
     platform: Platform,
@@ -183,8 +239,11 @@ async def publish_to_platform(
     caption: str,
     media_urls: list[str],
     account_id: str,
+    content_type: ContentType = "feed",
 ) -> PublishResult:
     publisher = PUBLISHERS.get(platform)
     if not publisher:
         return PublishResult(success=False, error=f"No publisher for {platform}")
-    return await publisher.publish(access_token, caption, media_urls, account_id)
+    if content_type == "story" and platform not in STORY_PLATFORMS:
+        return PublishResult(success=False, error=f"{platform.value} does not support stories")
+    return await publisher.publish(access_token, caption, media_urls, account_id, content_type=content_type)

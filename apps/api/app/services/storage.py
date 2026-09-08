@@ -25,6 +25,25 @@ def clear_post_media(post_id: UUID) -> None:
         shutil.rmtree(path)
 
 
+def story_media_dir(story_id: UUID) -> Path:
+    path = media_root() / "stories" / str(story_id)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def clear_story_media(story_id: UUID) -> None:
+    path = media_root() / "stories" / str(story_id)
+    if path.exists():
+        shutil.rmtree(path)
+
+
+def save_story_image(story_id: UUID, src: Path, ext: str = ".png") -> str:
+    dest_dir = story_media_dir(story_id)
+    filename = f"image{ext}"
+    shutil.copy2(src, dest_dir / filename)
+    return filename
+
+
 def save_images(post_id: UUID, image_paths: list[Path]) -> list[str]:
     """Copy images into media/posts/{id}/. Returns stored filenames."""
     dest_dir = post_media_dir(post_id)

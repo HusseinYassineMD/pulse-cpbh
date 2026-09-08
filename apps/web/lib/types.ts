@@ -62,6 +62,20 @@ export interface MediaAsset {
   url: string | null;
 }
 
+export interface Story {
+  id: string;
+  title: string;
+  source_url: string | null;
+  image_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoryListResponse {
+  items: Story[];
+  total: number;
+}
+
 export interface Template {
   post_creator_id: string;
   title: string;

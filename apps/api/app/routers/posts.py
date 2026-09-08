@@ -129,12 +129,14 @@ async def generate_content(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
-    if not result.scalar_one_or_none():
+    post = result.scalar_one_or_none()
+    if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    mode = (post.source_config or {}).get("type", "post")
     service = ContentService(db)
     try:
-        post = await service.generate(post_id)
+        post = await service.generate(post_id, mode=mode)
     except (ValueError, FileNotFoundError, RuntimeError) as e:
         raise HTTPException(status_code=400, detail=str(e))
     return post_to_response(post)

@@ -8,8 +8,8 @@ export function AuthImage({ src, alt, className }: { src: string; alt: string; c
   const token = useAuthStore((s) => s.accessToken);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const resolvedSrc = withBasePath(src.replace(/^\/api\/media/, "/media"));
   const staticMode = isStaticMode();
+  const resolvedSrc = withBasePath(staticMode ? src.replace(/^\/api\/media/, "/media") : src);
 
   useEffect(() => {
     if (staticMode) return;

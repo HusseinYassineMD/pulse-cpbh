@@ -68,7 +68,6 @@ export default function PostDetailPage() {
   if (isLoading) return <p className="text-gray-400">Loading...</p>;
   if (!post) return <p className="text-red-600">Post not found.</p>;
 
-  const isStory = post.source_config?.type === "story";
   const slides = post.media_assets;
   const currentSlide = slides[slideIndex];
   const canGenerate = post.status === "draft" && post.post_creator_id;
@@ -144,8 +143,8 @@ export default function PostDetailPage() {
       )}
 
       {hasContent && (
-        <div className={`pulse-card overflow-hidden ${isStory ? "max-w-xs" : "max-w-md"}`}>
-          <div className={`relative bg-gray-50 ${isStory ? "aspect-[9/16]" : "aspect-square"}`}>
+        <div className="pulse-card overflow-hidden max-w-md">
+          <div className="relative bg-gray-50 aspect-square">
             {currentSlide?.url && (
               <AuthImage
                 src={currentSlide.url}

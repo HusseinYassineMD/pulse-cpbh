@@ -100,6 +100,34 @@ class PostListResponse(BaseModel):
     total: int
 
 
+# ─── Stories ─────────────────────────────────────────────────────────────────
+
+class StoryCreate(BaseModel):
+    title: str
+    source_url: str | None = None
+
+
+class StoryUpdate(BaseModel):
+    title: str | None = None
+    source_url: str | None = None
+
+
+class StoryResponse(BaseModel):
+    id: UUID
+    title: str
+    source_url: str | None
+    image_url: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class StoryListResponse(BaseModel):
+    items: list[StoryResponse]
+    total: int
+
+
 # ─── Scheduling ──────────────────────────────────────────────────────────────
 
 class ScheduleCreate(BaseModel):

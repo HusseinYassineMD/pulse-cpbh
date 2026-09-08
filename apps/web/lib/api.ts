@@ -9,6 +9,8 @@ import type {
   PlanListResponse,
   Post,
   PostListResponse,
+  Story,
+  StoryListResponse,
   Template,
   TokenResponse,
   User,
@@ -53,6 +55,21 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (response.status === 204) {
     return undefined as T;
+  }
+
+  return response.json();
+}
+
+async function uploadRequest<T>(path: string, formData: FormData, method = "POST"): Promise<T> {
+  const token = useAuthStore.getState().accessToken;
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE}${path}`, { method, body: formData, headers });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.detail || response.statusText);
   }
 
   return response.json();
@@ -117,6 +134,37 @@ const liveApi = {
     delete: (id: string) => request<void>(`/posts/${id}`, { method: "DELETE" }),
   },
 
+  stories: {
+    list: (params?: { skip?: number; limit?: number }) => {
+      const search = new URLSearchParams();
+      if (params?.skip) search.set("skip", String(params.skip));
+      if (params?.limit) search.set("limit", String(params.limit));
+      const qs = search.toString();
+      return request<StoryListResponse>(`/stories${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) => request<Story>(`/stories/${id}`),
+
+    create: (data: { title: string; source_url?: string; image: File }) => {
+      const form = new FormData();
+      form.append("title", data.title);
+      if (data.source_url) form.append("source_url", data.source_url);
+      form.append("image", data.image);
+      return uploadRequest<Story>("/stories", form);
+    },
+
+    update: (id: string, data: { title?: string; source_url?: string | null }) =>
+      request<Story>(`/stories/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+    replaceImage: (id: string, image: File) => {
+      const form = new FormData();
+      form.append("image", image);
+      return uploadRequest<Story>(`/stories/${id}/image`, form);
+    },
+
+    delete: (id: string) => request<void>(`/stories/${id}`, { method: "DELETE" }),
+  },
+
   schedule: {
     list: () => request<ScheduleItem[]>("/schedule"),
 
@@ -179,4 +227,31 @@ const liveApi = {
   },
 };
 
-export const api = isStaticMode() ? staticApi : liveApi;
+function resolveApi() {
+  return isStaticMode() ? staticApi : liveApi;
+}
+
+type Api = typeof liveApi;
+
+export const api: Api = new Proxy({} as Api, {
+  get(_target, prop: string | symbol) {
+    const impl = resolveApi() as Record<string | symbol, unknown>;
+    const value = impl[prop];
+    if (typeof value === "object" && value !== null) {
+      return new Proxy(value, {
+        get(_nested, method) {
+          const current = (resolveApi() as Record<string | symbol, unknown>)[prop] as Record<
+            string | symbol,
+            unknown
+          >;
+          const fn = current[method as string];
+          return typeof fn === "function" ? fn.bind(current) : fn;
+        },
+      });
+    }
+    if (typeof value === "function") {
+      return (value as (...args: unknown[]) => unknown).bind(impl);
+    }
+    return value;
+  },
+});

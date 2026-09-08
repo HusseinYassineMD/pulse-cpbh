@@ -24,10 +24,10 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
 import type { CommandResult, Post } from "@/lib/types";
 
-const EXAMPLES = ["post exercise-apoe4", "story protein-maxing", "captions apoe4"];
+const EXAMPLES = ["post exercise-apoe4", "captions apoe4"];
 
 const STEPS = [
-  { icon: Terminal, label: "Command", desc: "post · story · captions", color: "from-gray-800 to-gray-900" },
+  { icon: Terminal, label: "Command", desc: "post · captions", color: "from-gray-800 to-gray-900" },
   { icon: Wand2, label: "Generate", desc: "slides + AI captions", color: "from-teal to-cyan" },
   { icon: Send, label: "Publish", desc: "schedule all platforms", color: "from-accent to-teal" },
 ];
@@ -306,8 +306,6 @@ function ResultCard({
   copied: string | null;
   onCopy: (text: string, id: string) => void;
 }) {
-  const isStory = post.source_config?.type === "story";
-
   return (
     <div className="mt-6 rounded-2xl border border-teal/30 overflow-hidden bg-card shadow-xl shadow-teal/5 animate-fade-up">
       <div className="px-5 py-4 flex items-center justify-between"
@@ -326,13 +324,13 @@ function ResultCard({
 
       <div className="p-5 grid md:grid-cols-2 gap-5">
         {post.media_assets[0]?.url && (
-          <div className={`relative ${isStory ? "max-w-[180px]" : ""}`}>
+          <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-br from-primary/15 to-teal/15 rounded-2xl blur-sm" />
             <div className="relative bg-muted rounded-xl p-2 ring-1 ring-border">
               <AuthImage
                 src={post.media_assets[0].url}
                 alt="Preview"
-                className={`w-full object-contain rounded-lg ${isStory ? "aspect-[9/16]" : "aspect-square"}`}
+                className="w-full object-contain rounded-lg aspect-square"
               />
               {post.media_assets.length > 1 && (
                 <p className="text-xs text-gray-400 text-center mt-2 font-medium">

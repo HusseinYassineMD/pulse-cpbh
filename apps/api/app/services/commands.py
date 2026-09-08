@@ -29,7 +29,6 @@ class ParsedCommand:
 HELP_TEXT = """
 Commands:
   post <topic>       → carousel post (slides + captions)
-  story <topic>      → vertical story slide + short caption
   captions <topic>   → captions only (no images)
   help               → show this help
 
@@ -39,7 +38,6 @@ Topics (templates):
 
 Examples:
   post exercise-apoe4
-  story apoe4
   captions protein
 """.strip()
 
@@ -77,7 +75,10 @@ async def parse_command(text: str) -> ParsedCommand:
     if action_word in ("help", "?"):
         return ParsedCommand(action=CommandAction.HELP, raw=raw)
 
-    if action_word not in ("post", "story", "captions"):
+    if action_word == "story":
+        raise ValueError("Stories aren't available right now — use: post <topic>")
+
+    if action_word not in ("post", "captions"):
         # Shorthand: "exercise-apoe4" defaults to post
         template_id = await resolve_template(raw)
         return ParsedCommand(action=CommandAction.POST, template_id=template_id, raw=raw)

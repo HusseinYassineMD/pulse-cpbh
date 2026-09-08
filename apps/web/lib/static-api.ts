@@ -1,4 +1,5 @@
 import { isStaticMode, withBasePath } from "./base-path";
+import { STATIC_DATA_VERSION } from "./static-config";
 import type {
   CommandResult,
   ContentFormat,
@@ -12,8 +13,7 @@ import type {
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
 
-/** Bump when bundled posts/media change — clears old browser caches. */
-export const STATIC_DATA_VERSION = 4;
+export { STATIC_DATA_VERSION };
 
 const PLAN_STORAGE_KEY = "pulse-plan-overrides";
 
@@ -183,6 +183,23 @@ export const staticApi = {
     generate: async (id: string) => staticApi.posts.get(id),
     create: async () => {
       throw new Error("Creating posts requires the local Pulse API");
+    },
+    delete: async () => undefined,
+  },
+
+  stories: {
+    list: async () => ({ items: [], total: 0 }),
+    get: async () => {
+      throw new Error("Stories are available on the local Pulse app only");
+    },
+    create: async () => {
+      throw new Error("Stories are available on the local Pulse app only");
+    },
+    update: async () => {
+      throw new Error("Stories are available on the local Pulse app only");
+    },
+    replaceImage: async () => {
+      throw new Error("Stories are available on the local Pulse app only");
     },
     delete: async () => undefined,
   },

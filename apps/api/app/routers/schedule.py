@@ -26,6 +26,22 @@ from app.services.publish import publish_schedule_entry
 router = APIRouter(tags=["schedule"])
 
 SCHEDULABLE = {PostStatus.READY, PostStatus.APPROVED, PostStatus.SCHEDULED}
+STORY_PLATFORMS = {Platform.INSTAGRAM, Platform.FACEBOOK}
+
+
+def _is_story(post: Post) -> bool:
+    return bool(post.source_config and post.source_config.get("type") == "story")
+
+
+def _validate_platform_targets(post: Post, platforms: list[Platform]) -> None:
+    for platform in platforms:
+        if not any(v.platform == platform for v in post.variants):
+            raise HTTPException(status_code=400, detail=f"No caption for {platform.value}")
+    if _is_story(post):
+        invalid = [p for p in platforms if p not in STORY_PLATFORMS]
+        if invalid:
+            names = ", ".join(p.value for p in invalid)
+            raise HTTPException(status_code=400, detail=f"Stories can only be scheduled to Instagram and Facebook (not {names})")
 
 
 class PublishNowRequest(BaseModel):
@@ -40,6 +56,7 @@ class ScheduleItemResponse(BaseModel):
     id: UUID
     post_id: UUID
     post_title: str
+    content_type: str = "post"
     scheduled_at: datetime
     timezone: str
     status: ScheduleStatus
@@ -66,9 +83,7 @@ async def schedule_post(
     if not post.variants:
         raise HTTPException(status_code=400, detail="Generate content before scheduling")
 
-    for platform in body.platform_targets:
-        if not any(v.platform == platform for v in post.variants):
-            raise HTTPException(status_code=400, detail=f"No caption for {platform.value}")
+    _validate_platform_targets(post, body.platform_targets)
 
     entry = ScheduleEntry(
         post_id=post_id,
@@ -101,6 +116,8 @@ async def publish_now(
     if not post.variants:
         raise HTTPException(status_code=400, detail="Generate content first")
 
+    _validate_platform_targets(post, platforms)
+
     entry = ScheduleEntry(
         post_id=post_id,
         scheduled_at=datetime.now(timezone.utc),
@@ -126,7 +143,7 @@ async def get_calendar(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(ScheduleEntry, Post.title)
+        select(ScheduleEntry, Post.title, Post.source_config)
         .join(Post)
         .where(Post.user_id == user.id, ScheduleEntry.status != ScheduleStatus.CANCELLED)
         .order_by(ScheduleEntry.scheduled_at)
@@ -138,12 +155,13 @@ async def get_calendar(
             id=entry.id,
             post_id=entry.post_id,
             post_title=title,
+            content_type=(source_config or {}).get("type", "post"),
             scheduled_at=entry.scheduled_at,
             timezone=entry.timezone,
             status=entry.status,
             platform_targets=entry.platform_targets,
         )
-        for entry, title in rows
+        for entry, title, source_config in rows
     ]
 
 
