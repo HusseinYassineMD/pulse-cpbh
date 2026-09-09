@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { isStaticMode } from "@/lib/base-path";
 import { readSidebarOpen, writeSidebarOpen } from "@/lib/sidebar-prefs";
 
 const nav = [
@@ -167,6 +168,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             showSidebar ? "max-w-6xl pt-2 md:pt-0" : "max-w-[1600px] pt-2"
           }`}
         >
+          {isStaticMode() && (
+            <p className="mb-4 text-xs sm:text-sm text-teal-900 bg-teal/10 border border-teal/25 rounded-xl px-4 py-2.5 leading-relaxed">
+              <strong className="font-semibold">Live demo</strong> — Plan, Pipeline, and Board changes save in{" "}
+              <em>your browser</em> on this device. Summarize and generate use a quick local draft (full AI on{" "}
+              <code className="text-[11px] bg-white/60 px-1 rounded">localhost:3010</code>).
+            </p>
+          )}
           {children}
         </div>
         </main>

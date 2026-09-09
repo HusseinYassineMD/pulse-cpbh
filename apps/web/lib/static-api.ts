@@ -19,14 +19,18 @@ import type {
 } from "./types";
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
 import { DEFAULT_PLAN_TEAM } from "./plan-team";
+import type { PipelineItem, PipelineListResponse, PipelineStage } from "./pipeline-types";
+import { OUTPUT_TYPE_OPTIONS } from "./pipeline-types";
 
 export { STATIC_DATA_VERSION };
 
 const PLAN_STORAGE_KEY = "pulse-plan-overrides";
+const PIPELINE_STORAGE_KEY = "pulse-pipeline-items";
 
 type PlanOverrides = {
   plan: Record<string, ContentIdea>;
   schedule: ScheduleItem[];
+  deleted?: string[];
 };
 
 /** In-memory only — never merge deleted posts from localStorage. */
@@ -157,7 +161,86 @@ async function getPosts(): Promise<Post[]> {
 async function getPlan(): Promise<ContentIdea[]> {
   const seed = await loadSeed();
   const overrides = loadPlanOverrides();
-  return seed.plan.map((i) => overrides.plan[i.id] || i);
+  const deleted = new Set(overrides.deleted ?? []);
+  const byId = new Map<string, ContentIdea>();
+
+  for (const item of seed.plan) {
+    if (deleted.has(item.id)) continue;
+    const patch = overrides.plan[item.id];
+    byId.set(item.id, patch ? { ...item, ...patch } : item);
+  }
+  for (const [id, idea] of Object.entries(overrides.plan)) {
+    if (!deleted.has(id) && !byId.has(id)) byId.set(id, idea);
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  );
+}
+
+function loadPipelineItems(): PipelineItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PIPELINE_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as PipelineItem[];
+  } catch {
+    return [];
+  }
+}
+
+function savePipelineItems(items: PipelineItem[]) {
+  localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(items));
+}
+
+function pipelineListResponse(): PipelineListResponse {
+  const items = loadPipelineItems().sort((a, b) => {
+    if (a.stage !== b.stage) return a.stage.localeCompare(b.stage);
+    return a.sort_order - b.sort_order;
+  });
+  return { items, total: items.length };
+}
+
+function fallbackSummarize(sourceText: string): string {
+  const lines = sourceText.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return "• Add source text, then summarize again.";
+  return lines.slice(0, 8).map((line) => `• ${line.slice(0, 280)}`).join("\n");
+}
+
+function fallbackPipelineOutput(
+  content: string,
+  title: string,
+  outputType: PlanDeliverable,
+  fromHighlights: boolean
+): string {
+  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+  const snippet = lines.slice(0, 6).join("\n") || content.slice(0, 600);
+  const prefix = title.trim() || "CPBH update";
+  const tags = "\n\n#BrainHealth #USCCPBH";
+
+  if (outputType === "caption") {
+    const body = lines.slice(0, 2).join(" ").slice(0, 260) || snippet.slice(0, 260);
+    return `${body}${tags}`;
+  }
+  if (outputType === "story") {
+    const slides = lines.slice(0, 5).length ? lines.slice(0, 5) : [snippet.slice(0, 120)];
+    return slides.map((line, i) => `Slide ${i + 1}: ${line.slice(0, 140)}`).join("\n\n");
+  }
+  if (outputType === "newsletter") {
+    return `In this edition: ${prefix}\n\n${snippet}\n\nLearn more at USC CPBH.${tags}`;
+  }
+  if (outputType === "patient_handout") {
+    const bullets = lines.slice(0, 6).length ? lines.slice(0, 6) : [snippet.slice(0, 200)];
+    return `Key points for patients and families:\n${bullets.map((b) => `• ${b.slice(0, 240)}`).join("\n")}`;
+  }
+  const hook = fromHighlights ? `From our latest roundup: ${prefix}` : prefix;
+  return `${hook}\n\n${snippet}${tags}`;
+}
+
+function nextPipelineSort(items: PipelineItem[], stage: PipelineStage): number {
+  const inStage = items.filter((i) => i.stage === stage);
+  const top = inStage.reduce((max, i) => Math.max(max, i.sort_order), -1);
+  return top + 1;
 }
 
 function patchPost(id: string, patch: Partial<Post>) {
@@ -459,6 +542,7 @@ export const staticApi = {
     delete: async (id: string) => {
       const overrides = loadPlanOverrides();
       delete overrides.plan[id];
+      overrides.deleted = [...new Set([...(overrides.deleted ?? []), id])];
       savePlanOverrides(overrides);
     },
 
@@ -536,20 +620,154 @@ export const staticApi = {
   },
 
   pipeline: {
-    list: async () => ({ items: [], total: 0 }),
-    create: async () => {
-      throw new Error("Pipeline requires the live API");
+    list: async () => pipelineListResponse(),
+
+    create: async (data: {
+      stage: PipelineStage;
+      title?: string;
+      body?: string;
+      source_id?: string | null;
+      highlight_id?: string | null;
+      output_type?: PlanDeliverable | null;
+    }) => {
+      const items = loadPipelineItems();
+      const now = new Date().toISOString();
+      const stage = data.stage;
+      const item: PipelineItem = {
+        id: crypto.randomUUID(),
+        stage,
+        title:
+          data.title?.trim() ||
+          (stage === "source" ? "New source" : stage === "highlight" ? "New highlights" : "New output"),
+        body: data.body ?? "",
+        sort_order: nextPipelineSort(items, stage),
+        source_id: data.source_id ?? null,
+        highlight_id: data.highlight_id ?? null,
+        output_type: stage === "output" ? data.output_type ?? "post" : null,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(item);
+      savePipelineItems(items);
+      return item;
     },
-    update: async () => {
-      throw new Error("Pipeline requires the live API");
+
+    update: async (
+      id: string,
+      data: Partial<{
+        title: string;
+        body: string;
+        stage: PipelineStage;
+        source_id: string | null;
+        highlight_id: string | null;
+        output_type: PlanDeliverable | null;
+        sort_order: number;
+      }>
+    ) => {
+      const items = loadPipelineItems();
+      const idx = items.findIndex((i) => i.id === id);
+      if (idx < 0) throw new Error("Pipeline item not found");
+      const next = { ...items[idx], ...data, updated_at: new Date().toISOString() };
+      if (next.stage !== "output") next.output_type = null;
+      items[idx] = next;
+      savePipelineItems(items);
+      return next;
     },
-    reorder: async () => ({ items: [], total: 0 }),
-    summarize: async () => {
-      throw new Error("Pipeline requires the live API");
+
+    reorder: async (stage: PipelineStage, ids: string[]) => {
+      const items = loadPipelineItems();
+      ids.forEach((itemId, index) => {
+        const idx = items.findIndex((i) => i.id === itemId);
+        if (idx >= 0 && items[idx].stage === stage) {
+          items[idx] = { ...items[idx], sort_order: index };
+        }
+      });
+      savePipelineItems(items);
+      return pipelineListResponse();
     },
-    generateOutput: async () => {
-      throw new Error("Pipeline requires the live API");
+
+    summarize: async (sourceId: string) => {
+      const items = loadPipelineItems();
+      const source = items.find((i) => i.id === sourceId);
+      if (!source || source.stage !== "source") throw new Error("Only source items can be summarized");
+      if (!source.body.trim()) throw new Error("Source has no content to summarize");
+      const now = new Date().toISOString();
+      const highlight: PipelineItem = {
+        id: crypto.randomUUID(),
+        stage: "highlight",
+        title: `Highlights: ${source.title || "Source"}`,
+        body: fallbackSummarize(source.body),
+        sort_order: nextPipelineSort(items, "highlight"),
+        source_id: source.id,
+        highlight_id: null,
+        output_type: null,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(highlight);
+      savePipelineItems(items);
+      return { highlight };
     },
-    delete: async () => undefined,
+
+    generateOutput: async (data: {
+      output_type: PlanDeliverable;
+      source_id?: string | null;
+      highlight_id?: string | null;
+    }) => {
+      const items = loadPipelineItems();
+      let content = "";
+      let title = "";
+      let fromHighlights = false;
+      let sourceId = data.source_id ?? null;
+      let highlightId = data.highlight_id ?? null;
+
+      if (data.highlight_id) {
+        const highlight = items.find((i) => i.id === data.highlight_id);
+        if (!highlight || highlight.stage !== "highlight") {
+          throw new Error("highlight_id must reference a highlight");
+        }
+        content = highlight.body;
+        title = highlight.title || "Highlights";
+        fromHighlights = true;
+        sourceId = highlight.source_id ?? sourceId;
+        highlightId = highlight.id;
+      }
+      if (data.source_id) {
+        const source = items.find((i) => i.id === data.source_id);
+        if (!source || source.stage !== "source") throw new Error("source_id must reference a source");
+        sourceId = source.id;
+        if (!content.trim()) {
+          content = source.body;
+          title = source.title || "Source";
+          fromHighlights = false;
+        }
+      }
+      if (!content.trim()) throw new Error("No content available to generate from");
+
+      const typeLabel =
+        OUTPUT_TYPE_OPTIONS.find((o) => o.value === data.output_type)?.label ?? "Output";
+      const draft = fallbackPipelineOutput(content, title, data.output_type, fromHighlights);
+      const now = new Date().toISOString();
+      const output: PipelineItem = {
+        id: crypto.randomUUID(),
+        stage: "output",
+        title: `${typeLabel}: ${title || "Untitled"}`,
+        body: draft,
+        sort_order: nextPipelineSort(items, "output"),
+        source_id: sourceId,
+        highlight_id: highlightId,
+        output_type: data.output_type,
+        created_at: now,
+        updated_at: now,
+      };
+      items.push(output);
+      savePipelineItems(items);
+      return { output };
+    },
+
+    delete: async (id: string) => {
+      const items = loadPipelineItems().filter((i) => i.id !== id);
+      savePipelineItems(items);
+    },
   },
 };
