@@ -105,6 +105,14 @@
     transform: scale(0.98);
   }
 
+  .form-input {
+    @apply w-full px-3 py-2.5 border border-border rounded-lg bg-background text-sm min-h-[44px];
+  }
+
+  .form-input:focus {
+    @apply outline-none ring-2 ring-ring/30 border-primary/40;
+  }
+
   .sidebar-gradient {
     background: hsl(0 0% 100% / 0.38);
     backdrop-filter: blur(16px);

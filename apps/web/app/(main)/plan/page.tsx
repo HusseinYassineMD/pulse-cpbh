@@ -2,68 +2,86 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
 import {
-  ArrowRight,
   CalendarDays,
+  ChevronDown,
+  LayoutGrid,
   Lightbulb,
-  Mail,
+  List,
   Plus,
-  Trash2,
-  X,
   ClipboardList,
   ListTodo,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { PlanIdeaCard } from "@/components/plan/plan-idea-card";
+import {
+  PlanIdeaForm,
+  emptyPlanForm,
+  ideaToForm,
+  type PlanFormState,
+} from "@/components/plan/plan-idea-form";
+import { PlanModal } from "@/components/plan/plan-modal";
 import {
   DEFAULT_PLAN_TEAM,
-  THEME_SUGGESTIONS,
   isParkingStatus,
   isQueueStatus,
 } from "@/lib/plan-team";
-import type { ContentFormat, ContentIdea, IdeaStatus } from "@/lib/types";
+import type { ContentIdea, IdeaStatus } from "@/lib/types";
 
-const STATUSES: IdeaStatus[] = [
-  "idea",
-  "approved",
-  "in_production",
-  "scheduled",
-  "published",
-  "on_hold",
+type ViewMode = "board" | "list";
+type BoardPanel = "parking" | "queue";
+type ModalMode = "create" | "edit" | null;
+
+const STATUS_OPTIONS: { value: IdeaStatus | "all"; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "idea", label: "Idea" },
+  { value: "approved", label: "Approved" },
+  { value: "in_production", label: "In production" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "published", label: "Published" },
+  { value: "on_hold", label: "On hold" },
 ];
 
-const FORMATS: ContentFormat[] = ["carousel", "story", "text"];
+function assigneeFromForm(form: PlanFormState, team: { name: string; email: string }[]) {
+  if (form.assigneeKey === "__custom__") {
+    const email = form.customEmail.trim();
+    return { owner: email ? email.split("@")[0] : null, assignee_email: email || null };
+  }
+  if (!form.assigneeKey) return { owner: null, assignee_email: null };
+  const member = team.find((m) => m.email === form.assigneeKey);
+  return { owner: member?.name ?? null, assignee_email: form.assigneeKey };
+}
 
-type ViewMode = "split" | "all";
-
-const emptyForm = {
-  title: "",
-  theme: "",
-  format: "carousel" as ContentFormat,
-  target_date: "",
-  assigneeKey: "",
-  customEmail: "",
-  status: "idea" as IdeaStatus,
-  notes: "",
-  notify_assignee: true,
-};
-
-function assigneeFromKey(key: string, team: { name: string; email: string }[]) {
-  if (!key) return { owner: null as string | null, assignee_email: null as string | null };
-  if (key === "__custom__") return { owner: null, assignee_email: null };
-  const member = team.find((m) => m.email === key);
-  if (!member) return { owner: null, assignee_email: null };
-  return { owner: member.name, assignee_email: member.email };
+function formToPayload(
+  form: PlanFormState,
+  team: { name: string; email: string }[],
+  mode: "create" | "edit"
+) {
+  const picked = assigneeFromForm(form, team);
+  return {
+    title: form.title.trim(),
+    theme: form.theme.trim() || null,
+    format: form.format,
+    target_date: form.target_date || null,
+    owner: picked.owner,
+    assignee_email: picked.assignee_email,
+    status: mode === "create" ? ("idea" as IdeaStatus) : form.status,
+    notes: form.notes.trim() || null,
+    notify_assignee: form.notify_assignee && !!picked.assignee_email,
+  };
 }
 
 export default function PlanPage() {
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [viewMode, setViewMode] = useState<ViewMode>("board");
+  const [boardPanel, setBoardPanel] = useState<BoardPanel>("parking");
   const [filter, setFilter] = useState<IdeaStatus | "all">("all");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<PlanFormState>(emptyPlanForm);
   const [error, setError] = useState("");
   const [notifyMsg, setNotifyMsg] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { data: team = DEFAULT_PLAN_TEAM } = useQuery({
     queryKey: ["plan-team"],
@@ -78,10 +96,9 @@ export default function PlanPage() {
   const items = data?.items ?? [];
 
   const filteredItems = useMemo(() => {
-    if (viewMode === "split") return items;
     if (filter === "all") return items;
     return items.filter((i) => i.status === filter);
-  }, [items, viewMode, filter]);
+  }, [items, filter]);
 
   const parkingLot = useMemo(
     () =>
@@ -96,13 +113,12 @@ export default function PlanPage() {
       in_production: 0,
       approved: 1,
       scheduled: 2,
-      published: 3,
     };
     return items
       .filter((i) => isQueueStatus(i.status))
       .sort((a, b) => {
-        const da = a.target_date ? parseISO(a.target_date).getTime() : Number.MAX_SAFE_INTEGER;
-        const db = b.target_date ? parseISO(b.target_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const da = a.target_date ? new Date(a.target_date).getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.target_date ? new Date(b.target_date).getTime() : Number.MAX_SAFE_INTEGER;
         if (da !== db) return da - db;
         return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
       });
@@ -118,37 +134,44 @@ export default function PlanPage() {
     [items, parkingLot.length, workQueue.length]
   );
 
+  const openCreate = () => {
+    setForm(emptyPlanForm);
+    setEditingId(null);
+    setError("");
+    setModalMode("create");
+  };
+
+  const openEdit = (idea: ContentIdea) => {
+    setForm(ideaToForm(idea, team));
+    setEditingId(idea.id);
+    setError("");
+    setModalMode("edit");
+  };
+
+  const closeModal = () => {
+    setModalMode(null);
+    setEditingId(null);
+    setForm(emptyPlanForm);
+    setError("");
+  };
+
   const create = useMutation({
-    mutationFn: () => {
-      const picked =
-        form.assigneeKey === "__custom__"
-          ? { owner: form.customEmail.split("@")[0] || null, assignee_email: form.customEmail.trim() || null }
-          : assigneeFromKey(form.assigneeKey, team);
-      return api.plan.create({
-        title: form.title.trim(),
-        theme: form.theme.trim() || null,
-        format: form.format,
-        target_date: form.target_date || null,
-        owner: picked.owner,
-        assignee_email: picked.assignee_email,
-        status: form.status,
-        notes: form.notes.trim() || null,
-        notify_assignee: form.notify_assignee && !!picked.assignee_email,
-      });
-    },
+    mutationFn: () => api.plan.create(formToPayload(form, team, "create")),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plan"] });
-      setForm(emptyForm);
-      setShowForm(false);
-      setError("");
+      closeModal();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not add idea"),
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<ContentIdea> & { notify_assignee?: boolean } }) =>
+    mutationFn: ({ id, patch }: { id: string; patch: ReturnType<typeof formToPayload> }) =>
       api.plan.update(id, patch),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plan"] });
+      closeModal();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save changes"),
   });
 
   const notify = useMutation({
@@ -162,27 +185,65 @@ export default function PlanPage() {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.plan.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plan"] });
+      setDeleteConfirmId(null);
+      closeModal();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not delete"),
   });
 
-  const moveToQueue = (id: string) => update.mutate({ id, patch: { status: "approved" } });
+  const moveToQueue = useMutation({
+    mutationFn: (id: string) => api.plan.update(id, { status: "approved" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plan"] });
+      setNotifyMsg("Approved — moved to work queue");
+      setTimeout(() => setNotifyMsg(""), 3000);
+    },
+    onError: (err) => {
+      const msg = err instanceof ApiError ? err.message : "Could not move to queue";
+      setError(msg);
+      setNotifyMsg(msg);
+      setTimeout(() => setNotifyMsg(""), 4000);
+    },
+  });
+
+  const handleSave = () => {
+    if (!form.title.trim()) {
+      setError("Title is required");
+      return;
+    }
+    const payload = formToPayload(form, team, modalMode === "edit" ? "edit" : "create");
+    if (modalMode === "edit" && editingId) {
+      update.mutate({ id: editingId, patch: payload });
+    } else {
+      create.mutate();
+    }
+  };
+
+  const saving = create.isPending || update.isPending;
+
+  const sectionProps = {
+    onEdit: openEdit,
+    onDelete: setDeleteConfirmId,
+    onNotify: (id: string) => notify.mutate(id),
+    onMoveToQueue: (id: string) => moveToQueue.mutate(id),
+  };
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">Content sandbox</p>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <ClipboardList className="w-8 h-8 text-primary" />
-            Plan
-          </h1>
-          <p className="text-muted-foreground mt-2 max-w-2xl">
-            Capture ideas in the parking lot, assign owners, email them, then drive production through the work queue.
+    <div className="space-y-5 animate-fade-in pb-24 md:pb-0">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">Content plan</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Plan board</h1>
+          <p className="text-muted-foreground mt-1.5 text-sm max-w-xl">
+            Capture ideas in the parking lot, approve them, then track production in the work queue.
           </p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 btn-primary text-sm"
+          onClick={openCreate}
+          className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 btn-primary text-sm shrink-0"
         >
           <Plus className="w-4 h-4" />
           Add idea
@@ -190,433 +251,317 @@ export default function PlanPage() {
       </div>
 
       {notifyMsg && (
-        <p className="text-sm text-teal-700 bg-teal-50 border border-teal-200 px-4 py-2 rounded-lg">{notifyMsg}</p>
+        <p
+          className={`text-sm px-4 py-2.5 rounded-xl border ${
+            notifyMsg.includes("Could not")
+              ? "text-red-700 bg-red-50 border-red-200"
+              : "text-teal-700 bg-teal-50 border-teal-200"
+          }`}
+        >
+          {notifyMsg}
+        </p>
       )}
 
-      <div className="grid sm:grid-cols-4 gap-4">
+      {/* Stats — four separate boxes */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Total" value={counts.total} icon={Lightbulb} />
         <StatCard label="Parking lot" value={counts.parking} icon={Lightbulb} accent="muted" />
         <StatCard label="Work queue" value={counts.queue} icon={ListTodo} accent="sky" />
         <StatCard label="Scheduled" value={counts.scheduled} icon={CalendarDays} accent="teal" />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <ViewTab active={viewMode === "split"} onClick={() => setViewMode("split")}>
-          Parking lot + Queue
-        </ViewTab>
-        <ViewTab active={viewMode === "all"} onClick={() => setViewMode("all")}>
-          All items
-        </ViewTab>
-        {viewMode === "all" &&
-          (["all", ...STATUSES] as const).map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                filter === s
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {s === "all" ? "All" : s.replace(/_/g, " ")}
-            </button>
-          ))}
-      </div>
-
-      {showForm && (
-        <div className="pulse-card p-5 space-y-4 border-primary/20">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">New idea</h2>
-            <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</p>}
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Title">
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Any title — free text"
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              />
-            </Field>
-            <Field label="Theme">
-              <input
-                list="theme-suggestions"
-                value={form.theme}
-                onChange={(e) => setForm({ ...form, theme: e.target.value })}
-                placeholder="Type any theme or pick a suggestion"
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              />
-              <datalist id="theme-suggestions">
-                {THEME_SUGGESTIONS.map((t) => (
-                  <option key={t} value={t} />
-                ))}
-              </datalist>
-            </Field>
-            <Field label="Target date">
-              <input
-                type="date"
-                value={form.target_date}
-                onChange={(e) => setForm({ ...form, target_date: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              />
-            </Field>
-            <Field label="Format">
-              <select
-                value={form.format}
-                onChange={(e) => setForm({ ...form, format: e.target.value as ContentFormat })}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm capitalize"
-              >
-                {FORMATS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Assign to">
-              <select
-                value={form.assigneeKey}
-                onChange={(e) => setForm({ ...form, assigneeKey: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              >
-                <option value="">Unassigned</option>
-                {team.map((m) => (
-                  <option key={m.email} value={m.email}>
-                    {m.name} ({m.email})
-                  </option>
-                ))}
-                <option value="__custom__">Other email…</option>
-              </select>
-            </Field>
-            {form.assigneeKey === "__custom__" && (
-              <Field label="Email">
-                <input
-                  type="email"
-                  value={form.customEmail}
-                  onChange={(e) => setForm({ ...form, customEmail: e.target.value })}
-                  placeholder="name@usc.edu"
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-                />
-              </Field>
-            )}
-            <Field label="Status">
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as IdeaStatus })}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm capitalize"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Notes" className="sm:col-span-2">
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                rows={2}
-                placeholder="Slide count, template to use, approval notes…"
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm"
-              />
-            </Field>
-            <label className="sm:col-span-2 flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.notify_assignee}
-                onChange={(e) => setForm({ ...form, notify_assignee: e.target.checked })}
-                className="rounded border-border"
-              />
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              Email assignee when saved
-            </label>
-          </div>
-          <button
-            onClick={() => create.mutate()}
-            disabled={create.isPending || !form.title.trim()}
-            className="btn-primary px-4 py-2 rounded-lg text-sm disabled:opacity-50"
-          >
-            {create.isPending ? "Saving…" : "Save idea"}
-          </button>
+      {/* View section — separate, with plain-language labels */}
+      <section className="pulse-card p-4 sm:p-5 space-y-4">
+        <div>
+          <h2 className="font-semibold text-base">How do you want to view your ideas?</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Pick one option below. You can switch anytime.
+          </p>
         </div>
-      )}
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <ViewOption
+            active={viewMode === "board"}
+            onClick={() => setViewMode("board")}
+            icon={LayoutGrid}
+            title="Board view"
+            description="See the Parking lot (new ideas) and Work queue (approved items) side by side. Best for day-to-day planning."
+          />
+          <ViewOption
+            active={viewMode === "list"}
+            onClick={() => setViewMode("list")}
+            icon={List}
+            title="All items list"
+            description="See every idea in one list. Use the status filter to narrow down (e.g. only Scheduled)."
+          />
+        </div>
+
+        {viewMode === "board" && (
+          <div className="pt-2 border-t border-border/70 space-y-2 md:hidden">
+            <label className="text-sm font-medium block">
+              Which column do you want to see?
+              <span className="font-normal text-muted-foreground ml-1">(on phone)</span>
+            </label>
+            <div className="relative">
+              <select
+                value={boardPanel}
+                onChange={(e) => setBoardPanel(e.target.value as BoardPanel)}
+                className="form-input appearance-none pr-9"
+              >
+                <option value="parking">Parking lot — new ideas ({counts.parking})</option>
+                <option value="queue">Work queue — approved items ({counts.queue})</option>
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+        )}
+
+        {viewMode === "list" && (
+          <div className="pt-2 border-t border-border/70 space-y-2">
+            <label htmlFor="plan-status-filter" className="text-sm font-medium block">
+              Filter by status
+            </label>
+            <div className="relative max-w-xs">
+              <select
+                id="plan-status-filter"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as IdeaStatus | "all")}
+                className="form-input appearance-none pr-9"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Choose &ldquo;All statuses&rdquo; to see everything, or pick one stage (e.g. Idea, Scheduled).
+            </p>
+          </div>
+        )}
+      </section>
 
       {loadError && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-xl">
           Could not load plan: {loadError instanceof ApiError ? loadError.message : "Check your connection and refresh"}
         </p>
       )}
 
-      {isLoading && !loadError && <p className="text-muted-foreground text-sm">Loading plan…</p>}
+      {isLoading && !loadError && <p className="text-muted-foreground text-sm px-1">Loading plan…</p>}
 
-      {!isLoading && viewMode === "split" && (
-        <div className="space-y-8">
-          <IdeaSection
-            title="Parking lot"
-            subtitle="Raw ideas and on-hold items — capture anything here"
-            icon={Lightbulb}
-            empty="No ideas in the parking lot yet"
-            ideas={parkingLot}
-            team={team}
-            onUpdate={(id, patch) => update.mutate({ id, patch })}
-            onDelete={(id) => remove.mutate(id)}
-            onNotify={(id) => notify.mutate(id)}
-            onMoveToQueue={moveToQueue}
-            showMoveToQueue
-          />
-          <IdeaSection
-            title="Work queue"
-            subtitle="Approved and in-flight content — sorted by target date"
-            icon={ListTodo}
-            empty="Nothing in the queue — move an idea from the parking lot"
-            ideas={workQueue}
-            team={team}
-            onUpdate={(id, patch) => update.mutate({ id, patch })}
-            onDelete={(id) => remove.mutate(id)}
-            onNotify={(id) => notify.mutate(id)}
-          />
+      {!isLoading && (
+        <div className="flex items-center justify-between gap-2 px-0.5">
+          <h2 className="font-semibold text-lg">
+            {viewMode === "board" ? "Your board" : "Your full list"}
+          </h2>
+          <p className="text-xs text-muted-foreground hidden sm:block">
+            {viewMode === "board"
+              ? "Left = new ideas · Right = approved work"
+              : filter === "all"
+                ? "Showing every idea"
+                : `Showing: ${STATUS_OPTIONS.find((o) => o.value === filter)?.label}`}
+          </p>
         </div>
       )}
 
-      {!isLoading && viewMode === "all" && (
-        <IdeaSection
-          title="All plan items"
-          subtitle={filter === "all" ? "Every idea across all statuses" : `Filtered: ${filter.replace(/_/g, " ")}`}
+      {!isLoading && viewMode === "board" && (
+        <>
+          {/* Desktop: side-by-side columns */}
+          <div className="hidden md:grid md:grid-cols-2 gap-5">
+            <BoardColumn
+              title="Parking lot"
+              description="New ideas start here"
+              icon={Lightbulb}
+              count={parkingLot.length}
+              empty="No ideas yet — add one to get started."
+              ideas={parkingLot}
+              showMoveToQueue
+              {...sectionProps}
+            />
+            <BoardColumn
+              title="Work queue"
+              description="Approved & in production"
+              icon={ListTodo}
+              count={workQueue.length}
+              empty="Approve an idea from the parking lot to begin."
+              ideas={workQueue}
+              {...sectionProps}
+            />
+          </div>
+
+          {/* Mobile: one panel at a time */}
+          <div className="md:hidden">
+            {boardPanel === "parking" ? (
+              <BoardColumn
+                title="Parking lot"
+                description="New ideas start here"
+                icon={Lightbulb}
+                count={parkingLot.length}
+                empty="No ideas yet — tap Add idea."
+                ideas={parkingLot}
+                showMoveToQueue
+                compact
+                {...sectionProps}
+              />
+            ) : (
+              <BoardColumn
+                title="Work queue"
+                description="Approved & in production"
+                icon={ListTodo}
+                count={workQueue.length}
+                empty="Approve an idea to see it here."
+                ideas={workQueue}
+                compact
+                {...sectionProps}
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      {!isLoading && viewMode === "list" && (
+        <BoardColumn
+          title="All items"
+          description={
+            filter === "all"
+              ? `${items.length} idea${items.length === 1 ? "" : "s"} across all statuses`
+              : `Showing ${filteredItems.length} · ${STATUS_OPTIONS.find((o) => o.value === filter)?.label}`
+          }
           icon={ClipboardList}
-          empty="No items match this filter"
+          count={filteredItems.length}
+          empty="No items match this filter."
           ideas={filteredItems}
-          team={team}
-          onUpdate={(id, patch) => update.mutate({ id, patch })}
-          onDelete={(id) => remove.mutate(id)}
-          onNotify={(id) => notify.mutate(id)}
-          onMoveToQueue={moveToQueue}
           showMoveToQueue
+          {...sectionProps}
         />
       )}
+
+      {/* Mobile FAB */}
+      <button
+        onClick={openCreate}
+        className="sm:hidden fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full btn-primary shadow-lg flex items-center justify-center"
+        aria-label="Add idea"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      <PlanModal
+        open={modalMode !== null}
+        onClose={closeModal}
+        title={modalMode === "edit" ? "Edit idea" : "New idea"}
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
+            {modalMode === "edit" && editingId && (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmId(editingId)}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200"
+              >
+                Delete idea
+              </button>
+            )}
+            <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !form.title.trim()}
+                className="btn-primary px-5 py-2.5 rounded-lg text-sm disabled:opacity-50"
+              >
+                {saving ? "Saving…" : modalMode === "edit" ? "Save changes" : "Add idea"}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg mb-4">{error}</p>}
+        <PlanIdeaForm
+          form={form}
+          setForm={setForm}
+          team={team}
+          mode={modalMode === "create" ? "create" : "edit"}
+        />
+      </PlanModal>
+
+      <PlanModal
+        open={deleteConfirmId !== null}
+        onClose={() => setDeleteConfirmId(null)}
+        title="Delete this idea?"
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmId(null)}
+              className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => deleteConfirmId && remove.mutate(deleteConfirmId)}
+              disabled={remove.isPending}
+              className="px-5 py-2.5 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {remove.isPending ? "Deleting…" : "Yes, delete"}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This permanently removes the idea from your plan. This cannot be undone.
+        </p>
+      </PlanModal>
     </div>
   );
 }
 
-function IdeaSection({
-  title,
-  subtitle,
+function ViewOption({
+  active,
+  onClick,
   icon: Icon,
-  empty,
-  ideas,
-  team,
-  onUpdate,
-  onDelete,
-  onNotify,
-  onMoveToQueue,
-  showMoveToQueue,
+  title,
+  description,
 }: {
-  title: string;
-  subtitle: string;
+  active: boolean;
+  onClick: () => void;
   icon: React.ComponentType<{ className?: string }>;
-  empty: string;
-  ideas: ContentIdea[];
-  team: { name: string; email: string }[];
-  onUpdate: (id: string, patch: Partial<ContentIdea> & { notify_assignee?: boolean }) => void;
-  onDelete: (id: string) => void;
-  onNotify: (id: string) => void;
-  onMoveToQueue?: (id: string) => void;
-  showMoveToQueue?: boolean;
+  title: string;
+  description: string;
 }) {
-  return (
-    <div className="pulse-card overflow-hidden">
-      <div className="px-5 py-4 border-b border-border bg-secondary/30 flex items-center gap-3">
-        <Icon className="w-5 h-5 text-primary" />
-        <div>
-          <h2 className="font-semibold">{title}</h2>
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
-        </div>
-        <span className="ml-auto text-sm font-medium tabular-nums text-muted-foreground">{ideas.length}</span>
-      </div>
-      {ideas.length === 0 ? (
-        <p className="p-10 text-center text-sm text-muted-foreground">{empty}</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-secondary/50 text-left">
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Title</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Theme</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Target</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Assignee</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Notes</th>
-                <th className="px-4 py-3 w-24" />
-              </tr>
-            </thead>
-            <tbody>
-              {ideas.map((idea) => (
-                <IdeaRow
-                  key={idea.id}
-                  idea={idea}
-                  team={team}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  onNotify={onNotify}
-                  onMoveToQueue={onMoveToQueue}
-                  showMoveToQueue={showMoveToQueue && isParkingStatus(idea.status)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function IdeaRow({
-  idea,
-  team,
-  onUpdate,
-  onDelete,
-  onNotify,
-  onMoveToQueue,
-  showMoveToQueue,
-}: {
-  idea: ContentIdea;
-  team: { name: string; email: string }[];
-  onUpdate: (id: string, patch: Partial<ContentIdea> & { notify_assignee?: boolean }) => void;
-  onDelete: (id: string) => void;
-  onNotify: (id: string) => void;
-  onMoveToQueue?: (id: string) => void;
-  showMoveToQueue?: boolean;
-}) {
-  const [title, setTitle] = useState(idea.title);
-
-  const saveTitle = () => {
-    const trimmed = title.trim();
-    if (trimmed && trimmed !== idea.title) onUpdate(idea.id, { title: trimmed });
-  };
-
-  const assigneeValue = idea.assignee_email || "";
-
-  return (
-    <tr className="border-b border-border/60 hover:bg-secondary/30 transition-colors">
-      <td className="px-4 py-2 min-w-[180px]">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={saveTitle}
-          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-          className="w-full font-medium bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 text-sm"
-        />
-      </td>
-      <td className="px-4 py-2">
-        <input
-          defaultValue={idea.theme || ""}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (v !== (idea.theme || "")) onUpdate(idea.id, { theme: v || null });
-          }}
-          placeholder="Theme"
-          className="w-full max-w-[140px] text-xs bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5"
-        />
-      </td>
-      <td className="px-4 py-2 whitespace-nowrap text-muted-foreground">
-        <input
-          type="date"
-          defaultValue={idea.target_date || ""}
-          onChange={(e) => onUpdate(idea.id, { target_date: e.target.value || null })}
-          className="text-xs border border-border rounded-lg px-2 py-1 bg-background"
-        />
-      </td>
-      <td className="px-4 py-2">
-        <select
-          value={assigneeValue}
-          onChange={(e) => {
-            const email = e.target.value;
-            if (!email) {
-              onUpdate(idea.id, { owner: null, assignee_email: null });
-              return;
-            }
-            const member = team.find((m) => m.email === email);
-            onUpdate(idea.id, { owner: member?.name ?? email, assignee_email: email });
-          }}
-          className="text-xs border border-border rounded-lg px-2 py-1 bg-background max-w-[160px]"
-        >
-          <option value="">Unassigned</option>
-          {team.map((m) => (
-            <option key={m.email} value={m.email}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-4 py-2">
-        <select
-          value={idea.status}
-          onChange={(e) => onUpdate(idea.id, { status: e.target.value as IdeaStatus })}
-          className="text-xs border border-border rounded-lg px-2 py-1 bg-background capitalize"
-        >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.replace(/_/g, " ")}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-4 py-2 text-muted-foreground max-w-[180px]">
-        <input
-          defaultValue={idea.notes || ""}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (v !== (idea.notes || "")) onUpdate(idea.id, { notes: v || null });
-          }}
-          placeholder="—"
-          className="w-full text-xs bg-transparent border border-transparent hover:border-border focus:border-primary rounded px-1 py-0.5 truncate"
-        />
-      </td>
-      <td className="px-4 py-2">
-        <div className="flex items-center gap-1">
-          {showMoveToQueue && onMoveToQueue && (
-            <button
-              onClick={() => onMoveToQueue(idea.id)}
-              className="text-primary hover:bg-primary/10 p-1 rounded"
-              title="Move to work queue"
-            >
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
-          {idea.assignee_email && (
-            <button
-              onClick={() => onNotify(idea.id)}
-              className="text-muted-foreground hover:text-primary p-1 rounded"
-              title="Email assignee"
-            >
-              <Mail className="w-4 h-4" />
-            </button>
-          )}
-          <button
-            onClick={() => onDelete(idea.id)}
-            className="text-muted-foreground hover:text-red-600 p-1 rounded"
-            title="Delete"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function ViewTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-        active ? "bg-primary text-primary-foreground shadow-sm" : "bg-secondary text-muted-foreground hover:text-foreground"
+      className={`text-left rounded-xl border-2 p-4 transition-all ${
+        active
+          ? "border-primary bg-primary/5 shadow-sm"
+          : "border-border bg-white/40 hover:border-primary/30 hover:bg-white/60"
       }`}
     >
-      {children}
+      <div className="flex items-start gap-3">
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+          }`}
+        >
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-sm">{title}</p>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
+        </div>
+      </div>
+      {active && (
+        <p className="text-xs font-medium text-primary mt-3 pl-[52px]">✓ Currently selected</p>
+      )}
     </button>
   );
 }
@@ -639,31 +584,81 @@ function StatCard({
     teal: "text-teal bg-teal/15",
   };
   return (
-    <div className="pulse-card-hover p-5 flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${colors[accent]}`}>
-        <Icon className="w-6 h-6" />
+    <div className="pulse-card-hover p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
+      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 ${colors[accent]}`}>
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
       </div>
-      <div>
-        <p className="text-3xl font-bold tabular-nums">{value}</p>
-        <p className="text-sm text-muted-foreground">{label}</p>
+      <div className="min-w-0">
+        <p className="text-2xl sm:text-3xl font-bold tabular-nums">{value}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground truncate">{label}</p>
       </div>
     </div>
   );
 }
 
-function Field({
-  label,
-  children,
-  className = "",
+function BoardColumn({
+  title,
+  description,
+  icon: Icon,
+  count,
+  empty,
+  ideas,
+  showMoveToQueue,
+  compact,
+  onEdit,
+  onDelete,
+  onNotify,
+  onMoveToQueue,
 }: {
-  label: string;
-  children: React.ReactNode;
-  className?: string;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  count: number;
+  empty: string;
+  ideas: ContentIdea[];
+  showMoveToQueue?: boolean;
+  compact?: boolean;
+  onEdit: (idea: ContentIdea) => void;
+  onDelete: (id: string) => void;
+  onNotify: (id: string) => void;
+  onMoveToQueue?: (id: string) => void;
 }) {
   return (
-    <label className={`text-sm block ${className}`}>
-      <span className="text-muted-foreground">{label}</span>
-      <div className="mt-1">{children}</div>
-    </label>
+    <div className={`pulse-card flex flex-col ${compact ? "" : "min-h-[320px]"}`}>
+      <div className="px-4 py-3.5 border-b border-border/70 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-sm sm:text-base">{title}</h2>
+            <span className="text-xs font-medium tabular-nums text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+              {count}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground truncate">{description}</p>
+        </div>
+      </div>
+
+      <div className="p-3 sm:p-4 flex-1 space-y-3">
+        {ideas.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/80 py-10 px-4 text-center text-sm text-muted-foreground">
+            {empty}
+          </div>
+        ) : (
+          ideas.map((idea) => (
+            <PlanIdeaCard
+              key={idea.id}
+              idea={idea}
+              onEdit={() => onEdit(idea)}
+              onDelete={() => onDelete(idea.id)}
+              onNotify={() => onNotify(idea.id)}
+              onMoveToQueue={onMoveToQueue ? () => onMoveToQueue(idea.id) : undefined}
+              showMoveToQueue={showMoveToQueue}
+            />
+          ))
+        )}
+      </div>
+    </div>
   );
 }

@@ -60,8 +60,14 @@ web() {
   cd apps/web
   export API_URL="http://127.0.0.1:${PULSE_API_PORT}"
   if [ "${2:-}" = "clean" ]; then
-    rm -rf .next
+    rm -rf .next node_modules/.cache
     echo "Cleared Next.js cache (.next)"
+  fi
+  # Kill stale dev server on this port (prevents corrupted cache / EADDRINUSE)
+  if lsof -ti :"$PULSE_WEB_PORT" >/dev/null 2>&1; then
+    echo "Stopping existing process on port ${PULSE_WEB_PORT}…"
+    lsof -ti :"$PULSE_WEB_PORT" | xargs kill -9 2>/dev/null || true
+    sleep 1
   fi
   echo "App → http://localhost:${PULSE_WEB_PORT}"
   npm run dev -- -p "$PULSE_WEB_PORT"

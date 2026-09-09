@@ -303,7 +303,7 @@ export const staticApi = {
         target_date: data.target_date ?? null,
         owner: data.owner ?? null,
         assignee_email: data.assignee_email ?? null,
-        status: data.status ?? "idea",
+        status: "idea",
         notes: data.notes ?? null,
         created_at: now,
         updated_at: now,

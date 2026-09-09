@@ -139,11 +139,12 @@ async def create_idea(
         target_date=body.target_date,
         owner=body.owner,
         assignee_email=body.assignee_email,
-        status=body.status,
+        status=IdeaStatus.IDEA,  # new ideas always start in parking lot
         notes=body.notes,
     )
     db.add(idea)
     await db.flush()
+    await db.refresh(idea)
 
     if body.notify_assignee and body.assignee_email:
         await send_plan_assignment(idea, body.assignee_email)
@@ -171,6 +172,7 @@ async def update_idea(
         setattr(idea, field, value)
 
     await db.flush()
+    await db.refresh(idea)
 
     email = idea.assignee_email
     if notify and email:
