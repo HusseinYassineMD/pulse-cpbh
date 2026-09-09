@@ -19,6 +19,7 @@ import {
 import { format, parseISO, isPast } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
+import { HeroMockup } from "@/components/hero-mockup";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
@@ -67,9 +68,10 @@ export default function HomePage() {
   const stats = dashboard?.stats;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 pb-4">
       {/* Hero */}
-      <div className="max-w-2xl space-y-5 animate-fade-in">
+      <div className="grid lg:grid-cols-2 gap-10 items-center animate-fade-in">
+        <div className="space-y-5">
           <div className="inline-flex flex-col gap-1.5">
             <div className="cpbh-badge">
               <Zap className="w-3.5 h-3.5 text-teal" />
@@ -99,6 +101,8 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+        <HeroMockup />
       </div>
 
       {/* Stats */}
@@ -125,14 +129,14 @@ export default function HomePage() {
           }}
           className="space-y-4"
         >
-          <div className="flex gap-3">
-            <div className="flex-1 pulse-terminal flex items-center px-5 py-4 gap-3">
-              <span className="text-teal/70 select-none font-bold">❯</span>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 pulse-terminal flex items-center px-4 sm:px-5 py-3 sm:py-4 gap-3 min-w-0">
+              <span className="text-teal/70 select-none font-bold shrink-0">❯</span>
               <input
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 placeholder="post exercise-apoe4"
-                className="flex-1 bg-transparent outline-none placeholder:text-gray-600 text-base"
+                className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-gray-600 text-base"
                 disabled={run.isPending}
                 autoFocus
               />
@@ -143,7 +147,7 @@ export default function HomePage() {
             <button
               type="submit"
               disabled={run.isPending || !command.trim()}
-              className="px-8 py-4 btn-primary disabled:opacity-40 flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 btn-primary disabled:opacity-40 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shrink-0"
             >
               {run.isPending ? (
                 <>
@@ -270,8 +274,8 @@ export default function HomePage() {
           <section className="lg:col-span-2 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-xl">Recent</h2>
-              <Link href="/posts" className="text-sm text-primary hover:underline font-semibold">
-                All →
+              <Link href="/board" className="text-sm text-primary hover:underline font-semibold">
+                Board →
               </Link>
             </div>
             <div className="pulse-card divide-y overflow-hidden">

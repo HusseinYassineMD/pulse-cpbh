@@ -41,9 +41,9 @@ export default function NewPostPage() {
 
   return (
     <div className="max-w-md">
-      <Link href="/posts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-6">
+      <Link href="/board" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-6">
         <ArrowLeft className="w-4 h-4" />
-        Back
+        Back to board
       </Link>
 
       <h1 className="text-2xl font-bold mb-2">New post</h1>

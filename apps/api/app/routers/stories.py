@@ -1,6 +1,7 @@
 """Story library — one image + Substack source link per story."""
 
 import tempfile
+from datetime import date
 from pathlib import Path
 from uuid import UUID
 
@@ -23,6 +24,15 @@ ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 def _ext(filename: str) -> str:
     ext = Path(filename).suffix.lower()
     return ext if ext in ALLOWED_EXTENSIONS else ".png"
+
+
+def _parse_optional_date(raw: str | None) -> date | None:
+    if not raw or not raw.strip():
+        return None
+    try:
+        return date.fromisoformat(raw.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid source publish date (use YYYY-MM-DD)") from exc
 
 
 @router.get("", response_model=StoryListResponse)
@@ -48,6 +58,8 @@ async def list_stories(
 async def create_story(
     title: str = Form(...),
     source_url: str | None = Form(None),
+    category: str | None = Form(None),
+    source_publish_date: str | None = Form(None),
     image: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -60,6 +72,8 @@ async def create_story(
         user_id=user.id,
         title=title.strip() or "Untitled story",
         source_url=source_url.strip() if source_url else None,
+        category=category.strip() if category else None,
+        source_publish_date=_parse_optional_date(source_publish_date),
         image_key=f"image{ext}",
     )
     db.add(story)
@@ -101,6 +115,10 @@ async def update_story(
         story.title = body.title.strip() or story.title
     if body.source_url is not None:
         story.source_url = body.source_url.strip() or None
+    if body.category is not None:
+        story.category = body.category.strip() or None
+    if body.source_publish_date is not None:
+        story.source_publish_date = body.source_publish_date
 
     await db.flush()
     await db.refresh(story)

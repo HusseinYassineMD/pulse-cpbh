@@ -25,7 +25,7 @@ export function PlanModal({ open, onClose, title, children, footer }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="plan-modal-title"
-        className="relative w-full sm:max-w-lg max-h-[92vh] sm:max-h-[85vh] flex flex-col bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border animate-fade-in"
+        className="relative w-full sm:max-w-xl max-h-[92vh] sm:max-h-[85vh] flex flex-col bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border animate-fade-in"
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h2 id="plan-modal-title" className="font-semibold text-lg">

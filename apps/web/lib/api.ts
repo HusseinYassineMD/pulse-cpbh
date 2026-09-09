@@ -6,7 +6,12 @@ import type {
   ContentFormat,
   DashboardResponse,
   IdeaStatus,
+  PlanDeliverable,
   PlanListResponse,
+  PlanNotification,
+  PlanWriteResponse,
+  PlanPlatform,
+  PlanSourceFile,
   Post,
   PostListResponse,
   Story,
@@ -46,7 +51,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -65,7 +74,12 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE}${path}`, { method, body: formData, headers });
+  const response = await fetch(`${API_BASE}${path}`, {
+    method,
+    body: formData,
+    headers,
+    signal: AbortSignal.timeout(30000),
+  });
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -145,15 +159,28 @@ const liveApi = {
 
     get: (id: string) => request<Story>(`/stories/${id}`),
 
-    create: (data: { title: string; source_url?: string; image: File }) => {
+    create: (data: {
+      title: string;
+      source_url?: string;
+      category?: string;
+      source_publish_date?: string;
+      image: File;
+    }) => {
       const form = new FormData();
       form.append("title", data.title);
       if (data.source_url) form.append("source_url", data.source_url);
+      if (data.category) form.append("category", data.category);
+      if (data.source_publish_date) form.append("source_publish_date", data.source_publish_date);
       form.append("image", data.image);
       return uploadRequest<Story>("/stories", form);
     },
 
-    update: (id: string, data: { title?: string; source_url?: string | null }) =>
+    update: (id: string, data: {
+      title?: string;
+      source_url?: string | null;
+      category?: string | null;
+      source_publish_date?: string | null;
+    }) =>
       request<Story>(`/stories/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
 
     replaceImage: (id: string, image: File) => {
@@ -205,34 +232,114 @@ const liveApi = {
     create: (data: {
       title: string;
       theme?: string | null;
+      deliverable?: PlanDeliverable;
       format?: ContentFormat;
+      platforms?: PlanPlatform[];
       target_date?: string | null;
       owner?: string | null;
       assignee_email?: string | null;
       status?: IdeaStatus;
       notes?: string | null;
+      substack_url?: string | null;
+      substack_publish_date?: string | null;
       notify_assignee?: boolean;
-    }) => request<ContentIdea>("/plan", { method: "POST", body: JSON.stringify(data) }),
+    }) => request<PlanWriteResponse>("/plan", { method: "POST", body: JSON.stringify(data) }),
 
     update: (
       id: string,
       data: Partial<{
         title: string;
         theme: string | null;
+        deliverable: PlanDeliverable;
         format: ContentFormat;
+        platforms: PlanPlatform[];
         target_date: string | null;
         owner: string | null;
         assignee_email: string | null;
         status: IdeaStatus;
         notes: string | null;
+        substack_url: string | null;
+        substack_publish_date: string | null;
         notify_assignee: boolean;
       }>
-    ) => request<ContentIdea>(`/plan/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    ) => request<PlanWriteResponse>(`/plan/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+    uploadSource: (id: string, file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return uploadRequest<ContentIdea>(`/plan/${id}/sources`, formData);
+    },
+
+    deleteSource: (id: string, filename: string) =>
+      request<ContentIdea>(`/plan/${id}/sources/${encodeURIComponent(filename)}`, { method: "DELETE" }),
+
+    sendToSchedule: (id: string) =>
+      request<{
+        idea: ContentIdea;
+        post_id: string;
+        schedule_id: string;
+        scheduled_at: string;
+      }>(`/plan/${id}/send-to-schedule`, { method: "POST" }),
 
     notify: (id: string) =>
-      request<{ ok: boolean; message: string }>(`/plan/${id}/notify`, { method: "POST" }),
+      request<PlanNotification>(`/plan/${id}/notify`, { method: "POST" }),
 
     delete: (id: string) => request<void>(`/plan/${id}`, { method: "DELETE" }),
+  },
+
+  pipeline: {
+    list: () =>
+      request<import("./pipeline-types").PipelineListResponse>("/pipeline"),
+
+    create: (data: {
+      stage: import("./pipeline-types").PipelineStage;
+      title?: string;
+      body?: string;
+      source_id?: string | null;
+      highlight_id?: string | null;
+      output_type?: PlanDeliverable | null;
+    }) => request<import("./pipeline-types").PipelineItem>("/pipeline", { method: "POST", body: JSON.stringify(data) }),
+
+    update: (
+      id: string,
+      data: Partial<{
+        title: string;
+        body: string;
+        stage: import("./pipeline-types").PipelineStage;
+        source_id: string | null;
+        highlight_id: string | null;
+        output_type: PlanDeliverable | null;
+        sort_order: number;
+      }>
+    ) =>
+      request<import("./pipeline-types").PipelineItem>(`/pipeline/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+
+    reorder: (stage: import("./pipeline-types").PipelineStage, ids: string[]) =>
+      request<import("./pipeline-types").PipelineListResponse>(`/pipeline/reorder/${stage}`, {
+        method: "POST",
+        body: JSON.stringify({ ids }),
+      }),
+
+    summarize: (sourceId: string) =>
+      request<{ highlight: import("./pipeline-types").PipelineItem }>(
+        `/pipeline/${sourceId}/summarize`,
+        { method: "POST" }
+      ),
+
+    generateOutput: (data: {
+      output_type: PlanDeliverable;
+      source_id?: string | null;
+      highlight_id?: string | null;
+    }) =>
+      request<{ output: import("./pipeline-types").PipelineItem }>("/pipeline/generate-output", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    delete: (id: string) => request<void>(`/pipeline/${id}`, { method: "DELETE" }),
   },
 };
 

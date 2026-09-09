@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -8,11 +10,13 @@ import {
   LayoutGrid,
   Lightbulb,
   List,
+  Mail,
   Plus,
   ClipboardList,
   ListTodo,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { PlanEmailFallback } from "@/components/plan/plan-email-fallback";
 import { PlanIdeaCard } from "@/components/plan/plan-idea-card";
 import {
   PlanIdeaForm,
@@ -23,10 +27,46 @@ import {
 import { PlanModal } from "@/components/plan/plan-modal";
 import {
   DEFAULT_PLAN_TEAM,
+  isBoardStatus,
   isParkingStatus,
   isQueueStatus,
 } from "@/lib/plan-team";
-import type { ContentIdea, IdeaStatus } from "@/lib/types";
+import { rememberCategory, seedCategoriesFromIdeas } from "@/lib/plan-categories";
+import type { ContentIdea, IdeaStatus, PlanNotification } from "@/lib/types";
+
+type EmailFallbackState = {
+  idea: ContentIdea;
+  assigneeEmail: string;
+};
+
+function showEmailComposer(
+  idea: ContentIdea,
+  setEmailFallback: (state: EmailFallbackState | null) => void
+) {
+  if (!idea.assignee_email) return;
+  setEmailFallback({ idea, assigneeEmail: idea.assignee_email });
+}
+
+function applyPlanNotification(
+  idea: ContentIdea,
+  notification: PlanNotification | null | undefined,
+  setNotifyMsg: (msg: string) => void,
+  setEmailFallback: (state: EmailFallbackState | null) => void
+) {
+  if (!notification) return;
+  if (notification.ok) {
+    setEmailFallback(null);
+    setNotifyMsg(notification.message);
+    setTimeout(() => setNotifyMsg(""), 8000);
+    return;
+  }
+  if (idea.assignee_email) {
+    showEmailComposer(idea, setEmailFallback);
+    return;
+  }
+  setNotifyMsg(notification.message);
+  setTimeout(() => setNotifyMsg(""), 8000);
+}
 
 type ViewMode = "board" | "list";
 type BoardPanel = "parking" | "queue";
@@ -52,23 +92,39 @@ function assigneeFromForm(form: PlanFormState, team: { name: string; email: stri
   return { owner: member?.name ?? null, assignee_email: form.assigneeKey };
 }
 
+function formHasAssignee(form: PlanFormState): boolean {
+  if (!form.assigneeKey) return false;
+  if (form.assigneeKey === "__custom__") return !!form.customEmail.trim();
+  return true;
+}
+
 function formToPayload(
   form: PlanFormState,
   team: { name: string; email: string }[],
-  mode: "create" | "edit"
+  mode: "create" | "edit",
+  sendEmail = false
 ) {
   const picked = assigneeFromForm(form, team);
   return {
     title: form.title.trim(),
     theme: form.theme.trim() || null,
-    format: form.format,
+    deliverable: form.deliverable,
+    platforms: form.platforms,
     target_date: form.target_date || null,
     owner: picked.owner,
     assignee_email: picked.assignee_email,
     status: mode === "create" ? ("idea" as IdeaStatus) : form.status,
     notes: form.notes.trim() || null,
-    notify_assignee: form.notify_assignee && !!picked.assignee_email,
+    substack_url: form.substack_url.trim() || null,
+    substack_publish_date: form.substack_publish_date || null,
+    notify_assignee: (sendEmail || form.notify_assignee) && !!picked.assignee_email,
   };
+}
+
+async function uploadPendingFiles(ideaId: string, files: File[]) {
+  for (const file of files) {
+    await api.plan.uploadSource(ideaId, file);
+  }
 }
 
 export default function PlanPage() {
@@ -79,9 +135,13 @@ export default function PlanPage() {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<PlanFormState>(emptyPlanForm);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [notifyMsg, setNotifyMsg] = useState("");
+  const [emailFallback, setEmailFallback] = useState<EmailFallbackState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const highlightIdeaId = searchParams.get("idea");
 
   const { data: team = DEFAULT_PLAN_TEAM } = useQuery({
     queryKey: ["plan-team"],
@@ -93,28 +153,58 @@ export default function PlanPage() {
     queryFn: () => api.plan.list(),
   });
 
-  const items = data?.items ?? [];
+  const items = useMemo(
+    () =>
+      (data?.items ?? []).map((i) => ({
+        ...i,
+        platforms: i.platforms ?? [],
+        source_files: i.source_files ?? [],
+        deliverable: i.deliverable ?? null,
+        substack_url: i.substack_url ?? null,
+        substack_publish_date: i.substack_publish_date ?? null,
+        post_id: i.post_id ?? null,
+      })),
+    [data?.items]
+  );
 
-  const filteredItems = useMemo(() => {
+  const boardItems = useMemo(
+    () => items.filter((i) => isBoardStatus(i.status)),
+    [items]
+  );
+
+  useEffect(() => {
+    seedCategoriesFromIdeas(items.map((i) => i.theme));
+  }, [items]);
+
+  useEffect(() => {
+    if (!highlightIdeaId || isLoading) return;
+    const el = document.getElementById(`plan-idea-${highlightIdeaId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ring-2", "ring-teal", "ring-offset-2");
+    const t = setTimeout(() => el.classList.remove("ring-2", "ring-teal", "ring-offset-2"), 4000);
+    return () => clearTimeout(t);
+  }, [highlightIdeaId, isLoading, items.length]);
+
+  const listItems = useMemo(() => {
     if (filter === "all") return items;
     return items.filter((i) => i.status === filter);
   }, [items, filter]);
 
   const parkingLot = useMemo(
     () =>
-      items
+      boardItems
         .filter((i) => isParkingStatus(i.status))
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [items]
+    [boardItems]
   );
 
   const workQueue = useMemo(() => {
     const priority: Record<string, number> = {
       in_production: 0,
       approved: 1,
-      scheduled: 2,
     };
-    return items
+    return boardItems
       .filter((i) => isQueueStatus(i.status))
       .sort((a, b) => {
         const da = a.target_date ? new Date(a.target_date).getTime() : Number.MAX_SAFE_INTEGER;
@@ -122,27 +212,38 @@ export default function PlanPage() {
         if (da !== db) return da - db;
         return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
       });
-  }, [items]);
+  }, [boardItems]);
 
-  const counts = useMemo(
-    () => ({
-      total: items.length,
+  const counts = useMemo(() => {
+    const scheduled = items.filter((i) => i.status === "scheduled").length;
+    const onBoard = boardItems.length;
+    const all = items.length;
+    return {
+      /** Ideas visible on the parking lot + work queue columns */
+      onBoard,
+      /** Every idea in the plan (including published — hidden from board) */
+      all,
       parking: parkingLot.length,
       queue: workQueue.length,
-      scheduled: items.filter((i) => i.status === "scheduled").length,
-    }),
-    [items, parkingLot.length, workQueue.length]
-  );
+      scheduled,
+      hiddenFromBoard: all - onBoard - scheduled,
+    };
+  }, [items, boardItems.length, parkingLot.length, workQueue.length]);
 
   const openCreate = () => {
     setForm(emptyPlanForm);
+    setPendingFiles([]);
     setEditingId(null);
     setError("");
     setModalMode("create");
   };
 
-  const openEdit = (idea: ContentIdea) => {
-    setForm(ideaToForm(idea, team));
+  const openEdit = (idea: ContentIdea, opts?: { focusEmail?: boolean }) => {
+    setForm({
+      ...ideaToForm(idea, team),
+      notify_assignee: opts?.focusEmail ?? false,
+    });
+    setPendingFiles([]);
     setEditingId(idea.id);
     setError("");
     setModalMode("edit");
@@ -152,36 +253,73 @@ export default function PlanPage() {
     setModalMode(null);
     setEditingId(null);
     setForm(emptyPlanForm);
+    setPendingFiles([]);
     setError("");
   };
 
+  const editingIdea = editingId ? items.find((i) => i.id === editingId) : undefined;
+
   const create = useMutation({
-    mutationFn: () => api.plan.create(formToPayload(form, team, "create")),
-    onSuccess: () => {
+    mutationFn: async (payload: ReturnType<typeof formToPayload>) => {
+      const idea = await api.plan.create(payload);
+      if (pendingFiles.length) {
+        await uploadPendingFiles(idea.id, pendingFiles);
+      }
+      rememberCategory(form.theme);
+      return idea;
+    },
+    onSuccess: (idea) => {
       queryClient.invalidateQueries({ queryKey: ["plan"] });
       closeModal();
+      if (idea.notification?.ok) {
+        setEmailFallback(null);
+        setNotifyMsg(idea.notification.message);
+        setTimeout(() => setNotifyMsg(""), 8000);
+      } else if (idea.assignee_email && idea.notification) {
+        showEmailComposer(idea, setEmailFallback);
+      }
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not add idea"),
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: ReturnType<typeof formToPayload> }) =>
-      api.plan.update(id, patch),
-    onSuccess: () => {
+    mutationFn: async ({ id, patch }: { id: string; patch: ReturnType<typeof formToPayload> }) => {
+      const idea = await api.plan.update(id, patch);
+      rememberCategory(form.theme);
+      return idea;
+    },
+    onSuccess: (idea) => {
       queryClient.invalidateQueries({ queryKey: ["plan"] });
       closeModal();
+      if (idea.notification?.ok) {
+        setEmailFallback(null);
+        setNotifyMsg(idea.notification.message);
+        setTimeout(() => setNotifyMsg(""), 8000);
+      } else if (idea.assignee_email && idea.notification) {
+        showEmailComposer(idea, setEmailFallback);
+      }
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save changes"),
   });
 
   const notify = useMutation({
-    mutationFn: (id: string) => api.plan.notify(id),
-    onSuccess: (res) => {
-      setNotifyMsg(res.message);
-      setTimeout(() => setNotifyMsg(""), 4000);
+    mutationFn: (idea: ContentIdea) => api.plan.notify(idea.id).then((res) => ({ res, idea })),
+    onSuccess: ({ res, idea }) => {
+      applyPlanNotification(idea, res, setNotifyMsg, setEmailFallback);
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not send email"),
+    onError: () => {
+      // Still show composer — email content is built in the browser
+    },
   });
+
+  const openEditForEmail = (idea: ContentIdea) => {
+    if (!idea.assignee_email) {
+      openEdit(idea, { focusEmail: true });
+      return;
+    }
+    showEmailComposer(idea, setEmailFallback);
+    notify.mutate(idea);
+  };
 
   const remove = useMutation({
     mutationFn: (id: string) => api.plan.delete(id),
@@ -208,37 +346,80 @@ export default function PlanPage() {
     },
   });
 
-  const handleSave = () => {
+  const sendToSchedule = useMutation({
+    mutationFn: (id: string) => api.plan.sendToSchedule(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plan"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      setNotifyMsg("Sent to Schedule — open Schedule to publish");
+      setTimeout(() => setNotifyMsg(""), 4000);
+    },
+    onError: (err) => {
+      const msg = err instanceof ApiError ? err.message : "Could not send to schedule";
+      setError(msg);
+      setNotifyMsg(msg);
+      setTimeout(() => setNotifyMsg(""), 4000);
+    },
+  });
+
+  const uploadSource = useMutation({
+    mutationFn: async ({ id, files }: { id: string; files: FileList }) => {
+      for (const file of Array.from(files)) {
+        await api.plan.uploadSource(id, file);
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan"] }),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not upload file"),
+  });
+
+  const removeSource = useMutation({
+    mutationFn: ({ id, filename }: { id: string; filename: string }) =>
+      api.plan.deleteSource(id, filename),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plan"] }),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not remove file"),
+  });
+
+  const handleSave = (sendEmail = false) => {
     if (!form.title.trim()) {
-      setError("Title is required");
+      setError("Topic is required");
       return;
     }
-    const payload = formToPayload(form, team, modalMode === "edit" ? "edit" : "create");
+    if (sendEmail && !formHasAssignee(form)) {
+      setError("Pick someone under Assign to before sending email");
+      return;
+    }
+    const mode = modalMode === "edit" ? "edit" : "create";
+    const payload = formToPayload(form, team, mode, sendEmail);
     if (modalMode === "edit" && editingId) {
       update.mutate({ id: editingId, patch: payload });
     } else {
-      create.mutate();
+      create.mutate(payload);
     }
   };
 
   const saving = create.isPending || update.isPending;
+  const canEmailFromForm = formHasAssignee(form);
+  const uploading = uploadSource.isPending || removeSource.isPending;
 
   const sectionProps = {
     onEdit: openEdit,
     onDelete: setDeleteConfirmId,
-    onNotify: (id: string) => notify.mutate(id),
+    onEmail: openEditForEmail,
     onMoveToQueue: (id: string) => moveToQueue.mutate(id),
+    onSendToSchedule: (id: string) => sendToSchedule.mutate(id),
+    highlightIdeaId,
   };
 
   return (
-    <div className="space-y-5 animate-fade-in pb-24 md:pb-0">
+    <div className="space-y-5 animate-fade-in pb-24 sm:pb-0">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">Content plan</p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Plan board</h1>
           <p className="text-muted-foreground mt-1.5 text-sm max-w-xl">
-            Capture ideas in the parking lot, approve them, then track production in the work queue.
+            Capture ideas in the parking lot, approve them into the work queue, then send finished items to Schedule.
+            Use <strong className="text-foreground font-medium">Email assignee</strong> on any card to notify your team.
           </p>
         </div>
         <button
@@ -264,10 +445,21 @@ export default function PlanPage() {
 
       {/* Stats — four separate boxes */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard label="Total" value={counts.total} icon={Lightbulb} />
+        <StatCard
+          label={viewMode === "board" ? "On board" : "All ideas"}
+          value={viewMode === "board" ? counts.onBoard : counts.all}
+          icon={Lightbulb}
+          hint={
+            viewMode === "board" && counts.hiddenFromBoard > 0
+              ? `${counts.all} total · ${counts.hiddenFromBoard} published`
+              : undefined
+          }
+        />
         <StatCard label="Parking lot" value={counts.parking} icon={Lightbulb} accent="muted" />
         <StatCard label="Work queue" value={counts.queue} icon={ListTodo} accent="sky" />
-        <StatCard label="Scheduled" value={counts.scheduled} icon={CalendarDays} accent="teal" />
+        <Link href="/calendar" className="block">
+          <StatCard label="In schedule" value={counts.scheduled} icon={CalendarDays} accent="teal" />
+        </Link>
       </div>
 
       {/* View section — separate, with plain-language labels */}
@@ -285,7 +477,7 @@ export default function PlanPage() {
             onClick={() => setViewMode("board")}
             icon={LayoutGrid}
             title="Board view"
-            description="See the Parking lot (new ideas) and Work queue (approved items) side by side. Best for day-to-day planning."
+            description="See the Parking lot (new ideas) and Work queue (approved items) side by side. Send finished items to Schedule when ready."
           />
           <ViewOption
             active={viewMode === "list"}
@@ -382,11 +574,12 @@ export default function PlanPage() {
             />
             <BoardColumn
               title="Work queue"
-              description="Approved & in production"
+              description="Approved & in production — send to Schedule when ready"
               icon={ListTodo}
               count={workQueue.length}
               empty="Approve an idea from the parking lot to begin."
               ideas={workQueue}
+              showSendToSchedule
               {...sectionProps}
             />
           </div>
@@ -408,11 +601,12 @@ export default function PlanPage() {
             ) : (
               <BoardColumn
                 title="Work queue"
-                description="Approved & in production"
+                description="Approved & in production — send to Schedule when ready"
                 icon={ListTodo}
                 count={workQueue.length}
                 empty="Approve an idea to see it here."
                 ideas={workQueue}
+                showSendToSchedule
                 compact
                 {...sectionProps}
               />
@@ -426,14 +620,15 @@ export default function PlanPage() {
           title="All items"
           description={
             filter === "all"
-              ? `${items.length} idea${items.length === 1 ? "" : "s"} across all statuses`
-              : `Showing ${filteredItems.length} · ${STATUS_OPTIONS.find((o) => o.value === filter)?.label}`
+              ? `${listItems.length} idea${listItems.length === 1 ? "" : "s"} across all statuses`
+              : `Showing ${listItems.length} · ${STATUS_OPTIONS.find((o) => o.value === filter)?.label}`
           }
           icon={ClipboardList}
-          count={filteredItems.length}
+          count={listItems.length}
           empty="No items match this filter."
-          ideas={filteredItems}
+          ideas={listItems}
           showMoveToQueue
+          showSendToSchedule
           {...sectionProps}
         />
       )}
@@ -472,11 +667,25 @@ export default function PlanPage() {
               </button>
               <button
                 type="button"
-                onClick={handleSave}
+                onClick={() => handleSave(true)}
+                disabled={saving || !form.title.trim() || !canEmailFromForm}
+                title={
+                  canEmailFromForm
+                    ? "Save and email assignment details"
+                    : "Select Assign to first"
+                }
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-teal/40 text-teal bg-teal/10 hover:bg-teal/15 disabled:opacity-40"
+              >
+                <Mail className="w-4 h-4" />
+                {saving ? "Sending…" : "Save & email"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSave(false)}
                 disabled={saving || !form.title.trim()}
                 className="btn-primary px-5 py-2.5 rounded-lg text-sm disabled:opacity-50"
               >
-                {saving ? "Saving…" : modalMode === "edit" ? "Save changes" : "Add idea"}
+                {saving ? "Saving…" : modalMode === "edit" ? "Save only" : "Add idea"}
               </button>
             </div>
           </div>
@@ -488,6 +697,20 @@ export default function PlanPage() {
           setForm={setForm}
           team={team}
           mode={modalMode === "create" ? "create" : "edit"}
+          sourceFiles={editingIdea?.source_files ?? []}
+          pendingFiles={pendingFiles}
+          onPendingFilesChange={setPendingFiles}
+          uploading={uploading}
+          onUpload={
+            editingId
+              ? (files) => uploadSource.mutate({ id: editingId, files })
+              : undefined
+          }
+          onRemoveFile={
+            editingId
+              ? (filename) => removeSource.mutate({ id: editingId, filename })
+              : undefined
+          }
         />
       </PlanModal>
 
@@ -519,6 +742,14 @@ export default function PlanPage() {
           This permanently removes the idea from your plan. This cannot be undone.
         </p>
       </PlanModal>
+
+      {emailFallback && (
+        <PlanEmailFallback
+          idea={emailFallback.idea}
+          assigneeEmail={emailFallback.assigneeEmail}
+          onClose={() => setEmailFallback(null)}
+        />
+      )}
     </div>
   );
 }
@@ -571,11 +802,13 @@ function StatCard({
   value,
   icon: Icon,
   accent = "primary",
+  hint,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   accent?: "primary" | "muted" | "sky" | "teal";
+  hint?: string;
 }) {
   const colors = {
     primary: "text-primary bg-primary/10",
@@ -591,6 +824,7 @@ function StatCard({
       <div className="min-w-0">
         <p className="text-2xl sm:text-3xl font-bold tabular-nums">{value}</p>
         <p className="text-xs sm:text-sm text-muted-foreground truncate">{label}</p>
+        {hint && <p className="text-[10px] sm:text-xs text-muted-foreground/80 mt-0.5">{hint}</p>}
       </div>
     </div>
   );
@@ -604,11 +838,14 @@ function BoardColumn({
   empty,
   ideas,
   showMoveToQueue,
+  showSendToSchedule,
   compact,
   onEdit,
   onDelete,
-  onNotify,
+  onEmail,
   onMoveToQueue,
+  onSendToSchedule,
+  highlightIdeaId,
 }: {
   title: string;
   description: string;
@@ -617,11 +854,14 @@ function BoardColumn({
   empty: string;
   ideas: ContentIdea[];
   showMoveToQueue?: boolean;
+  showSendToSchedule?: boolean;
   compact?: boolean;
   onEdit: (idea: ContentIdea) => void;
   onDelete: (id: string) => void;
-  onNotify: (id: string) => void;
+  onEmail: (idea: ContentIdea) => void;
   onMoveToQueue?: (id: string) => void;
+  onSendToSchedule?: (id: string) => void;
+  highlightIdeaId?: string | null;
 }) {
   return (
     <div className={`pulse-card flex flex-col ${compact ? "" : "min-h-[320px]"}`}>
@@ -650,11 +890,14 @@ function BoardColumn({
             <PlanIdeaCard
               key={idea.id}
               idea={idea}
+              highlighted={highlightIdeaId === idea.id}
               onEdit={() => onEdit(idea)}
               onDelete={() => onDelete(idea.id)}
-              onNotify={() => onNotify(idea.id)}
+              onEmail={() => onEmail(idea)}
               onMoveToQueue={onMoveToQueue ? () => onMoveToQueue(idea.id) : undefined}
               showMoveToQueue={showMoveToQueue}
+              onSendToSchedule={onSendToSchedule ? () => onSendToSchedule(idea.id) : undefined}
+              showSendToSchedule={showSendToSchedule}
             />
           ))
         )}

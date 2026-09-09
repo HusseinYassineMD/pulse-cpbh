@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models import MediaAsset, Post, Story, User
-from app.services.storage import media_root
+from app.models import ContentIdea, MediaAsset, Post, Story, User
+from app.services.storage import media_root, plan_media_dir
 
 router = APIRouter(prefix="/media", tags=["media"])
 
@@ -29,6 +29,32 @@ def _resolve_story_media_path(story_id: UUID, filename: str) -> Path:
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return path
+
+
+def _resolve_plan_media_path(idea_id: UUID, filename: str) -> Path:
+    path = plan_media_dir(idea_id) / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return path
+
+
+def _guess_media_type(filename: str) -> str:
+    lower = filename.lower()
+    if lower.endswith(".pdf"):
+        return "application/pdf"
+    if lower.endswith((".jpg", ".jpeg")):
+        return "image/jpeg"
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".webp"):
+        return "image/webp"
+    if lower.endswith((".doc", ".docx")):
+        return "application/msword"
+    if lower.endswith((".ppt", ".pptx")):
+        return "application/vnd.ms-powerpoint"
+    if lower.endswith(".txt"):
+        return "text/plain"
+    return "application/octet-stream"
 
 
 async def _verify_media_asset(db: AsyncSession, post_id: UUID, filename: str) -> None:
@@ -76,6 +102,30 @@ async def get_story_media(
     if filename.lower().endswith(".webp"):
         media_type = "image/webp"
     return FileResponse(path, media_type=media_type)
+
+
+@router.get("/plan/{idea_id}/{filename}")
+async def get_plan_source(
+    idea_id: UUID,
+    filename: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ContentIdea).where(ContentIdea.id == idea_id, ContentIdea.user_id == user.id)
+    )
+    idea = result.scalar_one_or_none()
+    if not idea:
+        raise HTTPException(status_code=404, detail="Idea not found")
+
+    import json
+
+    entries = json.loads(idea.source_files or "[]")
+    if not any(isinstance(e, dict) and e.get("filename") == filename for e in entries):
+        raise HTTPException(status_code=404, detail="Source file not found")
+
+    path = _resolve_plan_media_path(idea_id, filename)
+    return FileResponse(path, media_type=_guess_media_type(filename), filename=filename)
 
 
 @router.get("/{post_id}/{filename}")

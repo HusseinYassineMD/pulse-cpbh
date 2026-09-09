@@ -7,7 +7,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Copy, Check, ExternalLink, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
+import { rememberCategory } from "@/lib/plan-categories";
 import { AuthImage } from "@/components/auth-image";
+import { formatBoardDate } from "@/lib/board-stats";
 
 export default function StoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +17,8 @@ export default function StoryDetailPage() {
   const queryClient = useQueryClient();
   const [sourceUrl, setSourceUrl] = useState("");
   const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("");
+  const [sourcePublishDate, setSourcePublishDate] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [initialized, setInitialized] = useState(false);
@@ -29,17 +33,28 @@ export default function StoryDetailPage() {
     if (story && !initialized) {
       setSourceUrl(story.source_url || "");
       setTitle(story.title);
+      setCategory(story.category || "");
+      setSourcePublishDate(story.source_publish_date || "");
       setInitialized(true);
     }
   }, [story, initialized]);
 
   const save = useMutation({
-    mutationFn: () => api.stories.update(id, { title: title.trim(), source_url: sourceUrl.trim() || null }),
+    mutationFn: () =>
+      api.stories.update(id, {
+        title: title.trim(),
+        source_url: sourceUrl.trim() || null,
+        category: category.trim() || null,
+        source_publish_date: sourcePublishDate || null,
+      }),
     onSuccess: (updated) => {
+      rememberCategory(category);
       queryClient.setQueryData(["story", id], updated);
       queryClient.invalidateQueries({ queryKey: ["stories"] });
       setTitle(updated.title);
       setSourceUrl(updated.source_url || "");
+      setCategory(updated.category || "");
+      setSourcePublishDate(updated.source_publish_date || "");
       setError("");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save"),
@@ -49,7 +64,7 @@ export default function StoryDetailPage() {
     mutationFn: () => api.stories.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stories"] });
-      router.push("/stories");
+      router.push("/board");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not delete"),
   });
@@ -66,20 +81,24 @@ export default function StoryDetailPage() {
 
   return (
     <div className="max-w-md space-y-6">
-      <Link href="/stories" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+      <Link href="/board" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
         <ArrowLeft className="w-4 h-4" />
-        Back
+        Back to board
       </Link>
 
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{title || story.title}</h1>
-          <p className="text-sm text-gray-400 mt-1">{format(new Date(story.created_at), "MMMM d, yyyy")}</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {formatBoardDate(story.source_publish_date)
+              ? `Source · ${formatBoardDate(story.source_publish_date)}`
+              : `Added ${format(new Date(story.created_at), "MMMM d, yyyy")}`}
+          </p>
         </div>
         <button
           onClick={() => remove.mutate()}
           disabled={remove.isPending}
-          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           title="Delete story"
         >
           <Trash2 className="w-4 h-4" />
@@ -106,6 +125,17 @@ export default function StoryDetailPage() {
         </div>
 
         <div>
+          <label className="block text-sm font-medium mb-2">Category</label>
+          <input
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="e.g. Nutrition"
+            className="w-full px-3 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+          />
+        </div>
+
+        <div>
           <label className="block text-sm font-medium mb-2">Substack link</label>
           <p className="text-xs text-muted-foreground mb-2">
             Paste the article URL — copy it when you post this story to Instagram or Facebook.
@@ -115,6 +145,16 @@ export default function StoryDetailPage() {
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://yoursubstack.substack.com/p/..."
+            className="w-full px-3 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Source publish date</label>
+          <input
+            type="date"
+            value={sourcePublishDate}
+            onChange={(e) => setSourcePublishDate(e.target.value)}
             className="w-full px-3 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
           />
         </div>

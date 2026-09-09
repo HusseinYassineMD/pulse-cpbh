@@ -44,6 +44,34 @@ def save_story_image(story_id: UUID, src: Path, ext: str = ".png") -> str:
     return filename
 
 
+def plan_media_dir(idea_id: UUID) -> Path:
+    path = media_root() / "plan" / str(idea_id)
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def save_plan_source(idea_id: UUID, src: Path, original_name: str) -> str:
+    """Store a source file; returns stored filename."""
+    dest_dir = plan_media_dir(idea_id)
+    safe = Path(original_name).name.replace(" ", "_")
+    dest = dest_dir / safe
+    if dest.exists():
+        stem = dest.stem
+        suffix = dest.suffix
+        n = 2
+        while dest.exists():
+            dest = dest_dir / f"{stem}_{n}{suffix}"
+            n += 1
+    shutil.copy2(src, dest)
+    return dest.name
+
+
+def delete_plan_source(idea_id: UUID, stored_name: str) -> None:
+    path = plan_media_dir(idea_id) / stored_name
+    if path.exists():
+        path.unlink()
+
+
 def save_images(post_id: UUID, image_paths: list[Path]) -> list[str]:
     """Copy images into media/posts/{id}/. Returns stored filenames."""
     dest_dir = post_media_dir(post_id)

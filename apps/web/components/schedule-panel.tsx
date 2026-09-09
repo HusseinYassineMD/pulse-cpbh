@@ -108,17 +108,17 @@ export function SchedulePanel({
       </div>
 
       {open && (
-        <div className="flex gap-2 pt-3 border-t border-border">
+        <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
           <input
             type="datetime-local"
             value={datetime}
             onChange={(e) => setDatetime(e.target.value)}
-            className="flex-1 px-3 py-2.5 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+            className="flex-1 px-3 py-2.5 min-h-[44px] border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-background w-full"
           />
           <button
             onClick={() => schedule.mutate()}
             disabled={!datetime || selected.length === 0 || schedule.isPending}
-            className="px-5 py-2.5 btn-primary text-sm disabled:opacity-50"
+            className="px-5 py-2.5 min-h-[44px] btn-primary text-sm disabled:opacity-50 w-full sm:w-auto"
           >
             {schedule.isPending ? "Saving..." : "Confirm"}
           </button>

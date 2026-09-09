@@ -9,6 +9,8 @@ def story_to_response(story: Story) -> StoryResponse:
         id=story.id,
         title=story.title,
         source_url=story.source_url,
+        category=story.category,
+        source_publish_date=story.source_publish_date,
         image_url=f"/api/media/stories/{story.id}/{story.image_key}",
         created_at=story.created_at,
         updated_at=story.updated_at,

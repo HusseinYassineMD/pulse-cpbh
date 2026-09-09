@@ -73,6 +73,20 @@ class ContentFormat(str, enum.Enum):
     TEXT = "text"
 
 
+class PlanDeliverable(str, enum.Enum):
+    PATIENT_HANDOUT = "patient_handout"
+    POST = "post"
+    STORY = "story"
+    CAPTION = "caption"
+    NEWSLETTER = "newsletter"
+
+
+class PipelineStage(str, enum.Enum):
+    SOURCE = "source"
+    HIGHLIGHT = "highlight"
+    OUTPUT = "output"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -87,6 +101,7 @@ class User(Base):
     posts: Mapped[list["Post"]] = relationship(back_populates="user")
     stories: Mapped[list["Story"]] = relationship(back_populates="user")
     content_ideas: Mapped[list["ContentIdea"]] = relationship(back_populates="user")
+    pipeline_items: Mapped[list["PipelineItem"]] = relationship(back_populates="user")
 
 
 class SocialAccount(Base):
@@ -164,6 +179,8 @@ class Story(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"))
     title: Mapped[str] = mapped_column(String(500))
     source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    source_publish_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     image_key: Mapped[str] = mapped_column(String(255), default="image.png")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -234,6 +251,14 @@ class ContentIdea(Base):
     target_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
     assignee_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    deliverable: Mapped[PlanDeliverable | None] = mapped_column(
+        Enum(PlanDeliverable, native_enum=False), nullable=True
+    )
+    platforms: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list
+    source_files: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list
+    substack_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    substack_publish_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    post_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("posts.id"), nullable=True)
     status: Mapped[IdeaStatus] = mapped_column(Enum(IdeaStatus, native_enum=False), default=IdeaStatus.IDEA)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -242,3 +267,25 @@ class ContentIdea(Base):
     )
 
     user: Mapped["User"] = relationship(back_populates="content_ideas")
+
+
+class PipelineItem(Base):
+    __tablename__ = "pipeline_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id"))
+    stage: Mapped[PipelineStage] = mapped_column(Enum(PipelineStage, native_enum=False))
+    title: Mapped[str] = mapped_column(String(500), default="")
+    body: Mapped[str] = mapped_column(Text, default="")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("pipeline_items.id"), nullable=True)
+    highlight_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("pipeline_items.id"), nullable=True)
+    output_type: Mapped[PlanDeliverable | None] = mapped_column(
+        Enum(PlanDeliverable, native_enum=False), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped["User"] = relationship(back_populates="pipeline_items")

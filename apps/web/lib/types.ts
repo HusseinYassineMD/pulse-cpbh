@@ -26,12 +26,21 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface PostSourceConfig {
+  type?: string;
+  command?: string;
+  theme?: string;
+  substack_url?: string;
+  substack_publish_date?: string;
+  content_idea_id?: string;
+}
+
 export interface Post {
   id: string;
   title: string;
   status: PostStatus;
   post_creator_id: string | null;
-  source_config?: { type?: string; command?: string } | null;
+  source_config?: PostSourceConfig | null;
   created_at: string;
   updated_at: string;
   variants: PostVariant[];
@@ -66,6 +75,8 @@ export interface Story {
   id: string;
   title: string;
   source_url: string | null;
+  category: string | null;
+  source_publish_date: string | null;
   image_url: string;
   created_at: string;
   updated_at: string;
@@ -119,11 +130,38 @@ export type IdeaStatus =
 
 export type ContentFormat = "carousel" | "story" | "text";
 
+export type PlanDeliverable =
+  | "patient_handout"
+  | "post"
+  | "story"
+  | "caption"
+  | "newsletter";
+
+export type PlanPlatform = "instagram" | "facebook" | "linkedin";
+
+export interface PlanSourceFile {
+  name: string;
+  filename: string;
+  url?: string;
+}
+
+export interface PlanNotification {
+  ok: boolean;
+  message: string;
+  use_mailto?: boolean;
+}
+
 export interface ContentIdea {
   id: string;
   title: string;
   theme: string | null;
+  deliverable: PlanDeliverable | null;
   format: ContentFormat;
+  platforms: PlanPlatform[];
+  source_files: PlanSourceFile[];
+  substack_url: string | null;
+  substack_publish_date: string | null;
+  post_id: string | null;
   target_date: string | null;
   owner: string | null;
   assignee_email: string | null;
@@ -132,6 +170,10 @@ export interface ContentIdea {
   created_at: string;
   updated_at: string;
 }
+
+export type PlanWriteResponse = ContentIdea & {
+  notification?: PlanNotification | null;
+};
 
 export interface PlanListResponse {
   items: ContentIdea[];

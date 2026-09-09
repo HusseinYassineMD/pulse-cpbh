@@ -12,6 +12,8 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models import (
+    ContentIdea,
+    IdeaStatus,
     Platform,
     Post,
     PostStatus,
@@ -57,6 +59,7 @@ class ScheduleItemResponse(BaseModel):
     post_id: UUID
     post_title: str
     content_type: str = "post"
+    content_idea_id: UUID | None = None
     scheduled_at: datetime
     timezone: str
     status: ScheduleStatus
@@ -156,6 +159,11 @@ async def get_calendar(
             post_id=entry.post_id,
             post_title=title,
             content_type=(source_config or {}).get("type", "post"),
+            content_idea_id=(
+                UUID(source_config["content_idea_id"])
+                if source_config and source_config.get("content_idea_id")
+                else None
+            ),
             scheduled_at=entry.scheduled_at,
             timezone=entry.timezone,
             status=entry.status,
@@ -163,6 +171,24 @@ async def get_calendar(
         )
         for entry, title, source_config in rows
     ]
+
+
+async def _revert_linked_plan_idea(db: AsyncSession, post: Post) -> ContentIdea | None:
+    idea_id_str = (post.source_config or {}).get("content_idea_id")
+    if not idea_id_str:
+        return None
+    try:
+        idea_id = UUID(str(idea_id_str))
+    except ValueError:
+        return None
+    result = await db.execute(select(ContentIdea).where(ContentIdea.id == idea_id))
+    idea = result.scalar_one_or_none()
+    if not idea:
+        return None
+    if idea.status == IdeaStatus.SCHEDULED:
+        idea.status = IdeaStatus.APPROVED
+    idea.post_id = None
+    return idea
 
 
 @router.delete("/schedule/{schedule_id}", status_code=204)
@@ -179,14 +205,28 @@ async def cancel_schedule(
     entry = result.scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Schedule entry not found")
-    if entry.status != ScheduleStatus.PENDING:
-        raise HTTPException(status_code=400, detail="Can only cancel pending schedules")
+    if entry.status == ScheduleStatus.CANCELLED:
+        return
 
+    revert_plan = entry.status == ScheduleStatus.PENDING
     entry.status = ScheduleStatus.CANCELLED
-    post_result = await db.execute(select(Post).where(Post.id == entry.post_id))
+
+    post_result = await db.execute(
+        select(Post)
+        .where(Post.id == entry.post_id)
+        .options(selectinload(Post.media_assets))
+    )
     post = post_result.scalar_one_or_none()
-    if post and post.status == PostStatus.SCHEDULED:
-        post.status = PostStatus.APPROVED
+    if not post:
+        return
+
+    if revert_plan:
+        idea = await _revert_linked_plan_idea(db, post)
+        plan_stub = idea is not None and not post.media_assets and not post.post_creator_id
+        if plan_stub and post.status in (PostStatus.SCHEDULED, PostStatus.READY, PostStatus.APPROVED):
+            await db.delete(post)
+        elif post.status == PostStatus.SCHEDULED:
+            post.status = PostStatus.READY
 
 
 @router.get("/posts/{post_id}/publish-attempts", response_model=list[PublishAttemptResponse])

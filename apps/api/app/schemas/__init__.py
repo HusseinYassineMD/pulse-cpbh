@@ -1,6 +1,6 @@
 """Pydantic request/response schemas."""
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -110,12 +110,16 @@ class StoryCreate(BaseModel):
 class StoryUpdate(BaseModel):
     title: str | None = None
     source_url: str | None = None
+    category: str | None = None
+    source_publish_date: date | None = None
 
 
 class StoryResponse(BaseModel):
     id: UUID
     title: str
     source_url: str | None
+    category: str | None = None
+    source_publish_date: date | None = None
     image_url: str
     created_at: datetime
     updated_at: datetime

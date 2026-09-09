@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Check, Undo2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Check, Undo2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
@@ -14,11 +14,13 @@ import { PlatformLabel } from "@/components/ui/platform-badges";
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [slideIndex, setSlideIndex] = useState(0);
   const [editingPlatform, setEditingPlatform] = useState<string | null>(null);
   const [editCaption, setEditCaption] = useState("");
   const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: post, isLoading } = useQuery({
     queryKey: ["post", id],
@@ -65,6 +67,17 @@ export default function PostDetailPage() {
     },
   });
 
+  const remove = useMutation({
+    mutationFn: () => api.posts.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      router.push("/board");
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not delete post"),
+  });
+
   if (isLoading) return <p className="text-gray-400">Loading...</p>;
   if (!post) return <p className="text-red-600">Post not found.</p>;
 
@@ -80,15 +93,15 @@ export default function PostDetailPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Link href="/posts" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+      <Link href="/board" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
         <ArrowLeft className="w-4 h-4" />
-        Back
+        Back to board
       </Link>
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold">{post.title}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold break-words">{post.title}</h1>
             <StatusBadge status={post.status} />
           </div>
           <p className="text-sm text-gray-400 mt-1">
@@ -97,12 +110,12 @@ export default function PostDetailPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto shrink-0">
           {canGenerate && (
             <button
               onClick={() => generate.mutate()}
               disabled={generate.isPending || isGenerating}
-              className="inline-flex items-center gap-2 px-4 py-2 btn-primary text-sm disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] btn-primary text-sm disabled:opacity-50 flex-1 sm:flex-none"
             >
               <Sparkles className="w-4 h-4" />
               {generate.isPending || isGenerating ? "Generating..." : "Generate"}
@@ -112,7 +125,7 @@ export default function PostDetailPage() {
             <button
               onClick={() => approve.mutate()}
               disabled={approve.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-teal text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] bg-teal text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex-1 sm:flex-none"
             >
               <Check className="w-4 h-4" />
               Approve
@@ -122,14 +135,47 @@ export default function PostDetailPage() {
             <button
               onClick={() => unapprove.mutate()}
               disabled={unapprove.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-border bg-background text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] border border-border bg-background text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50 flex-1 sm:flex-none"
             >
               <Undo2 className="w-4 h-4" />
               {unapprove.isPending ? "Updating..." : "Unapprove"}
             </button>
           )}
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 flex-1 sm:flex-none"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
         </div>
       </div>
+
+      {confirmDelete && (
+        <div className="pulse-card p-5 border border-red-200 bg-red-50/50 space-y-3">
+          <p className="text-sm font-medium">Delete this post permanently?</p>
+          <p className="text-sm text-muted-foreground">
+            Slides, captions, and schedule entries for this post will be removed.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="px-4 py-2 rounded-lg text-sm border border-border bg-background hover:bg-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => remove.mutate()}
+              disabled={remove.isPending}
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {remove.isPending ? "Deleting…" : "Yes, delete"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
@@ -158,7 +204,7 @@ export default function PostDetailPage() {
               <button
                 onClick={() => setSlideIndex((i) => Math.max(0, i - 1))}
                 disabled={slideIndex === 0}
-                className="p-1 disabled:opacity-30"
+                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-secondary disabled:opacity-30"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -168,7 +214,7 @@ export default function PostDetailPage() {
               <button
                 onClick={() => setSlideIndex((i) => Math.min(slides.length - 1, i + 1))}
                 disabled={slideIndex === slides.length - 1}
-                className="p-1 disabled:opacity-30"
+                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-secondary disabled:opacity-30"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>

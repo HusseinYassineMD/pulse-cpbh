@@ -57,9 +57,12 @@ class Settings(BaseSettings):
     auth_enabled: bool = False
 
     # Plan — team roster as "Name:email,Name:email"
-    plan_team: str = "CPBH Team:cpbh@usc.edu,Hussein Yassine:hy@usc.edu,Aishwarya Jagadish:aish@usc.edu"
+    plan_team: str = ""
 
-    # SMTP (optional — assignments log to console when unset)
+    # Email — Resend is tried first (easiest auto-send); SMTP is optional fallback
+    resend_api_key: str = ""
+    resend_from: str = "Pulse CPBH <onboarding@resend.dev>"
+
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""

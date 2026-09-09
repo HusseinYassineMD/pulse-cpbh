@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const { data: accounts, isLoading } = useQuery({
+  const { data: accounts, isLoading, isError: accountsError } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => api.accounts.list(),
   });
@@ -142,7 +142,12 @@ export default function SettingsPage() {
       <div className="pulse-card p-5 space-y-4">
         <h2 className="font-semibold">Connected accounts</h2>
         {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
-        {!isLoading && (!accounts || accounts.length === 0) && (
+        {accountsError && (
+          <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            Could not reach the API. Run <code className="text-xs bg-white/80 px-1 rounded">./start.sh api</code> and refresh.
+          </p>
+        )}
+        {!isLoading && !accountsError && (!accounts || accounts.length === 0) && (
           <p className="text-sm text-muted-foreground">No accounts connected yet.</p>
         )}
         <div className="space-y-2">

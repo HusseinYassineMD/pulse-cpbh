@@ -73,17 +73,34 @@ web() {
   npm run dev -- -p "$PULSE_WEB_PORT"
 }
 
+dev() {
+  echo "Starting Pulse locally (API + web)…"
+  echo "  Plan board → http://localhost:${PULSE_WEB_PORT}/plan"
+  echo ""
+  api &
+  API_PID=$!
+  trap 'kill "$API_PID" 2>/dev/null || true' EXIT INT TERM
+  sleep 2
+  if ! kill -0 "$API_PID" 2>/dev/null; then
+    echo "API failed to start. Run ./start.sh api in another terminal to see errors."
+    exit 1
+  fi
+  web
+}
+
 case "$cmd" in
   setup) setup ;;
   api)   api ;;
   web)   web ;;
+  dev)   dev ;;
   clear) clear_data ;;
   export-pages) export_pages ;;
   *)
     echo "Usage:"
     echo "  ./start.sh setup        — install deps (first time only)"
-    echo "  ./start.sh api          — start backend"
-    echo "  ./start.sh web          — start frontend"
+    echo "  ./start.sh dev          — start API + web together (easiest)"
+    echo "  ./start.sh api          — start backend only"
+    echo "  ./start.sh web          — start frontend only"
     echo "  ./start.sh web clean    — start frontend (clear Next.js cache)"
     echo "  ./start.sh clear        — remove all posts and plan ideas"
     echo "  ./start.sh export-pages — export posts/media for GitHub Pages"

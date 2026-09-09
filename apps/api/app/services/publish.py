@@ -12,6 +12,8 @@ from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.models import (
+    ContentIdea,
+    IdeaStatus,
     Platform,
     Post,
     PostStatus,
@@ -146,7 +148,26 @@ async def publish_schedule_entry(db: AsyncSession, schedule_entry_id: UUID) -> N
         entry.status = ScheduleStatus.FAILED
         post.status = PostStatus.FAILED
 
+    await _sync_plan_idea_status(db, post)
     await db.flush()
+
+
+async def _sync_plan_idea_status(db: AsyncSession, post: Post) -> None:
+    idea_id = (post.source_config or {}).get("content_idea_id")
+    if not idea_id:
+        return
+    try:
+        parsed_id = UUID(str(idea_id))
+    except ValueError:
+        return
+    result = await db.execute(select(ContentIdea).where(ContentIdea.id == parsed_id))
+    idea = result.scalar_one_or_none()
+    if not idea:
+        return
+    if post.status in (PostStatus.PUBLISHED, PostStatus.PARTIALLY_PUBLISHED):
+        idea.status = IdeaStatus.PUBLISHED
+    elif post.status == PostStatus.FAILED:
+        idea.status = IdeaStatus.SCHEDULED
 
 
 async def check_and_publish_due(db: AsyncSession) -> int:

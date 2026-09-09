@@ -6,10 +6,20 @@ __pycache__/
 *$py.class
 .Python
 
-# Environment
+# Environment — never commit secrets (keep real values only in local .env)
 .env
 .env.local
 .env.*.local
+.env.development
+.env.production
+.env.test
+!.env.example
+
+# Local credentials / keys
+credentials.json
+*.pem
+*.key
+secrets/
 
 # Build
 .next/
@@ -17,6 +27,7 @@ out/
 dist/
 build/
 *.egg-info/
+apps/web/tsconfig.tsbuildinfo
 
 # IDE
 .idea/

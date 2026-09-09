@@ -33,8 +33,13 @@
     --sky: hsl(206 28% 55%);
   }
 
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
   body {
-    @apply text-foreground antialiased;
+    @apply text-foreground antialiased overflow-x-hidden;
     background-color: hsl(var(--background));
     background-image:
       radial-gradient(ellipse 80% 58% at 94% 6%, hsl(22 62% 76%), hsl(22 62% 76% / 0) 56%),
