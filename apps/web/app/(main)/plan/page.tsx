@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -128,6 +128,25 @@ async function uploadPendingFiles(ideaId: string, files: File[]) {
 }
 
 export default function PlanPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-5 animate-fade-in">
+          <div className="h-20 pulse-card animate-pulse bg-gray-100 rounded-2xl" />
+          <div className="grid md:grid-cols-2 gap-5">
+            {[1, 2].map((i) => (
+              <div key={i} className="pulse-card h-64 animate-pulse bg-gray-100 rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <PlanContent />
+    </Suspense>
+  );
+}
+
+function PlanContent() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<ViewMode>("board");
   const [boardPanel, setBoardPanel] = useState<BoardPanel>("parking");
