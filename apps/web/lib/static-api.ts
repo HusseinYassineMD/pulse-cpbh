@@ -98,18 +98,29 @@ function applyStoryPatches(story: Story): Story {
 
 let seedPromise: Promise<{ posts: Post[]; stories: Story[]; plan: ContentIdea[] }> | null = null;
 
+async function fetchJson<T>(path: string, fallback: T): Promise<T> {
+  try {
+    const response = await fetch(withBasePath(path));
+    if (!response.ok) return fallback;
+    return (await response.json()) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 async function loadSeed() {
   if (!seedPromise) {
     seedPromise = Promise.all([
-      fetch(withBasePath("/data/posts.json")).then((r) => r.json()),
-      fetch(withBasePath("/data/stories.json"))
-        .then((r) => r.json())
-        .catch(() => ({ items: [] })),
-      fetch(withBasePath("/data/plan.json")).then((r) => r.json()),
+      fetchJson<{ items: Post[] }>("/data/posts.json", { items: [] }),
+      fetchJson<{ items: Story[] }>("/data/stories.json", { items: [] }),
+      fetchJson<{ items: ContentIdea[] }>("/data/plan.json", { items: [] }),
     ]).then(([posts, stories, plan]) => ({
-      posts: (posts.items as Post[]).map(normalizePost),
-      stories: (stories.items as Story[]).map(normalizeStory),
-      plan: plan.items as ContentIdea[],
+      posts: posts.items.map(normalizePost),
+      stories: stories.items.map(normalizeStory),
+      plan: plan.items.map((item) => ({
+        ...item,
+        assignee_email: item.assignee_email ?? null,
+      })),
     }));
   }
   return seedPromise;

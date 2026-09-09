@@ -70,7 +70,7 @@ export default function PlanPage() {
     queryFn: () => api.plan.team(),
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: loadError } = useQuery({
     queryKey: ["plan"],
     queryFn: () => api.plan.list(),
   });
@@ -345,7 +345,13 @@ export default function PlanPage() {
         </div>
       )}
 
-      {isLoading && <p className="text-muted-foreground text-sm">Loading plan…</p>}
+      {loadError && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
+          Could not load plan: {loadError instanceof ApiError ? loadError.message : "Check your connection and refresh"}
+        </p>
+      )}
+
+      {isLoading && !loadError && <p className="text-muted-foreground text-sm">Loading plan…</p>}
 
       {!isLoading && viewMode === "split" && (
         <div className="space-y-8">
