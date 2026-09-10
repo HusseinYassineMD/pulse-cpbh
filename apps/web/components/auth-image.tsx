@@ -4,15 +4,22 @@ import { isStaticMode, withBasePath } from "@/lib/base-path";
 import { useAuthStore } from "@/lib/auth-store";
 import { useEffect, useState } from "react";
 
+function isLocalDev(): boolean {
+  if (typeof window === "undefined") return false;
+  const h = window.location.hostname;
+  return h === "localhost" || h === "127.0.0.1";
+}
+
 export function AuthImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
   const token = useAuthStore((s) => s.accessToken);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const staticMode = isStaticMode();
+  const directLoad = staticMode || isLocalDev();
   const resolvedSrc = withBasePath(staticMode ? src.replace(/^\/api\/media/, "/media") : src);
 
   useEffect(() => {
-    if (staticMode) return;
+    if (directLoad) return;
     setFailed(false);
 
     let revoked: string | null = null;
@@ -29,12 +36,15 @@ export function AuthImage({ src, alt, className }: { src: string; alt: string; c
         revoked = url;
         setBlobUrl(url);
       })
-      .catch(() => setBlobUrl(null));
+      .catch(() => {
+        setBlobUrl(null);
+        setFailed(true);
+      });
 
     return () => {
       if (revoked) URL.revokeObjectURL(revoked);
     };
-  }, [resolvedSrc, token, staticMode]);
+  }, [resolvedSrc, token, directLoad]);
 
   if (failed) {
     return (
@@ -48,7 +58,7 @@ export function AuthImage({ src, alt, className }: { src: string; alt: string; c
     );
   }
 
-  if (staticMode) {
+  if (directLoad) {
     return (
       <img
         src={resolvedSrc}

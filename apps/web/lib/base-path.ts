@@ -11,8 +11,9 @@ export function basePath(): string {
 export function isStaticMode(): boolean {
   if (process.env.NEXT_PUBLIC_STATIC_MODE === "true") return true;
   if (typeof window !== "undefined") {
-    const path = window.location.pathname;
-    return path.includes("/pulse-cpbh");
+    const { hostname, pathname } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") return false;
+    return pathname.includes("/pulse-cpbh");
   }
   return false;
 }

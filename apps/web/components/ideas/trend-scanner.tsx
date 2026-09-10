@@ -37,6 +37,12 @@ export function TrendScanner() {
     setMounted(true);
   }, []);
 
+  // Preload trends on first visit so the page isn't empty
+  useEffect(() => {
+    if (!mounted || trends.length > 0 || scan.isPending) return;
+    scan.mutate();
+  }, [mounted]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggleExpanded = (open: boolean) => {
     setExpanded(open);
     writeTrendsOpen(open);
@@ -126,8 +132,9 @@ export function TrendScanner() {
               Alzheimer&apos;s prevention, cognition, and brain health. Turn any hit into a Plan idea.
             </p>
             {isStaticMode() && (
-              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Live demo shows sample trends. Run on <strong>localhost</strong> for a real web scan.
+              <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 rounded-lg px-3 py-2 leading-relaxed">
+                <strong>Live scan</strong> — pulls real headlines from Google News, BBC Health, and MedlinePlus
+                right in your browser. Add any hit to Plan to start your content workflow.
               </p>
             )}
           </div>

@@ -23,10 +23,14 @@ import type {
 import type { PublishAttempt, ScheduleItem, SocialAccount } from "./schedule-types";
 import { staticApi } from "./static-api";
 
+function normalizeApiOrigin(raw: string): string {
+  const origin = raw.startsWith("http") ? raw.replace(/\/$/, "") : `https://${raw}`;
+  return origin.replace(/\/api\/v1$/i, "");
+}
+
 const serverApiBase = () => {
   const raw = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010";
-  const origin = raw.startsWith("http") ? raw.replace(/\/$/, "") : `https://${raw}`;
-  return `${origin}/api/v1`;
+  return `${normalizeApiOrigin(raw)}/api/v1`;
 };
 
 const API_BASE = typeof window !== "undefined" ? "/api" : serverApiBase();

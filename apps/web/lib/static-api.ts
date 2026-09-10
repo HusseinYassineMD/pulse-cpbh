@@ -1061,55 +1061,13 @@ export const staticApi = {
   },
 
   trends: {
-    scan: async (): Promise<import("./trends-types").TrendScanResponse> => ({
-      scanned_at: new Date().toISOString(),
-      sources_checked: ["Google News", "Google News · Research", "BBC Health", "MedlinePlus"],
-      items: [
-        {
-          id: "demo-1",
-          title: "New study links regular walking pace to lower dementia risk in older adults",
-          url: "https://news.google.com/",
-          source: "Google News",
-          summary: "Researchers report that faster habitual walking may correlate with better cognitive outcomes — relevant for prevention messaging.",
-          published_at: new Date().toISOString(),
-          theme: "Exercise",
-          suggested_hook: "Trending now: movement matters for brain aging — share what APOE4 carriers should know.",
-          deliverable: "story",
-        },
-        {
-          id: "demo-2",
-          title: "Sleep quality and glymphatic clearance: what the latest research suggests",
-          url: "https://pubmed.ncbi.nlm.nih.gov/",
-          source: "PubMed",
-          summary: "Sleep continues to dominate prevention headlines — patient-friendly explainer opportunity.",
-          published_at: new Date(Date.now() - 86400000).toISOString(),
-          theme: "Sleep",
-          suggested_hook: "Trending now: rest is brain fuel — translate the science for our community.",
-          deliverable: "story",
-        },
-        {
-          id: "demo-3",
-          title: "MIND diet adherence associated with slower cognitive decline in midlife cohort",
-          url: "https://www.sciencedaily.com/",
-          source: "ScienceDaily",
-          summary: "Nutrition and cognition remain a top search topic — grocery-list carousel idea.",
-          published_at: new Date(Date.now() - 172800000).toISOString(),
-          theme: "Nutrition",
-          suggested_hook: "Trending now: simple diet swaps with evidence behind them.",
-          deliverable: "post",
-        },
-        {
-          id: "demo-4",
-          title: "NIH-funded trial explores blood-based biomarkers for early Alzheimer's detection",
-          url: "https://www.nih.gov/",
-          source: "NIH News",
-          summary: "Research-heavy headline — good for LinkedIn thought leadership with careful, non-hype framing.",
-          published_at: new Date(Date.now() - 259200000).toISOString(),
-          theme: "Research",
-          suggested_hook: "Trending now: early detection science — emphasize hope + evidence, not fear.",
-          deliverable: "post",
-        },
-      ],
-    }),
+    scan: async (params?: { limit?: number }) => {
+      const { scanBrainHealthTrends, demoTrendScanResponse } = await import("./trends-scan");
+      try {
+        return await scanBrainHealthTrends(params?.limit ?? 12);
+      } catch {
+        return demoTrendScanResponse();
+      }
+    },
   },
 };

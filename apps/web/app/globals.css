@@ -199,16 +199,15 @@
   }
 
   .animate-stagger > * {
-    opacity: 0;
-    animation: fadeUp 0.5s ease-out forwards;
+    animation: fadeUp 0.2s ease-out both;
   }
 
-  .animate-stagger > *:nth-child(1) { animation-delay: 0.05s; }
-  .animate-stagger > *:nth-child(2) { animation-delay: 0.1s; }
-  .animate-stagger > *:nth-child(3) { animation-delay: 0.15s; }
-  .animate-stagger > *:nth-child(4) { animation-delay: 0.2s; }
-  .animate-stagger > *:nth-child(5) { animation-delay: 0.25s; }
-  .animate-stagger > *:nth-child(6) { animation-delay: 0.3s; }
+  .animate-stagger > *:nth-child(1) { animation-delay: 0s; }
+  .animate-stagger > *:nth-child(2) { animation-delay: 0.02s; }
+  .animate-stagger > *:nth-child(3) { animation-delay: 0.04s; }
+  .animate-stagger > *:nth-child(4) { animation-delay: 0.06s; }
+  .animate-stagger > *:nth-child(5) { animation-delay: 0.08s; }
+  .animate-stagger > *:nth-child(6) { animation-delay: 0.1s; }
 
   .skip-link {
     @apply fixed left-4 top-4 z-[100] px-4 py-2.5 rounded-xl text-sm font-semibold text-primary-foreground shadow-lg;
@@ -232,7 +231,7 @@
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0.6; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

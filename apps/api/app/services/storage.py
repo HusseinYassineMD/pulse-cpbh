@@ -88,4 +88,4 @@ def save_images(post_id: UUID, image_paths: list[Path]) -> list[str]:
 
 def media_url(post_id: UUID, filename: str) -> str:
     settings = get_settings()
-    return f"{settings.api_url}/api/v1/media/{post_id}/{filename}"
+    return f"{settings.effective_api_url}/api/v1/media/{post_id}/{filename}"

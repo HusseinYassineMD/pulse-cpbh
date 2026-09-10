@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _media_url(post_id: UUID, filename: str) -> str:
     settings = get_settings()
-    base = f"{settings.api_url}/api/v1/media/public/{post_id}/{filename}"
+    base = f"{settings.effective_api_url}/api/v1/media/public/{post_id}/{filename}"
     if settings.media_publish_key:
         return f"{base}?key={settings.media_publish_key}"
     return base

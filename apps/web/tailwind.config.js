@@ -48,19 +48,19 @@ module.exports = {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       animation: {
-        "fade-up": "fadeUp 0.5s ease-out forwards",
-        "fade-in": "fadeIn 0.4s ease-out forwards",
+        "fade-up": "fadeUp 0.2s ease-out forwards",
+        "fade-in": "fadeIn 0.15s ease-out forwards",
         float: "float 6s ease-in-out infinite",
         "pulse-soft": "pulseSoft 2s ease-in-out infinite",
         glow: "glow 2s ease-in-out infinite alternate",
       },
       keyframes: {
         fadeUp: {
-          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "0%": { opacity: "0.6", transform: "translateY(6px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         fadeIn: {
-          "0%": { opacity: "0" },
+          "0%": { opacity: "0.85" },
           "100%": { opacity: "1" },
         },
         float: {

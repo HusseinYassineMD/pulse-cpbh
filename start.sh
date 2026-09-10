@@ -7,8 +7,27 @@ cd "$ROOT"
 
 PULSE_WEB_PORT="${PULSE_WEB_PORT:-3010}"
 PULSE_API_PORT="${PULSE_API_PORT:-8010}"
-
+LOCAL_API_URL="http://127.0.0.1:${PULSE_API_PORT}"
 cmd="${1:-}"
+
+kill_port() {
+  local port="$1"
+  if lsof -ti :"$port" >/dev/null 2>&1; then
+    lsof -ti :"$port" | xargs kill -9 2>/dev/null || true
+    sleep 1
+  fi
+}
+
+wait_for_api() {
+  local i
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    if curl -sf "${LOCAL_API_URL}/health" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
 
 setup() {
   echo "Setting up Pulse (one-time)..."
@@ -26,6 +45,7 @@ setup() {
 
   echo ""
   echo "Done! Run:"
+  echo "  ./start.sh dev    (easiest — API + web together)"
   echo "  ./start.sh api    (terminal 1)"
   echo "  ./start.sh web    (terminal 2)"
   echo "  open http://localhost:${PULSE_WEB_PORT}"
@@ -50,47 +70,61 @@ export_pages() {
 }
 
 api() {
+  export PULSE_API_PORT
+  export API_URL="$LOCAL_API_URL"
   cd apps/api
   source .venv/bin/activate
-  echo "API → http://localhost:${PULSE_API_PORT}"
+  echo "API → ${LOCAL_API_URL}"
   uvicorn app.main:app --reload --port "$PULSE_API_PORT"
 }
 
 web() {
+  export PULSE_API_PORT
+  export API_URL="$LOCAL_API_URL"
+  export NEXT_PUBLIC_STATIC_MODE="false"
+  unset NEXT_PUBLIC_BASE_PATH GITHUB_PAGES
+
   cd apps/web
-  export API_URL="http://127.0.0.1:${PULSE_API_PORT}"
-  if [ "${2:-}" = "clean" ]; then
+
+  if [ "${2:-}" = "clean" ] || { [ -d .next ] && [ -d out ]; }; then
     rm -rf .next node_modules/.cache
     echo "Cleared Next.js cache (.next + node_modules/.cache)"
   fi
-  # Kill stale dev server on this port (prevents corrupted cache / EADDRINUSE)
+
   if lsof -ti :"$PULSE_WEB_PORT" >/dev/null 2>&1; then
     echo "Stopping existing process on port ${PULSE_WEB_PORT}…"
-    lsof -ti :"$PULSE_WEB_PORT" | xargs kill -9 2>/dev/null || true
-    sleep 1
+    kill_port "$PULSE_WEB_PORT"
   fi
-  echo "App → http://localhost:${PULSE_WEB_PORT}"
+
+  echo "App → http://localhost:${PULSE_WEB_PORT} (API proxy → ${LOCAL_API_URL})"
   npm run dev -- -p "$PULSE_WEB_PORT"
 }
 
 dev() {
+  export PULSE_API_PORT
+  export API_URL="$LOCAL_API_URL"
+  export NEXT_PUBLIC_STATIC_MODE="false"
+
   echo "Starting Pulse locally (API + web)…"
-  echo "  Plan board → http://localhost:${PULSE_WEB_PORT}/plan"
+  echo "  App  → http://localhost:${PULSE_WEB_PORT}"
+  echo "  API  → ${LOCAL_API_URL}"
+  echo "  Plan → http://localhost:${PULSE_WEB_PORT}/plan"
   echo ""
 
-  API_PID=""
   if lsof -ti :"$PULSE_API_PORT" >/dev/null 2>&1; then
-    echo "API already running on port ${PULSE_API_PORT} — using existing server"
-  else
-    api &
-    API_PID=$!
-    trap 'kill "$API_PID" 2>/dev/null || true' EXIT INT TERM
-    sleep 2
-    if ! kill -0 "$API_PID" 2>/dev/null; then
-      echo "API failed to start. Run ./start.sh api in another terminal to see errors."
-      exit 1
-    fi
+    echo "Restarting API on port ${PULSE_API_PORT} (picks up latest code)…"
+    kill_port "$PULSE_API_PORT"
   fi
+
+  api &
+  API_PID=$!
+  trap 'kill "$API_PID" 2>/dev/null || true' EXIT INT TERM
+
+  if ! wait_for_api; then
+    echo "API failed to start. Run ./start.sh api in another terminal to see errors."
+    exit 1
+  fi
+  echo "API ready ✓"
 
   web
 }
@@ -98,7 +132,7 @@ dev() {
 case "$cmd" in
   setup) setup ;;
   api)   api ;;
-  web)   web ;;
+  web)   web "$@" ;;
   dev)   dev ;;
   clear) clear_data ;;
   export-pages) export_pages ;;

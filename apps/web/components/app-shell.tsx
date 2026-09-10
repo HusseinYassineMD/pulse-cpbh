@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Zap,
@@ -81,13 +81,7 @@ function isNavActive(pathname: string, href: string): boolean {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setSidebarOpen(readSidebarOpen());
-    setMounted(true);
-  }, []);
+  const [sidebarOpen, setSidebarOpen] = useState(() => readSidebarOpen());
 
   const toggleSidebar = () => {
     setSidebarOpen((open) => {
@@ -102,7 +96,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     queryFn: () => api.dashboard.get(),
   });
 
-  const showSidebar = mounted && sidebarOpen;
+  const showSidebar = sidebarOpen;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

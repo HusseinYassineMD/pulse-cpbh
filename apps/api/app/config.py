@@ -85,6 +85,16 @@ class Settings(BaseSettings):
         return self.app_env == "development"
 
     @property
+    def effective_api_url(self) -> str:
+        """Base URL for media/publish links. Local dev always uses localhost (ignores stale tunnels in .env)."""
+        if self.is_development:
+            import os
+
+            port = os.environ.get("PULSE_API_PORT", "8010")
+            return f"http://127.0.0.1:{port}"
+        return self.api_url.rstrip("/")
+
+    @property
     def resolved_post_creator_path(self) -> Path:
         """Resolve Post_Creator relative to Automate_Posting repo root."""
         repo_root = Path(__file__).resolve().parents[3]
