@@ -26,6 +26,14 @@ export { STATIC_DATA_VERSION };
 
 const PLAN_STORAGE_KEY = "pulse-plan-overrides";
 const PIPELINE_STORAGE_KEY = "pulse-pipeline-items";
+const STATIC_CRUD_KEY = "pulse-static-crud";
+
+type StaticCrudState = {
+  deletedPosts: string[];
+  deletedStories: string[];
+  accounts: SocialAccount[];
+  publishAttempts: Record<string, PublishAttempt[]>;
+};
 
 type PlanOverrides = {
   plan: Record<string, ContentIdea>;
@@ -35,7 +43,43 @@ type PlanOverrides = {
 
 /** In-memory only — never merge deleted posts from localStorage. */
 const runtimePostPatches = new Map<string, Partial<Post>>();
+const runtimeCreatedPosts = new Map<string, Post>();
 const runtimeStoryPatches = new Map<string, Partial<Story>>();
+const runtimeCreatedStories = new Map<string, Story>();
+
+function loadCrudState(): StaticCrudState {
+  if (typeof window === "undefined") {
+    return { deletedPosts: [], deletedStories: [], accounts: [], publishAttempts: {} };
+  }
+  try {
+    const raw = localStorage.getItem(STATIC_CRUD_KEY);
+    if (!raw) return { deletedPosts: [], deletedStories: [], accounts: [], publishAttempts: {} };
+    return JSON.parse(raw) as StaticCrudState;
+  } catch {
+    return { deletedPosts: [], deletedStories: [], accounts: [], publishAttempts: {} };
+  }
+}
+
+function saveCrudState(state: StaticCrudState) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STATIC_CRUD_KEY, JSON.stringify(state));
+}
+
+function markPostDeleted(id: string) {
+  runtimeCreatedPosts.delete(id);
+  runtimePostPatches.delete(id);
+  const state = loadCrudState();
+  state.deletedPosts = [...new Set([...state.deletedPosts, id])];
+  saveCrudState(state);
+}
+
+function markStoryDeleted(id: string) {
+  runtimeCreatedStories.delete(id);
+  runtimeStoryPatches.delete(id);
+  const state = loadCrudState();
+  state.deletedStories = [...new Set([...state.deletedStories, id])];
+  saveCrudState(state);
+}
 
 function clearLegacyStorage() {
   if (typeof window === "undefined" || !isStaticMode()) return;
@@ -149,13 +193,17 @@ async function loadSeed() {
 }
 
 async function getStories(): Promise<Story[]> {
+  const deleted = new Set(loadCrudState().deletedStories);
   const seed = await loadSeed();
-  return seed.stories.map(applyStoryPatches);
+  const created = Array.from(runtimeCreatedStories.values()).map(applyStoryPatches);
+  return [...created, ...seed.stories.map(applyStoryPatches)].filter((s) => !deleted.has(s.id));
 }
 
 async function getPosts(): Promise<Post[]> {
+  const deleted = new Set(loadCrudState().deletedPosts);
   const seed = await loadSeed();
-  return seed.posts.map(applyPatches);
+  const created = Array.from(runtimeCreatedPosts.values()).map(applyPatches);
+  return [...created, ...seed.posts.map(applyPatches)].filter((p) => !deleted.has(p.id));
 }
 
 async function getPlan(): Promise<ContentIdea[]> {
@@ -268,6 +316,26 @@ function dashboardFrom(posts: Post[]): DashboardResponse {
 }
 
 export const staticApi = {
+  auth: {
+    login: async () => ({
+      access_token: "static-demo-token",
+      refresh_token: "static-demo-refresh",
+      token_type: "bearer",
+    }),
+    register: async () => ({
+      access_token: "static-demo-token",
+      refresh_token: "static-demo-refresh",
+      token_type: "bearer",
+    }),
+    me: async () => ({
+      id: "static-user",
+      email: "demo@usc.edu",
+      name: "CPBH Demo",
+      role: "admin" as const,
+      created_at: new Date().toISOString(),
+    }),
+  },
+
   dashboard: {
     get: async (): Promise<DashboardResponse> => dashboardFrom(await getPosts()),
   },
@@ -302,6 +370,16 @@ export const staticApi = {
       return post;
     },
 
+    update: async (id: string, data: { title?: string; status?: string }): Promise<Post> => {
+      patchPost(id, data as Partial<Post>);
+      return staticApi.posts.get(id);
+    },
+
+    submitReview: async (id: string): Promise<Post> => {
+      patchPost(id, { status: "in_review" });
+      return staticApi.posts.get(id);
+    },
+
     approve: async (id: string): Promise<Post> => {
       patchPost(id, { status: "approved" });
       return staticApi.posts.get(id);
@@ -312,6 +390,21 @@ export const staticApi = {
       return staticApi.posts.get(id);
     },
 
+    reviewCompliance: async (id: string) => {
+      const post = await staticApi.posts.get(id);
+      const text = post.variants.map((v) => v.caption).join("\n");
+      const issues: string[] = [];
+      if (!text.includes("#BrainHealth")) issues.push("Missing #BrainHealth hashtag");
+      if (text.toLowerCase().includes("cure")) issues.push("Avoid unsubstantiated cure claims");
+      return {
+        passed: issues.length === 0,
+        issues,
+        suggestions: issues.length ? ["Add #BrainHealth #USCCPBH and use prevention-focused language"] : [],
+      };
+    },
+
+    publishAttempts: async (id: string) => loadCrudState().publishAttempts[id] ?? [],
+
     updateVariant: async (id: string, platform: string, caption: string) => {
       const post = await staticApi.posts.get(id);
       const variants = post.variants.map((v) => (v.platform === platform ? { ...v, caption } : v));
@@ -320,10 +413,69 @@ export const staticApi = {
     },
 
     generate: async (id: string) => staticApi.posts.get(id),
-    create: async () => {
-      throw new Error("Creating posts requires the local Pulse API");
+    optimizeCaptions: async (id: string) => {
+      const post = await staticApi.posts.get(id);
+      return post.variants.map((v) => ({
+        platform: v.platform,
+        original_caption: v.caption,
+        optimized_caption: v.caption,
+        hashtags: ["#BrainHealth", "#USCCPBH", "#AlzheimersPrevention"],
+      }));
     },
-    delete: async () => undefined,
+
+    chatRefine: async (
+      id: string,
+      message: string,
+      _opts?: { platform?: string; history?: { role: "user" | "assistant"; content: string }[] }
+    ) => {
+      const post = await staticApi.posts.get(id);
+      const lower = message.toLowerCase();
+      const variants = post.variants.map((v) => {
+        let caption = v.caption;
+        if (lower.includes("short")) caption = caption.slice(0, 280);
+        if (lower.includes("hashtag") && !caption.includes("#BrainHealth")) {
+          caption += "\n\n#BrainHealth #USCCPBH";
+        }
+        if (lower.includes("cta") || lower.includes("clinic")) {
+          caption += "\n\nLearn more at USC CPBH.";
+        }
+        if (lower.includes("friendly") || lower.includes("warm")) {
+          caption = caption.replace(/\.$/, "") + " We're here to support your brain health journey.";
+        }
+        if (lower.includes("linkedin") || lower.includes("professional")) {
+          caption = caption.replace(/!/g, ".");
+        }
+        return { ...v, caption };
+      });
+      patchPost(id, { variants });
+      return {
+        reply: "Updated captions locally (demo mode). Full AI chat on localhost.",
+        captions: variants.map((v) => ({ platform: v.platform, caption: v.caption })),
+      };
+    },
+    create: async (data: { title: string; post_creator_id?: string }): Promise<Post> => {
+      const id = `post-${Date.now()}`;
+      const now = new Date().toISOString();
+      const post: Post = {
+        id,
+        title: data.title,
+        status: "draft",
+        post_creator_id: data.post_creator_id ?? null,
+        source_config: { type: "post" },
+        created_at: now,
+        updated_at: now,
+        media_assets: [],
+        variants: [],
+      };
+      runtimeCreatedPosts.set(id, post);
+      return applyPatches(post);
+    },
+    delete: async (id: string) => {
+      markPostDeleted(id);
+      const overrides = loadPlanOverrides();
+      overrides.schedule = (overrides.schedule ?? []).filter((s) => s.post_id !== id);
+      savePlanOverrides(overrides);
+    },
   },
 
   stories: {
@@ -340,8 +492,28 @@ export const staticApi = {
       return story;
     },
 
-    create: async () => {
-      throw new Error("Adding stories requires the local Pulse app");
+    create: async (data: {
+      title: string;
+      source_url?: string;
+      category?: string;
+      source_publish_date?: string;
+      image: File;
+    }): Promise<Story> => {
+      const id = `story-${Date.now()}`;
+      const now = new Date().toISOString();
+      const imageUrl = URL.createObjectURL(data.image);
+      const story: Story = {
+        id,
+        title: data.title,
+        source_url: data.source_url ?? null,
+        category: data.category ?? null,
+        source_publish_date: data.source_publish_date ?? null,
+        image_url: imageUrl,
+        created_at: now,
+        updated_at: now,
+      };
+      runtimeCreatedStories.set(id, story);
+      return applyStoryPatches(story);
     },
 
     update: async (
@@ -357,11 +529,15 @@ export const staticApi = {
       return staticApi.stories.get(id);
     },
 
-    replaceImage: async () => {
-      throw new Error("Adding stories requires the local Pulse app");
+    replaceImage: async (id: string, image: File): Promise<Story> => {
+      const imageUrl = URL.createObjectURL(image);
+      runtimeStoryPatches.set(id, { image_url: imageUrl, updated_at: new Date().toISOString() });
+      return staticApi.stories.get(id);
     },
 
-    delete: async () => undefined,
+    delete: async (id: string) => {
+      markStoryDeleted(id);
+    },
   },
 
   schedule: {
@@ -398,9 +574,41 @@ export const staticApi = {
         (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
       );
     },
-    create: async () => {
-      throw new Error("Scheduling requires the local Pulse API");
+    create: async (
+      postId: string,
+      data: { scheduled_at: string; timezone: string; platform_targets: string[] }
+    ): Promise<ScheduleItem> => {
+      const post = await staticApi.posts.get(postId);
+      patchPost(postId, { status: "scheduled" });
+      const overrides = loadPlanOverrides();
+      const item: ScheduleItem = {
+        id: `sch-${Date.now()}`,
+        post_id: postId,
+        post_title: post.title,
+        content_type: "post",
+        scheduled_at: data.scheduled_at,
+        timezone: data.timezone,
+        status: "pending",
+        platform_targets: data.platform_targets,
+      };
+      overrides.schedule = [...(overrides.schedule ?? []), item];
+      savePlanOverrides(overrides);
+      return item;
     },
+    update: async (
+      scheduleId: string,
+      data: { scheduled_at?: string; timezone?: string; platform_targets?: string[] }
+    ): Promise<ScheduleItem> => {
+      const overrides = loadPlanOverrides();
+      const items = overrides.schedule ?? [];
+      const idx = items.findIndex((s) => s.id === scheduleId);
+      if (idx < 0) throw new Error("Schedule entry not found");
+      items[idx] = { ...items[idx], ...data };
+      overrides.schedule = items;
+      savePlanOverrides(overrides);
+      return items[idx];
+    },
+
     cancel: async (scheduleId: string) => {
       const overrides = loadPlanOverrides();
       const item = overrides.schedule?.find((s) => s.id === scheduleId);
@@ -419,7 +627,9 @@ export const staticApi = {
       savePlanOverrides(overrides);
     },
     publishNow: async (postId: string, platforms?: string[]): Promise<PublishAttempt[]> => {
+      patchPost(postId, { status: "published" });
       const overrides = loadPlanOverrides();
+      const state = loadCrudState();
       const scheduleItem = overrides.schedule?.find((s) => s.post_id === postId);
       const ideaId = scheduleItem?.content_idea_id;
       if (ideaId && overrides.plan[ideaId]) {
@@ -441,24 +651,41 @@ export const staticApi = {
       }
       savePlanOverrides(overrides);
       const targets = platforms ?? ["instagram", "facebook", "linkedin"];
-      return targets.map((platform, i) => ({
+      const attempts = targets.map((platform, i) => ({
         id: `dry-${Date.now()}-${i}`,
         platform,
         status: "success",
         platform_post_id: `dry-run-${postId}`,
-        error_message: "Dry-run publish from Schedule",
+        error_message: null,
         attempted_at: new Date().toISOString(),
       }));
+      state.publishAttempts[postId] = [...attempts, ...(state.publishAttempts[postId] ?? [])];
+      saveCrudState(state);
+      return attempts;
     },
     attempts: async (): Promise<PublishAttempt[]> => [],
   },
 
   accounts: {
-    list: async (): Promise<SocialAccount[]> => [],
-    connect: async () => {
-      throw new Error("Connect accounts on the local Pulse app");
+    list: async (): Promise<SocialAccount[]> => loadCrudState().accounts,
+    connect: async (data: { platform: string; account_id: string; account_name: string; access_token: string }) => {
+      const state = loadCrudState();
+      const account: SocialAccount = {
+        id: `acct-${Date.now()}`,
+        platform: data.platform,
+        account_id: data.account_id,
+        account_name: data.account_name,
+        connected: true,
+      };
+      state.accounts = [...state.accounts.filter((a) => a.platform !== data.platform), account];
+      saveCrudState(state);
+      return account;
     },
-    disconnect: async () => undefined,
+    disconnect: async (id: string) => {
+      const state = loadCrudState();
+      state.accounts = state.accounts.filter((a) => a.id !== id);
+      saveCrudState(state);
+    },
   },
 
   plan: {
@@ -769,5 +996,120 @@ export const staticApi = {
       const items = loadPipelineItems().filter((i) => i.id !== id);
       savePipelineItems(items);
     },
+  },
+
+  studio: {
+    create: async (data: {
+      title: string;
+      source_text?: string;
+      template_id?: string | null;
+      plan_idea_id?: string | null;
+    }) => {
+      const id = `studio-${Date.now()}`;
+      const snippet = (data.source_text || "").trim().slice(0, 600);
+      const base = snippet ? `${data.title}\n\n${snippet}` : data.title;
+      const now = new Date().toISOString();
+      const post: Post = {
+        id,
+        title: data.title,
+        status: "ready",
+        post_creator_id: data.template_id ?? null,
+        source_config: {
+          type: "post",
+          studio_source: true,
+          source_text: data.source_text || "",
+          content_idea_id: data.plan_idea_id ?? undefined,
+        },
+        created_at: now,
+        updated_at: now,
+        media_assets: [],
+        variants: [
+          {
+            id: `${id}-ig`,
+            platform: "instagram",
+            caption: base.slice(0, 280),
+            hashtags: ["#BrainHealth", "#USCCPBH"],
+            ai_suggested_caption: null,
+            approval_status: "pending",
+          },
+          {
+            id: `${id}-fb`,
+            platform: "facebook",
+            caption: base.slice(0, 600),
+            hashtags: ["#BrainHealth", "#USCCPBH"],
+            ai_suggested_caption: null,
+            approval_status: "pending",
+          },
+          {
+            id: `${id}-li`,
+            platform: "linkedin",
+            caption: base.slice(0, 1200),
+            hashtags: ["#BrainHealth", "#USCCPBH"],
+            ai_suggested_caption: null,
+            approval_status: "pending",
+          },
+        ],
+      };
+      runtimeCreatedPosts.set(id, post);
+      return {
+        post: applyPatches(post),
+        message: data.template_id
+          ? "Demo carousel + captions from your source (run localhost for real slides)."
+          : "Demo captions from your pasted content (run localhost for AI generation).",
+      };
+    },
+  },
+
+  trends: {
+    scan: async (): Promise<import("./trends-types").TrendScanResponse> => ({
+      scanned_at: new Date().toISOString(),
+      sources_checked: ["Google News", "Google News · Research", "BBC Health", "MedlinePlus"],
+      items: [
+        {
+          id: "demo-1",
+          title: "New study links regular walking pace to lower dementia risk in older adults",
+          url: "https://news.google.com/",
+          source: "Google News",
+          summary: "Researchers report that faster habitual walking may correlate with better cognitive outcomes — relevant for prevention messaging.",
+          published_at: new Date().toISOString(),
+          theme: "Exercise",
+          suggested_hook: "Trending now: movement matters for brain aging — share what APOE4 carriers should know.",
+          deliverable: "story",
+        },
+        {
+          id: "demo-2",
+          title: "Sleep quality and glymphatic clearance: what the latest research suggests",
+          url: "https://pubmed.ncbi.nlm.nih.gov/",
+          source: "PubMed",
+          summary: "Sleep continues to dominate prevention headlines — patient-friendly explainer opportunity.",
+          published_at: new Date(Date.now() - 86400000).toISOString(),
+          theme: "Sleep",
+          suggested_hook: "Trending now: rest is brain fuel — translate the science for our community.",
+          deliverable: "story",
+        },
+        {
+          id: "demo-3",
+          title: "MIND diet adherence associated with slower cognitive decline in midlife cohort",
+          url: "https://www.sciencedaily.com/",
+          source: "ScienceDaily",
+          summary: "Nutrition and cognition remain a top search topic — grocery-list carousel idea.",
+          published_at: new Date(Date.now() - 172800000).toISOString(),
+          theme: "Nutrition",
+          suggested_hook: "Trending now: simple diet swaps with evidence behind them.",
+          deliverable: "post",
+        },
+        {
+          id: "demo-4",
+          title: "NIH-funded trial explores blood-based biomarkers for early Alzheimer's detection",
+          url: "https://www.nih.gov/",
+          source: "NIH News",
+          summary: "Research-heavy headline — good for LinkedIn thought leadership with careful, non-hype framing.",
+          published_at: new Date(Date.now() - 259200000).toISOString(),
+          theme: "Research",
+          suggested_hook: "Trending now: early detection science — emphasize hope + evidence, not fear.",
+          deliverable: "post",
+        },
+      ],
+    }),
   },
 };

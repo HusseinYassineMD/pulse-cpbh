@@ -135,9 +135,15 @@ const liveApi = {
 
     generate: (id: string) => request<Post>(`/posts/${id}/generate`, { method: "POST" }),
 
+    update: (id: string, data: { title?: string; status?: string }) =>
+      request<Post>(`/posts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
     approve: (id: string) => request<Post>(`/posts/${id}/approve`, { method: "POST" }),
 
     unapprove: (id: string) => request<Post>(`/posts/${id}/unapprove`, { method: "POST" }),
+
+    submitReview: (id: string) =>
+      request<Post>(`/posts/${id}/submit-review`, { method: "POST" }),
 
     updateVariant: (id: string, platform: string, caption: string) =>
       request(`/posts/${id}/variants/${platform}`, {
@@ -146,6 +152,67 @@ const liveApi = {
       }),
 
     delete: (id: string) => request<void>(`/posts/${id}`, { method: "DELETE" }),
+
+    optimizeCaptions: (id: string, platforms?: string[]) =>
+      request<
+        {
+          platform: string;
+          original_caption: string;
+          optimized_caption: string;
+          hashtags: string[];
+        }[]
+      >(`/posts/${id}/ai/optimize-captions`, {
+        method: "POST",
+        body: JSON.stringify({ platforms: platforms ?? null }),
+      }),
+
+    chatRefine: (
+      id: string,
+      message: string,
+      opts?: { platform?: string; history?: { role: "user" | "assistant"; content: string }[] }
+    ) =>
+      request<{ reply: string; captions: { platform: string; caption: string }[] }>(
+        `/posts/${id}/ai/chat`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            message,
+            platform: opts?.platform ?? null,
+            history: opts?.history ?? [],
+          }),
+        }
+      ),
+
+    reviewCompliance: (id: string) =>
+      request<{ passed: boolean; issues: string[]; suggestions: string[] }>(
+        `/posts/${id}/ai/review-compliance`,
+        { method: "POST" }
+      ),
+
+    publishAttempts: (id: string) =>
+      request<
+        {
+          id: string;
+          platform: string;
+          status: string;
+          platform_post_id: string | null;
+          error_message: string | null;
+          attempted_at: string;
+        }[]
+      >(`/posts/${id}/publish-attempts`),
+  },
+
+  studio: {
+    create: (data: {
+      title: string;
+      source_text?: string;
+      template_id?: string | null;
+      plan_idea_id?: string | null;
+    }) =>
+      request<{ post: Post; message: string }>("/studio/create", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
 
   stories: {
@@ -199,6 +266,15 @@ const liveApi = {
       request(`/posts/${postId}/schedule`, { method: "POST", body: JSON.stringify(data) }),
 
     cancel: (scheduleId: string) => request<void>(`/schedule/${scheduleId}`, { method: "DELETE" }),
+
+    update: (
+      scheduleId: string,
+      data: { scheduled_at?: string; timezone?: string; platform_targets?: string[] }
+    ) =>
+      request<ScheduleItem>(`/schedule/${scheduleId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
 
     publishNow: (postId: string, platforms?: string[]) =>
       request<PublishAttempt[]>(`/posts/${postId}/publish-now`, {
@@ -340,6 +416,13 @@ const liveApi = {
       }),
 
     delete: (id: string) => request<void>(`/pipeline/${id}`, { method: "DELETE" }),
+  },
+
+  trends: {
+    scan: (params?: { limit?: number }) => {
+      const qs = params?.limit ? `?limit=${params.limit}` : "";
+      return request<import("./trends-types").TrendScanResponse>(`/trends/scan${qs}`);
+    },
   },
 };
 

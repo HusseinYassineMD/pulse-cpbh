@@ -15,6 +15,7 @@ type Props = {
   onDelete: () => void;
   onSummarize?: () => void;
   onCreateOutput?: () => void;
+  onSendToStudio?: () => void;
   summarizing?: boolean;
   generatingOutput?: boolean;
   flash?: boolean;
@@ -28,6 +29,7 @@ export function PipelineCard({
   onDelete,
   onSummarize,
   onCreateOutput,
+  onSendToStudio,
   summarizing,
   generatingOutput,
   flash,
@@ -122,6 +124,15 @@ export function PipelineCard({
             label={generatingOutput ? "Generating…" : "Create output"}
             disabled={generatingOutput || !item.body?.trim()}
             title="Skip highlights — generate post, caption, or story directly"
+          />
+        )}
+        {item.stage === "output" && onSendToStudio && (
+          <ActionBtn
+            onClick={onSendToStudio}
+            icon={Sparkles}
+            label="Open in Studio"
+            primary
+            disabled={!item.body?.trim()}
           />
         )}
         <ActionBtn onClick={onEdit} icon={Pencil} label="Edit" />

@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Calendar, Send } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { PlatformBadges } from "@/components/ui/platform-badges";
+import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
 
 const PLATFORMS = ["instagram", "facebook", "linkedin"] as const;
 
@@ -108,7 +109,9 @@ export function SchedulePanel({
       </div>
 
       {open && (
-        <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
+        <div className="pt-3 border-t border-border space-y-3">
+          <BestTimeWidget onPickTime={(t) => setDatetime(t)} />
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="datetime-local"
             value={datetime}
@@ -122,6 +125,7 @@ export function SchedulePanel({
           >
             {schedule.isPending ? "Saving..." : "Confirm"}
           </button>
+        </div>
         </div>
       )}
     </div>

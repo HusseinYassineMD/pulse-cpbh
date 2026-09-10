@@ -22,7 +22,7 @@ const SLIDES = [
 
 export function HeroMockup() {
   return (
-    <div className="relative hidden lg:block animate-float">
+    <div className="relative hidden lg:block animate-float" aria-hidden="true">
       <div
         className="absolute -inset-4 rounded-3xl blur-2xl opacity-60"
         style={{

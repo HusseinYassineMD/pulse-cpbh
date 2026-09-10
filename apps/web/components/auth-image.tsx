@@ -36,23 +36,48 @@ export function AuthImage({ src, alt, className }: { src: string; alt: string; c
     };
   }, [resolvedSrc, token, staticMode]);
 
+  if (failed) {
+    return (
+      <div
+        className={`bg-muted flex items-center justify-center text-xs text-muted-foreground ${className ?? ""}`}
+        role="img"
+        aria-label={alt || "Image unavailable"}
+      >
+        No preview
+      </div>
+    );
+  }
+
   if (staticMode) {
-    if (failed) {
-      return <div className={`bg-gray-100 ${className}`} />;
-    }
     return (
       <img
         src={resolvedSrc}
         alt={alt}
         className={className}
+        loading="lazy"
+        decoding="async"
         onError={() => setFailed(true)}
       />
     );
   }
 
   if (!blobUrl) {
-    return <div className={`bg-gray-100 animate-pulse ${className}`} />;
+    return (
+      <div
+        className={`bg-gray-100 animate-pulse ${className ?? ""}`}
+        role="status"
+        aria-label={`Loading ${alt}`}
+      />
+    );
   }
 
-  return <img src={blobUrl} alt={alt} className={className} />;
+  return (
+    <img
+      src={blobUrl}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      decoding="async"
+    />
+  );
 }

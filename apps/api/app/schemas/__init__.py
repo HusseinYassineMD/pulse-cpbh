@@ -1,6 +1,7 @@
 """Pydantic request/response schemas."""
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -140,6 +141,12 @@ class ScheduleCreate(BaseModel):
     platform_targets: list[Platform]
 
 
+class ScheduleUpdate(BaseModel):
+    scheduled_at: datetime | None = None
+    timezone: str | None = None
+    platform_targets: list[Platform] | None = None
+
+
 class ScheduleResponse(BaseModel):
     id: UUID
     post_id: UUID
@@ -181,6 +188,59 @@ class AIReviewResponse(BaseModel):
     passed: bool
     issues: list[str]
     suggestions: list[str]
+
+
+class AIChatHistoryTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class AIChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    platform: Platform | None = None
+    history: list[AIChatHistoryTurn] = Field(default_factory=list)
+
+
+class AIChatCaptionUpdate(BaseModel):
+    platform: Platform
+    caption: str
+
+
+class AIChatResponse(BaseModel):
+    reply: str
+    captions: list[AIChatCaptionUpdate]
+
+
+class StudioCreateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=500)
+    source_text: str = Field(default="", max_length=20000)
+    template_id: str | None = None
+    plan_idea_id: str | None = None
+
+
+class StudioCreateResponse(BaseModel):
+    post: PostResponse
+    message: str
+
+
+# ─── Trends ──────────────────────────────────────────────────────────────────
+
+class TrendItem(BaseModel):
+    id: str
+    title: str
+    url: str
+    source: str
+    summary: str
+    published_at: str | None = None
+    theme: str
+    suggested_hook: str
+    deliverable: str
+
+
+class TrendScanResponse(BaseModel):
+    scanned_at: datetime
+    sources_checked: list[str]
+    items: list[TrendItem]
 
 
 # ─── Analytics ───────────────────────────────────────────────────────────────

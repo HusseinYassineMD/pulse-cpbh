@@ -16,34 +16,45 @@ import {
   GitBranch,
   PanelLeftClose,
   PanelLeftOpen,
+  BarChart3,
+  Lightbulb,
+  Sparkles,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
 import { readSidebarOpen, writeSidebarOpen } from "@/lib/sidebar-prefs";
+import { CommandPalette, CommandPaletteTrigger } from "@/components/ui/command-palette";
+import { SkipLink } from "@/components/ui/skip-link";
 
 const nav = [
   { href: "/", label: "Home", icon: Home },
+  { href: "/ideas", label: "Ideas", icon: Lightbulb },
+  { href: "/studio", label: "Create", icon: Sparkles },
   { href: "/plan", label: "Plan", icon: ClipboardList },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/calendar", label: "Schedule", icon: Calendar },
   { href: "/board", label: "Board", icon: LayoutGrid },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const mobileNav = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/plan", label: "Plan", icon: ClipboardList },
-  { href: "/pipeline", label: "Pipeline", icon: GitBranch },
+  { href: "/ideas", label: "Ideas", icon: Lightbulb },
+  { href: "/studio", label: "Create", icon: Sparkles },
   { href: "/board", label: "Board", icon: LayoutGrid },
   { href: "/calendar", label: "Schedule", icon: Calendar },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Home",
+  "/studio": "Create",
   "/plan": "Plan",
   "/pipeline": "Pipeline",
   "/calendar": "Schedule",
   "/board": "Board",
+  "/analytics": "Analytics",
+  "/ideas": "Ideas",
   "/settings": "Settings",
 };
 
@@ -95,22 +106,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
+      <SkipLink />
       {/* Desktop sidebar — slides in/out */}
       <aside
         className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden ${
           showSidebar ? "w-64 opacity-100" : "w-0 opacity-0 border-r-0"
         }`}
         aria-hidden={!showSidebar}
+        aria-label="Primary navigation"
       >
         <div className="w-64 flex flex-col min-h-screen">
           <ShellBrand />
           <DesktopNav pathname={pathname} />
           {dashboard && <ShellOverview dashboard={dashboard} />}
-          <div className="p-3 border-t border-sidebar-border/60">
+          <div className="p-3 border-t border-sidebar-border/60 space-y-2">
+            <CommandPaletteTrigger className="w-full justify-center" />
             <button
               type="button"
               onClick={toggleSidebar}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              aria-expanded={showSidebar}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 min-h-[44px] rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors touch-manipulation"
             >
               <PanelLeftClose className="w-4 h-4" />
               Hide sidebar
@@ -135,33 +150,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="text-[10px] text-muted-foreground truncate block">{mobilePageTitle(pathname)}</span>
             </div>
           </Link>
-          <Link
-            href="/settings"
-            className={`p-2.5 rounded-xl min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors ${
-              pathname.startsWith("/settings") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
-            }`}
-            aria-label="Settings"
-          >
-            <Settings className="w-5 h-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <CommandPaletteTrigger compact />
+            <Link
+              href="/settings"
+              className={`p-2.5 rounded-xl min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors ${
+                pathname.startsWith("/settings") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
+              }`}
+              aria-label="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+          </div>
         </header>
 
         {/* Main content */}
-        <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 gpu-smooth"
+        >
         {/* Desktop: show sidebar toggle when collapsed */}
-        <div className="hidden md:flex sticky top-0 z-20 items-center gap-2 px-4 sm:px-6 md:px-8 lg:px-10 pt-4 pb-0 bg-gradient-to-b from-background via-background to-transparent">
-          {!showSidebar && (
+        {!showSidebar && (
+          <div className="hidden md:flex sticky top-0 z-20 items-center gap-2 px-4 sm:px-6 md:px-8 lg:px-10 pt-4 pb-0 bg-gradient-to-b from-background via-background to-transparent">
             <button
               type="button"
               onClick={toggleSidebar}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium border border-border bg-white/80 backdrop-blur hover:bg-secondary shadow-sm transition-colors"
+              aria-expanded={showSidebar}
+              className="inline-flex items-center gap-2 px-3 py-2 min-h-[44px] rounded-xl text-sm font-medium border border-border bg-white/80 backdrop-blur hover:bg-secondary shadow-sm transition-colors touch-manipulation"
               aria-label="Show sidebar"
             >
               <PanelLeftOpen className="w-4 h-4" />
               Menu
             </button>
-          )}
-        </div>
+            <CommandPaletteTrigger />
+          </div>
+        )}
 
         <div
           className={`p-4 sm:p-6 md:px-8 md:pb-8 lg:px-10 lg:pb-10 mx-auto transition-[max-width] duration-300 ${
@@ -180,8 +204,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
+      <CommandPalette />
+
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-white/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]">
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-white/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]"
+        aria-label="Mobile navigation"
+      >
         <div className="flex items-stretch justify-around max-w-lg mx-auto">
           {mobileNav.map(({ href, label, icon: Icon }) => {
             const active = isNavActive(pathname, href);
@@ -190,11 +219,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-2 px-1 min-h-[56px] text-[10px] sm:text-[11px] font-medium transition-colors ${
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 px-1 min-h-[56px] text-[10px] sm:text-[11px] font-medium transition-colors touch-manipulation ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >
-                <Icon className={`w-5 h-5 shrink-0 ${active ? "text-primary" : ""}`} />
+                <Icon className={`w-5 h-5 shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
                 <span className="truncate max-w-[4.5rem]">{shortLabel}</span>
               </Link>
             );
@@ -226,14 +256,15 @@ function ShellBrand() {
 
 function DesktopNav({ pathname }: { pathname: string }) {
   return (
-    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+    <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Main menu">
       {nav.map(({ href, label, icon: Icon }) => {
         const active = isNavActive(pathname, href);
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-xl text-sm font-medium transition-all duration-200 touch-manipulation ${
               active
                 ? "text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
@@ -244,7 +275,7 @@ function DesktopNav({ pathname }: { pathname: string }) {
                 : undefined
             }
           >
-            <Icon className="w-4 h-4 shrink-0" />
+            <Icon className="w-4 h-4 shrink-0" aria-hidden />
             {label}
           </Link>
         );

@@ -124,6 +124,169 @@ class AIService:
     def _extract_hashtags(self, text: str) -> list[str]:
         return [word for word in text.split() if word.startswith("#")]
 
+    async def generate_captions_from_source(
+        self, title: str, source_text: str
+    ) -> dict[Platform, str]:
+        """Draft Instagram, Facebook, LinkedIn captions from free-form source."""
+        platforms = [Platform.INSTAGRAM, Platform.FACEBOOK, Platform.LINKEDIN]
+        if not self.settings.openai_api_key:
+            snippet = source_text.strip()[:400]
+            base = f"{title}\n\n{snippet}" if snippet else title
+            return {
+                Platform.INSTAGRAM: base[:280],
+                Platform.FACEBOOK: base[:600],
+                Platform.LINKEDIN: base[:1200],
+            }
+
+        from openai import AsyncOpenAI
+        import json
+
+        client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+        response = await client.chat.completions.create(
+            model=self.settings.ai_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Write social captions for USC CPBH from the user's source. Return JSON only: "
+                        '{"instagram":"...","facebook":"...","linkedin":"..."} '
+                        f"Respect limits: IG 2200, FB 63206, LI 3000 chars. {BRAND_GUIDELINES}"
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Title: {title}\n\nSource material:\n{source_text[:12000]}",
+                },
+            ],
+            temperature=0.6,
+            response_format={"type": "json_object"},
+        )
+        raw = json.loads(response.choices[0].message.content or "{}")
+        out: dict[Platform, str] = {}
+        for plat in platforms:
+            key = plat.value
+            text = str(raw.get(key, "")).strip()
+            if text:
+                out[plat] = text[: PLATFORM_LIMITS[plat]]
+        if len(out) < 3:
+            snippet = source_text.strip()[:400]
+            base = f"{title}\n\n{snippet}" if snippet else title
+            for plat in platforms:
+                if plat not in out:
+                    out[plat] = base[: PLATFORM_LIMITS[plat]]
+        return out
+
+    async def chat_refine_captions(
+        self,
+        instruction: str,
+        variants: list[tuple[Platform, str]],
+        *,
+        post_title: str = "",
+        target_platform: Platform | None = None,
+        history: list[dict[str, str]] | None = None,
+        source_text: str = "",
+    ) -> tuple[str, dict[Platform, str]]:
+        """Apply a natural-language edit request to one or all platform captions."""
+        if not variants:
+            return ("Add captions first, then I can help refine them.", {})
+
+        if not self.settings.openai_api_key:
+            return self._fallback_chat_refine(instruction, variants, target_platform)
+
+        from openai import AsyncOpenAI
+        import json
+
+        client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+        scope = (
+            f"Only change the {target_platform.value} caption."
+            if target_platform
+            else "Update each platform caption appropriately."
+        )
+        current = "\n\n".join(
+            f"[{p.value.upper()}]\n{c}" for p, c in variants if not target_platform or p == target_platform
+        )
+
+        system = (
+            "You are a CPBH social content assistant. The user asks for edits to post captions. "
+            f"{scope} Return JSON only: "
+            '{"reply":"brief friendly summary of what you changed",'
+            '"captions":[{"platform":"instagram|facebook|linkedin","caption":"full new text"}]} '
+            f"Respect platform character limits. {BRAND_GUIDELINES}"
+        )
+        messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+        if source_text.strip():
+            messages.append(
+                {
+                    "role": "user",
+                    "content": f"Original source material for context:\n{source_text[:6000]}",
+                }
+            )
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": "I have the source context and will use it when editing captions.",
+                }
+            )
+        for turn in history or []:
+            role = turn.get("role", "user")
+            if role in ("user", "assistant"):
+                messages.append({"role": role, "content": turn.get("content", "")[:4000]})
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Post title: {post_title or 'Untitled'}\n\n"
+                    f"Current captions:\n{current}\n\n"
+                    f"User request: {instruction}"
+                ),
+            }
+        )
+
+        response = await client.chat.completions.create(
+            model=self.settings.ai_model,
+            messages=messages,
+            temperature=0.6,
+            response_format={"type": "json_object"},
+        )
+
+        raw = json.loads(response.choices[0].message.content or "{}")
+        reply = str(raw.get("reply", "Updated your captions."))
+        updates: dict[Platform, str] = {}
+        for item in raw.get("captions", []):
+            try:
+                plat = Platform(str(item.get("platform", "")).lower())
+                cap = str(item.get("caption", "")).strip()
+                if cap and plat in {p for p, _ in variants}:
+                    limit = PLATFORM_LIMITS[plat]
+                    updates[plat] = cap[:limit]
+            except ValueError:
+                continue
+        return reply, updates
+
+    def _fallback_chat_refine(
+        self,
+        instruction: str,
+        variants: list[tuple[Platform, str]],
+        target_platform: Platform | None,
+    ) -> tuple[str, dict[Platform, str]]:
+        lower = instruction.lower()
+        updates: dict[Platform, str] = {}
+        for plat, caption in variants:
+            if target_platform and plat != target_platform:
+                continue
+            text = caption
+            if "short" in lower:
+                text = caption[:280] if plat == Platform.INSTAGRAM else caption[:500]
+            if "hashtag" in lower and "#BrainHealth" not in text:
+                text = f"{text.rstrip()}\n\n#BrainHealth #USCCPBH"
+            if "cta" in lower or "clinic" in lower:
+                text = f"{text.rstrip()}\n\nLearn more at USC CPBH."
+            updates[plat] = text
+        return (
+            "Applied a quick local edit (connect OpenAI for smarter rewrites).",
+            updates,
+        )
+
     async def summarize_for_pipeline(self, source_text: str, title: str = "") -> str:
         """Extract post-ready highlights from raw source content."""
         if not self.settings.openai_api_key:

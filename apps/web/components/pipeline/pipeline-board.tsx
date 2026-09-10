@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -76,6 +77,7 @@ function Column({
 }
 
 export function PipelineBoard() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [modalStage, setModalStage] = useState<PipelineStage | null>(null);
   const [editing, setEditing] = useState<PipelineItem | null>(null);
@@ -359,6 +361,14 @@ export function PipelineBoard() {
               }
               summarizing={summarizingId === item.id}
               generatingOutput={generatingFromId === item.id}
+              onSendToStudio={
+                item.stage === "output"
+                  ? () =>
+                      router.push(
+                        `/studio?title=${encodeURIComponent(item.title || "Pipeline output")}&notes=${encodeURIComponent(item.body || "")}`
+                      )
+                  : undefined
+              }
             />
           </div>
         ))}

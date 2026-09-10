@@ -33,6 +33,8 @@ export interface PostSourceConfig {
   substack_url?: string;
   substack_publish_date?: string;
   content_idea_id?: string;
+  studio_source?: boolean;
+  source_text?: string;
 }
 
 export interface Post {

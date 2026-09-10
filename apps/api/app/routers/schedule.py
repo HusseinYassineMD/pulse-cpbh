@@ -22,7 +22,7 @@ from app.models import (
     ScheduleStatus,
     User,
 )
-from app.schemas import PublishAttemptResponse, ScheduleCreate, ScheduleResponse
+from app.schemas import PublishAttemptResponse, ScheduleCreate, ScheduleResponse, ScheduleUpdate
 from app.services.publish import publish_schedule_entry
 
 router = APIRouter(tags=["schedule"])
@@ -189,6 +189,38 @@ async def _revert_linked_plan_idea(db: AsyncSession, post: Post) -> ContentIdea 
         idea.status = IdeaStatus.APPROVED
     idea.post_id = None
     return idea
+
+
+@router.patch("/schedule/{schedule_id}", response_model=ScheduleResponse)
+async def update_schedule(
+    schedule_id: UUID,
+    body: ScheduleUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ScheduleEntry)
+        .join(Post)
+        .where(ScheduleEntry.id == schedule_id, Post.user_id == user.id)
+        .options(selectinload(ScheduleEntry.post).selectinload(Post.variants))
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Schedule entry not found")
+    post = entry.post
+    if entry.status != ScheduleStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Only pending entries can be rescheduled")
+
+    if body.scheduled_at is not None:
+        entry.scheduled_at = body.scheduled_at
+    if body.timezone is not None:
+        entry.timezone = body.timezone
+    if body.platform_targets is not None:
+        _validate_platform_targets(post, body.platform_targets)
+        entry.platform_targets = [p.value for p in body.platform_targets]
+
+    await db.flush()
+    return entry
 
 
 @router.delete("/schedule/{schedule_id}", status_code=204)

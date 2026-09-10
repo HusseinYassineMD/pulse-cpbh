@@ -1,7 +1,8 @@
 "use client";
 
 import { format, parseISO } from "date-fns";
-import { ArrowRight, CalendarDays, ExternalLink, FileText, Mail, Pencil, Send, Trash2, User } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CalendarDays, ExternalLink, FileText, Mail, Pencil, Send, Sparkles, Trash2, User } from "lucide-react";
 import type { ContentIdea, IdeaStatus } from "@/lib/types";
 import { deliverableLabel, isParkingStatus, isQueueStatus, platformLabels } from "@/lib/plan-team";
 import { VisibleContent } from "@/components/ui/visible-content";
@@ -143,6 +144,13 @@ export function PlanIdeaCard({
       )}
 
       <div className="flex flex-wrap gap-2 pt-1 border-t border-border/60">
+        <Link
+          href={`/studio?planId=${idea.id}`}
+          className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium btn-primary"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          Create in Studio
+        </Link>
         <ActionBtn
           onClick={onEmail}
           icon={Mail}

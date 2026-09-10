@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.core.database import Base, engine
 from app.core.migrations import run_migrations
 import app.models  # noqa: F401 — register models before create_all
-from app.routers import accounts, ai, auth, commands, dashboard, media, pipeline, plan, posts, schedule, stories, templates
+from app.routers import accounts, ai, auth, commands, dashboard, media, pipeline, plan, posts, schedule, stories, studio, templates, trends
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 settings = get_settings()
@@ -57,6 +57,8 @@ app.include_router(schedule.router, prefix="/api/v1")
 app.include_router(plan.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
 app.include_router(stories.router, prefix="/api/v1")
+app.include_router(trends.router, prefix="/api/v1")
+app.include_router(studio.router, prefix="/api/v1")
 
 
 @app.get("/health")

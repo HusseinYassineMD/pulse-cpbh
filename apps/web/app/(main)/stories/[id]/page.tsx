@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Copy, Check, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Check, ExternalLink, Trash2, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { rememberCategory } from "@/lib/plan-categories";
@@ -21,6 +21,7 @@ export default function StoryDetailPage() {
   const [sourcePublishDate, setSourcePublishDate] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [infoMsg, setInfoMsg] = useState("");
   const [initialized, setInitialized] = useState(false);
 
   const { data: story, isLoading } = useQuery({
@@ -58,6 +59,17 @@ export default function StoryDetailPage() {
       setError("");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save"),
+  });
+
+  const replaceImage = useMutation({
+    mutationFn: (file: File) => api.stories.replaceImage(id, file),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["story", id], updated);
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+      setInfoMsg("Image updated");
+      setTimeout(() => setInfoMsg(""), 3000);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not replace image"),
   });
 
   const remove = useMutation({
@@ -105,12 +117,29 @@ export default function StoryDetailPage() {
         </button>
       </div>
 
+      {infoMsg && (
+        <div className="p-3 bg-teal/10 text-teal-900 border border-teal/25 rounded-lg text-sm">{infoMsg}</div>
+      )}
       {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
 
       <div className="pulse-card overflow-hidden max-w-xs mx-auto">
         <div className="relative bg-gray-50 aspect-[9/16]">
           <AuthImage src={story.image_url} alt={story.title} className="w-full h-full object-contain" />
         </div>
+        <label className="flex items-center justify-center gap-2 px-4 py-3 border-t text-sm font-medium cursor-pointer hover:bg-secondary transition-colors">
+          <Upload className="w-4 h-4" />
+          {replaceImage.isPending ? "Uploading…" : "Replace image"}
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            disabled={replaceImage.isPending}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) replaceImage.mutate(file);
+            }}
+          />
+        </label>
       </div>
 
       <div className="pulse-card p-5 space-y-4">

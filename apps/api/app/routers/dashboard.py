@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
@@ -55,7 +56,7 @@ async def get_dashboard(
     total = total_result.scalar() or 0
 
     recent_result = await db.execute(
-        base.order_by(Post.created_at.desc()).limit(5)
+        base.options(selectinload(Post.variants)).order_by(Post.created_at.desc()).limit(5)
     )
     recent = recent_result.scalars().all()
 
@@ -73,7 +74,7 @@ async def get_dashboard(
                 title=p.title,
                 status=p.status,
                 created_at=p.created_at.isoformat(),
-                platform_count=0,
+                platform_count=len(p.variants),
             )
             for p in recent
         ],

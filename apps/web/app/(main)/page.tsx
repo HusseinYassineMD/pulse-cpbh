@@ -20,9 +20,12 @@ import { format, parseISO, isPast } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
 import { HeroMockup } from "@/components/hero-mockup";
+import { QuickTools } from "@/components/home/quick-tools";
+import { PostNextAction } from "@/components/posts/post-next-action";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
+import { ACTIONABLE_STATUSES, getPostNextStep } from "@/lib/post-workflow";
 import type { CommandResult, Post } from "@/lib/types";
 
 const EXAMPLES = ["post exercise-apoe4", "captions apoe4"];
@@ -38,10 +41,16 @@ export default function HomePage() {
   const [command, setCommand] = useState("");
   const [lastResult, setLastResult] = useState<CommandResult | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState("");
 
   const { data: dashboard } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.dashboard.get(),
+  });
+
+  const { data: postsData } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => api.posts.list({ limit: 50 }),
   });
 
   const {
@@ -66,6 +75,9 @@ export default function HomePage() {
 
   const upcoming = schedule?.filter((s) => s.status === "pending") ?? [];
   const stats = dashboard?.stats;
+  const actionPosts =
+    postsData?.items.filter((p) => ACTIONABLE_STATUSES.includes(p.status)) ?? [];
+  const readyCount = actionPosts.length;
 
   return (
     <div className="space-y-10 pb-4">
@@ -108,12 +120,62 @@ export default function HomePage() {
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-stagger">
-          <StatCard label="Total posts" value={stats.total} icon={FileStack} accent="cardinal" />
-          <StatCard label="Scheduled" value={stats.scheduled} icon={Clock} accent="blue" />
-          <StatCard label="Published" value={stats.published} icon={Send} accent="green" />
-          <StatCard label="Ready to go" value={stats.drafts} icon={Sparkles} accent="gold" />
+          <StatCard label="Total posts" value={stats.total} icon={FileStack} accent="cardinal" href="/board?tab=posts" />
+          <StatCard label="Scheduled" value={stats.scheduled} icon={Clock} accent="blue" href="/calendar" />
+          <StatCard label="Published" value={stats.published} icon={Send} accent="green" href="/board?tab=posts&filter=published" />
+          <StatCard label="Needs action" value={readyCount} icon={Sparkles} accent="gold" href="/board?tab=posts&filter=action" />
         </div>
       )}
+
+      {actionMsg && (
+        <p className="text-sm text-teal-900 bg-teal/10 border border-teal/25 px-4 py-2.5 rounded-xl">{actionMsg}</p>
+      )}
+
+      {actionPosts.length > 0 && (
+        <section className="space-y-4 animate-stagger">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-0.5">Your queue</p>
+              <h2 className="font-bold text-xl">Posts waiting on you</h2>
+            </div>
+            <Link href="/board?tab=posts&filter=action" className="text-sm text-primary hover:underline font-semibold">
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {actionPosts.slice(0, 5).map((post) => {
+              const next = getPostNextStep(post);
+              return (
+                <div
+                  key={post.id}
+                  className="pulse-card-hover p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
+                >
+                  <Link href={`/posts/${post.id}`} className="flex-1 min-w-0 group">
+                    <p className="font-semibold text-sm group-hover:text-primary transition-colors truncate">{post.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{next.hint}</p>
+                  </Link>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={post.status} />
+                    <PostNextAction
+                      post={post}
+                      onDone={(msg) => {
+                        setActionMsg(msg);
+                        setTimeout(() => setActionMsg(""), 5000);
+                      }}
+                      onError={(msg) => {
+                        setActionMsg(msg);
+                        setTimeout(() => setActionMsg(""), 5000);
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <QuickTools />
 
       {/* Command bar */}
       <section className="pulse-card p-6 lg:p-8 pulse-glow animate-glow">
@@ -136,9 +198,9 @@ export default function HomePage() {
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 placeholder="post exercise-apoe4"
-                className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-gray-600 text-base"
+                aria-label="Generate content command"
+                className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-gray-600 text-base min-h-[44px]"
                 disabled={run.isPending}
-                autoFocus
               />
               {run.isPending && (
                 <span className="text-xs text-teal/60 animate-pulse shrink-0">processing...</span>

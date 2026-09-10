@@ -32,8 +32,10 @@ import {
 } from "@/lib/board-stats";
 import { STATIC_DATA_VERSION } from "@/lib/static-config";
 import { AuthImage } from "@/components/auth-image";
+import { PostNextAction } from "@/components/posts/post-next-action";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
+import { ACTIONABLE_STATUSES } from "@/lib/post-workflow";
 
 type BoardTab = "all" | "posts" | "stories";
 
@@ -65,7 +67,9 @@ function BoardContent() {
   const searchParams = useSearchParams();
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [actionMsg, setActionMsg] = useState("");
   const tabParam = searchParams.get("tab");
+  const filterParam = searchParams.get("filter");
   const tab: BoardTab =
     tabParam === "posts" || tabParam === "stories" ? tabParam : "all";
 
@@ -85,18 +89,27 @@ function BoardContent() {
     retry: 1,
   });
 
-  const posts = postsData?.items ?? [];
+  const allPosts = postsData?.items ?? [];
+  const posts = useMemo(() => {
+    if (filterParam === "action") {
+      return allPosts.filter((p) => ACTIONABLE_STATUSES.includes(p.status));
+    }
+    if (filterParam === "published") {
+      return allPosts.filter((p) => ["published", "partially_published"].includes(p.status));
+    }
+    return allPosts;
+  }, [allPosts, filterParam]);
   const stories = storiesData?.items ?? [];
   const planItems = planData?.items ?? [];
   const isLoading = postsLoading || storiesLoading;
   const apiOffline = postsError && storiesError;
   const showPosts = tab === "all" || tab === "posts";
   const showStories = tab === "all" || tab === "stories";
-  const isEmpty = !isLoading && !apiOffline && posts.length === 0 && stories.length === 0;
+  const isEmpty = !isLoading && !apiOffline && allPosts.length === 0 && stories.length === 0 && !filterParam;
 
   const metrics = useMemo(
-    () => computeBoardMetrics(posts, stories, planItems),
-    [posts, stories, planItems]
+    () => computeBoardMetrics(allPosts, stories, planItems),
+    [allPosts, stories, planItems]
   );
 
   const topCategories = metrics.categories.filter((c) => c.name !== "Uncategorized").slice(0, 6);
@@ -176,7 +189,13 @@ function BoardContent() {
             <MetricCard label="Posts" value={metrics.postCount} icon={Layers} />
             <MetricCard label="Stories" value={metrics.storyCount} icon={Smartphone} />
             <MetricCard label="Categories" value={metrics.categoryCount} icon={Tag} accent="primary" />
-            <MetricCard label="Ready to publish" value={metrics.readyCount} icon={CheckCircle2} accent="teal" />
+            <MetricCard
+              label="Ready to publish"
+              value={metrics.readyCount}
+              icon={CheckCircle2}
+              accent="teal"
+              href="/board?tab=posts&filter=action"
+            />
             <MetricCard label="With source date" value={metrics.withSourceDate} icon={CalendarDays} />
           </div>
 
@@ -218,8 +237,8 @@ function BoardContent() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <TabLink active={tab === "all"} href="/board" label="All" count={posts.length + stories.length} />
-        <TabLink active={tab === "posts"} href="/board?tab=posts" label="Posts" count={posts.length} />
+        <TabLink active={tab === "all"} href="/board" label="All" count={allPosts.length + stories.length} />
+        <TabLink active={tab === "posts"} href="/board?tab=posts" label="Posts" count={allPosts.length} />
         <TabLink active={tab === "stories"} href="/board?tab=stories" label="Stories" count={stories.length} />
       </div>
 
@@ -243,6 +262,21 @@ function BoardContent() {
 
       {deleteError && (
         <p className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-2 rounded-xl">{deleteError}</p>
+      )}
+
+      {actionMsg && (
+        <p className="text-sm text-teal-900 bg-teal/10 border border-teal/25 px-4 py-2.5 rounded-xl">{actionMsg}</p>
+      )}
+
+      {filterParam === "action" && !isLoading && posts.length === 0 && (
+        <div className="pulse-card p-8 text-center">
+          <CheckCircle2 className="w-10 h-10 mx-auto text-teal/40 mb-3" />
+          <p className="font-medium">Nothing waiting on you</p>
+          <p className="text-sm text-muted-foreground mt-1">Create content in Studio or generate from home.</p>
+          <Link href="/studio" className="inline-block mt-4 text-sm text-primary font-semibold hover:underline">
+            Open Create Studio →
+          </Link>
+        </div>
       )}
 
       <ConfirmDialog
@@ -276,6 +310,10 @@ function BoardContent() {
                 post={post}
                 planItems={planItems}
                 onDelete={() => setDeleteTarget({ kind: "post", item: post })}
+                onActionMessage={(msg) => {
+                  setActionMsg(msg);
+                  setTimeout(() => setActionMsg(""), 5000);
+                }}
               />
             ))}
           </div>
@@ -309,10 +347,12 @@ function BoardPostCard({
   post,
   planItems,
   onDelete,
+  onActionMessage,
 }: {
   post: Post;
   planItems: ContentIdea[];
   onDelete: () => void;
+  onActionMessage: (msg: string) => void;
 }) {
   const thumb = post.media_assets[0]?.url;
   const platforms = post.variants.map((v) => v.platform);
@@ -367,6 +407,7 @@ function BoardPostCard({
           <PlatformBadges platforms={platforms} />
         </div>
         <div className="flex flex-wrap gap-2 pt-2 border-t border-border/60">
+          <PostNextAction post={post} onDone={onActionMessage} onError={onActionMessage} />
           <Link
             href={`/posts/${post.id}`}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-secondary hover:bg-secondary/80 border border-border/60"
@@ -496,11 +537,13 @@ function MetricCard({
   value,
   icon: Icon,
   accent,
+  href,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   accent?: "primary" | "teal";
+  href?: string;
 }) {
   const colors =
     accent === "primary"
@@ -508,8 +551,8 @@ function MetricCard({
       : accent === "teal"
         ? "text-teal bg-teal/15"
         : "text-muted-foreground bg-secondary";
-  return (
-    <div className="pulse-card-hover p-4 flex items-center gap-3">
+  const inner = (
+    <>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colors}`}>
         <Icon className="w-5 h-5" />
       </div>
@@ -517,8 +560,16 @@ function MetricCard({
         <p className="text-2xl font-bold tabular-nums">{value}</p>
         <p className="text-[11px] text-muted-foreground truncate">{label}</p>
       </div>
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className="pulse-card-hover p-4 flex items-center gap-3">
+        {inner}
+      </Link>
+    );
+  }
+  return <div className="pulse-card-hover p-4 flex items-center gap-3">{inner}</div>;
 }
 
 function TabLink({

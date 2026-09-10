@@ -9,12 +9,19 @@ import { PlatformBadges } from "@/components/ui/platform-badges";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 import type { ScheduleItem } from "@/lib/schedule-types";
+import { ScheduleMonthView } from "@/components/calendar/schedule-month-view";
+import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
+
+type ScheduleView = "queue" | "calendar";
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [removeTarget, setRemoveTarget] = useState<ScheduleItem | null>(null);
+  const [view, setView] = useState<ScheduleView>("queue");
+  const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleItem | null>(null);
+  const [rescheduleAt, setRescheduleAt] = useState("");
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["schedule"],
@@ -40,6 +47,22 @@ export default function CalendarPage() {
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : "Could not remove from schedule");
+      setTimeout(() => setError(""), 5000);
+    },
+  });
+
+  const reschedule = useMutation({
+    mutationFn: ({ id, scheduled_at }: { id: string; scheduled_at: string }) =>
+      api.schedule.update(id, { scheduled_at }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      setRescheduleTarget(null);
+      setRescheduleAt("");
+      setMsg("Schedule updated");
+      setTimeout(() => setMsg(""), 4000);
+    },
+    onError: (err) => {
+      setError(err instanceof ApiError ? err.message : "Could not reschedule");
       setTimeout(() => setError(""), 5000);
     },
   });
@@ -94,6 +117,34 @@ export default function CalendarPage() {
         </p>
       )}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-xl border border-border p-1 bg-secondary/50">
+          <button
+            type="button"
+            onClick={() => setView("queue")}
+            className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+              view === "queue" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            Queue
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("calendar")}
+            className={`px-4 py-2 min-h-[40px] rounded-lg text-sm font-medium transition-colors ${
+              view === "calendar" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            Calendar
+          </button>
+        </div>
+        <BestTimeWidget compact />
+      </div>
+
+      {view === "calendar" && items && <ScheduleMonthView items={items} />}
+
+      {view === "queue" && (
+      <>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="pulse-card-hover p-6 flex items-center gap-4 bg-gradient-to-br from-secondary/80 to-card">
           <div className="w-14 h-14 rounded-2xl bg-cyan/15 flex items-center justify-center">
@@ -145,6 +196,10 @@ export default function CalendarPage() {
               item={item}
               onRemove={() => setRemoveTarget(item)}
               onPublish={() => publishNow.mutate(item)}
+              onReschedule={() => {
+                setRescheduleTarget(item);
+                setRescheduleAt(format(parseISO(item.scheduled_at), "yyyy-MM-dd'T'HH:mm"));
+              }}
               publishing={publishNow.isPending}
             />
           ))}
@@ -163,6 +218,48 @@ export default function CalendarPage() {
             />
           ))}
         </section>
+      )}
+      </>
+      )}
+
+      {rescheduleTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40">
+          <div className="pulse-card w-full max-w-md p-6 space-y-4 animate-fade-in">
+            <h2 className="font-semibold text-lg">Reschedule</h2>
+            <p className="text-sm text-muted-foreground">{rescheduleTarget.post_title}</p>
+            <input
+              type="datetime-local"
+              value={rescheduleAt}
+              onChange={(e) => setRescheduleAt(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-border text-sm"
+            />
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setRescheduleTarget(null);
+                  setRescheduleAt("");
+                }}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!rescheduleAt || reschedule.isPending}
+                onClick={() =>
+                  reschedule.mutate({
+                    id: rescheduleTarget.id,
+                    scheduled_at: new Date(rescheduleAt).toISOString(),
+                  })
+                }
+                className="px-4 py-2.5 rounded-lg text-sm font-medium btn-primary disabled:opacity-50"
+              >
+                {reschedule.isPending ? "Saving…" : "Save new time"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {removeTarget && (
@@ -211,12 +308,14 @@ function ScheduleRow({
   item,
   onRemove,
   onPublish,
+  onReschedule,
   publishing,
   muted,
 }: {
   item: ScheduleItem;
   onRemove?: () => void;
   onPublish?: () => void;
+  onReschedule?: () => void;
   publishing?: boolean;
   muted?: boolean;
 }) {
@@ -236,7 +335,12 @@ function ScheduleRow({
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold block break-words leading-snug">{item.post_title}</p>
+          <Link
+            href={`/posts/${item.post_id}`}
+            className="font-semibold block break-words leading-snug hover:text-primary transition-colors"
+          >
+            {item.post_title}
+          </Link>
           {item.content_idea_id && (
             <p className="text-[11px] text-primary/80 mt-0.5">From Plan board</p>
           )}
@@ -261,6 +365,16 @@ function ScheduleRow({
         <StatusBadge status={overdue ? "pending" : item.status} />
         {overdue && (
           <span className="text-[10px] font-bold uppercase text-amber-600">overdue</span>
+        )}
+        {onReschedule && item.status === "pending" && (
+          <button
+            type="button"
+            onClick={onReschedule}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-border hover:bg-secondary min-h-[40px]"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Reschedule
+          </button>
         )}
         {onRemove && (
           <button

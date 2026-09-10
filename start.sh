@@ -61,7 +61,7 @@ web() {
   export API_URL="http://127.0.0.1:${PULSE_API_PORT}"
   if [ "${2:-}" = "clean" ]; then
     rm -rf .next node_modules/.cache
-    echo "Cleared Next.js cache (.next)"
+    echo "Cleared Next.js cache (.next + node_modules/.cache)"
   fi
   # Kill stale dev server on this port (prevents corrupted cache / EADDRINUSE)
   if lsof -ti :"$PULSE_WEB_PORT" >/dev/null 2>&1; then
@@ -77,14 +77,21 @@ dev() {
   echo "Starting Pulse locally (API + web)…"
   echo "  Plan board → http://localhost:${PULSE_WEB_PORT}/plan"
   echo ""
-  api &
-  API_PID=$!
-  trap 'kill "$API_PID" 2>/dev/null || true' EXIT INT TERM
-  sleep 2
-  if ! kill -0 "$API_PID" 2>/dev/null; then
-    echo "API failed to start. Run ./start.sh api in another terminal to see errors."
-    exit 1
+
+  API_PID=""
+  if lsof -ti :"$PULSE_API_PORT" >/dev/null 2>&1; then
+    echo "API already running on port ${PULSE_API_PORT} — using existing server"
+  else
+    api &
+    API_PID=$!
+    trap 'kill "$API_PID" 2>/dev/null || true' EXIT INT TERM
+    sleep 2
+    if ! kill -0 "$API_PID" 2>/dev/null; then
+      echo "API failed to start. Run ./start.sh api in another terminal to see errors."
+      exit 1
+    fi
   fi
+
   web
 }
 

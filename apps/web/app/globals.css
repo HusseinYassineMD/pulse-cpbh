@@ -36,10 +36,14 @@
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    color-scheme: light;
   }
 
   body {
     @apply text-foreground antialiased overflow-x-hidden;
+    -webkit-tap-highlight-color: transparent;
     background-color: hsl(var(--background));
     background-image:
       radial-gradient(ellipse 80% 58% at 94% 6%, hsl(22 62% 76%), hsl(22 62% 76% / 0) 56%),
@@ -52,6 +56,48 @@
   ::selection {
     background: hsl(var(--accent) / 0.35);
     color: hsl(var(--foreground));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  @media (max-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+
+    .animate-stagger > * {
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
 }
 
@@ -96,7 +142,7 @@
   }
 
   .btn-primary {
-    @apply text-primary-foreground font-semibold rounded-xl transition-all;
+    @apply text-primary-foreground font-semibold rounded-xl transition-all touch-manipulation;
     background: linear-gradient(135deg, hsl(var(--foreground)), hsl(196 45% 35%));
     box-shadow: 0 2px 14px hsl(var(--foreground) / 0.22);
   }
@@ -163,6 +209,26 @@
   .animate-stagger > *:nth-child(4) { animation-delay: 0.2s; }
   .animate-stagger > *:nth-child(5) { animation-delay: 0.25s; }
   .animate-stagger > *:nth-child(6) { animation-delay: 0.3s; }
+
+  .skip-link {
+    @apply fixed left-4 top-4 z-[100] px-4 py-2.5 rounded-xl text-sm font-semibold text-primary-foreground shadow-lg;
+    background: linear-gradient(135deg, hsl(var(--foreground)), hsl(196 45% 35%));
+    transform: translateY(-150%);
+    transition: transform 0.2s ease;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] touch-manipulation;
+  }
+
+  .gpu-smooth {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
 }
 
 @keyframes fadeUp {
