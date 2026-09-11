@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, X 
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
-import { readTrendsCache, scanBrainHealthTrends } from "@/lib/trends-scan";
+import { scanBrainHealthTrends } from "@/lib/trends-scan";
 import { deliverableLabel } from "@/lib/plan-team";
 import type { TrendItem } from "@/lib/trends-types";
 import type { PlanDeliverable } from "@/lib/types";
@@ -64,15 +64,17 @@ export function TrendScanner() {
   useEffect(() => {
     setExpanded(readTrendsOpen());
     setMounted(true);
-    const cached = readTrendsCache();
-    if (cached?.items.length) {
-      setTrends(cached.items);
-      setSources(cached.sources_checked);
-      setScannedAt(cached.scanned_at);
-      return;
-    }
-    scan.mutate(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleScan() {
+    setTrends([]);
+    setSources([]);
+    setScannedAt(null);
+    setErr("");
+    setMsg("");
+    setFeedProgress({ done: 0, total: 4 });
+    scan.mutate(true);
+  }
 
   const toggleExpanded = (open: boolean) => {
     setExpanded(open);
@@ -166,7 +168,7 @@ export function TrendScanner() {
           </div>
           <button
             type="button"
-            onClick={() => scan.mutate(true)}
+            onClick={handleScan}
             disabled={scan.isPending}
             className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium btn-primary disabled:opacity-50 shrink-0"
           >
@@ -204,6 +206,14 @@ export function TrendScanner() {
           </p>
         )}
       </div>
+
+      {scan.isPending && trends.length === 0 && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="pulse-card h-48 animate-pulse bg-gray-100/80 rounded-2xl" />
+          ))}
+        </div>
+      )}
 
       {trends.length > 0 && (
         <div className="grid sm:grid-cols-2 gap-4">
@@ -260,7 +270,7 @@ export function TrendScanner() {
 
       {!scan.isPending && trends.length === 0 && !err && (
         <p className="text-sm text-muted-foreground text-center py-6">
-          Hit <strong>Scan latest trends</strong> to fetch what&apos;s new in the field.
+          Tap <strong>Scan latest trends</strong> to fetch live headlines right now.
         </p>
       )}
 

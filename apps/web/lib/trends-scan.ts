@@ -135,6 +135,15 @@ async function rawToTrendItems(raw: RawTrend[], limit: number): Promise<TrendIte
   );
 }
 
+export function clearTrendsCache(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function readTrendsCache(): TrendScanResponse | null {
   if (typeof window === "undefined") return null;
   try {
@@ -267,13 +276,20 @@ export async function scanBrainHealthTrends(
   limit = 16,
   options?: { force?: boolean; onProgress?: (progress: TrendScanProgress) => void }
 ): Promise<TrendScanResponse> {
-  if (!options?.force) {
+  const force = options?.force === true;
+
+  if (!force) {
     const cached = readTrendsCache();
     if (cached?.items.length) return cached;
+  } else {
+    clearTrendsCache();
   }
 
-  if (scanInFlight && !options?.force) {
+  if (scanInFlight && !force) {
     return scanInFlight;
+  }
+  if (force) {
+    scanInFlight = null;
   }
 
   const run = async (): Promise<TrendScanResponse> => {
@@ -285,16 +301,19 @@ export async function scanBrainHealthTrends(
       items,
     };
 
-    const snapshot = await loadBuildSnapshot();
+    // Manual Scan = live feeds only. Snapshot is fallback for first load only.
+    if (!force) {
+      const snapshot = await loadBuildSnapshot();
 
-    if (!items.length && snapshot) {
-      result = {
-        scanned_at: new Date().toISOString(),
-        sources_checked: snapshot.sources_checked,
-        items: snapshot.items.slice(0, limit),
-      };
-    } else if (items.length > 0 && snapshot && items.length < limit) {
-      result = mergeTrendResults(result, snapshot, limit);
+      if (!items.length && snapshot) {
+        result = {
+          scanned_at: new Date().toISOString(),
+          sources_checked: snapshot.sources_checked,
+          items: snapshot.items.slice(0, limit),
+        };
+      } else if (items.length > 0 && snapshot && items.length < limit) {
+        result = mergeTrendResults(result, snapshot, limit);
+      }
     }
 
     if (!result.items.length) {
