@@ -1,3 +1,4 @@
+import { withBasePath } from "./base-path";
 import type { PlanDeliverable } from "./types";
 import type { TrendItem, TrendScanResponse } from "./trends-types";
 
@@ -9,7 +10,7 @@ type RawTrend = {
   published_at: string | null;
 };
 
-/** Ordered by speed + relevance — we stop once we have enough hits. */
+/** Matches backend `apps/api/app/services/trends.py` — all four public RSS sources. */
 const TREND_FEEDS: { source: string; url: string; strict: boolean }[] = [
   {
     source: "Google News",
@@ -26,12 +27,16 @@ const TREND_FEEDS: { source: string; url: string; strict: boolean }[] = [
     url: "https://feeds.bbci.co.uk/news/health/rss.xml",
     strict: true,
   },
+  {
+    source: "MedlinePlus",
+    url: "https://medlineplus.gov/groupfeeds/new.xml",
+    strict: true,
+  },
 ];
 
-const CACHE_KEY = "pulse-trends-cache-v1";
-const CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
-const FEED_TIMEOUT_MS = 5500;
-const MIN_RELEVANT = 6;
+const CACHE_KEY = "pulse-trends-cache-v2";
+const CACHE_TTL_MS = 20 * 60 * 1000;
+const FEED_TIMEOUT_MS = 9000;
 
 const BRAIN_KEYWORDS =
   /\b(brain|alzheimer|dementia|cognitive|memory|neuro|apoe|amyloid|tau|parkinson|stroke|mental\s+health|sleep|exercise|nutrition|mind|aging|prevention|glymphatic)\b/i;
@@ -41,15 +46,28 @@ const STRICT_BRAIN_KEYWORDS =
 
 let scanInFlight: Promise<TrendScanResponse> | null = null;
 
+export type TrendScanProgress = {
+  items: TrendItem[];
+  sources_checked: string[];
+  feeds_done: number;
+  feeds_total: number;
+};
+
 function stripHtml(text: string): string {
   return text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function trendId(title: string, url: string): string {
+async function sha256Hex(input: string): Promise<string> {
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+      .slice(0, 16);
+  }
   let hash = 0;
-  const key = `${title}|${url}`;
-  for (let i = 0; i < key.length; i++) {
-    hash = (hash << 5) - hash + key.charCodeAt(i);
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) - hash + input.charCodeAt(i);
     hash |= 0;
   }
   return Math.abs(hash).toString(16).padStart(8, "0").slice(0, 16);
@@ -82,7 +100,7 @@ function isRelevant(item: RawTrend, strict: boolean): boolean {
   return strict ? STRICT_BRAIN_KEYWORDS.test(blob) : BRAIN_KEYWORDS.test(blob);
 }
 
-function toTrendItems(raw: RawTrend[], limit: number): TrendItem[] {
+async function rawToTrendItems(raw: RawTrend[], limit: number): Promise<TrendItem[]> {
   const seen = new Set<string>();
   const unique: RawTrend[] = [];
   for (const item of raw) {
@@ -98,20 +116,23 @@ function toTrendItems(raw: RawTrend[], limit: number): TrendItem[] {
     return tb - ta;
   });
 
-  return unique.slice(0, Math.max(limit, 1)).map((item) => {
-    const theme = guessTheme(item.title, item.summary);
-    return {
-      id: trendId(item.title, item.url),
-      title: item.title,
-      url: item.url,
-      source: item.source,
-      summary: item.summary,
-      published_at: item.published_at,
-      theme,
-      suggested_hook: suggestedHook(item.title, item.summary),
-      deliverable: guessDeliverable(theme),
-    };
-  });
+  const slice = unique.slice(0, Math.max(limit, 1));
+  return Promise.all(
+    slice.map(async (item) => {
+      const theme = guessTheme(item.title, item.summary);
+      return {
+        id: await sha256Hex(`${item.title}|${item.url}`),
+        title: item.title,
+        url: item.url,
+        source: item.source,
+        summary: item.summary,
+        published_at: item.published_at,
+        theme,
+        suggested_hook: suggestedHook(item.title, item.summary),
+        deliverable: guessDeliverable(theme),
+      };
+    })
+  );
 }
 
 export function readTrendsCache(): TrendScanResponse | null {
@@ -143,6 +164,7 @@ async function fetchFeed(source: string, rssUrl: string): Promise<RawTrend[]> {
 
   const data = (await response.json()) as {
     status?: string;
+    message?: string;
     items?: { title?: string; link?: string; description?: string; pubDate?: string }[];
   };
   if (data.status !== "ok" || !data.items?.length) return [];
@@ -158,33 +180,92 @@ async function fetchFeed(source: string, rssUrl: string): Promise<RawTrend[]> {
     }));
 }
 
-async function fetchFeedsFast(limit: number): Promise<{ items: TrendItem[]; sources: string[] }> {
+/** Fetch every configured source in parallel — same coverage as the Python API. */
+async function fetchAllFeeds(
+  limit: number,
+  onProgress?: (progress: TrendScanProgress) => void
+): Promise<{ items: TrendItem[]; sources: string[] }> {
   const collected: RawTrend[] = [];
   const sourcesOk: string[] = [];
+  let feedsDone = 0;
+  const feedsTotal = TREND_FEEDS.length;
 
-  for (const { source, url, strict } of TREND_FEEDS) {
-    if (collected.length >= limit) break;
+  const emit = async () => {
+    if (!onProgress) return;
+    onProgress({
+      items: await rawToTrendItems(collected, limit),
+      sources_checked: [...sourcesOk],
+      feeds_done: feedsDone,
+      feeds_total: feedsTotal,
+    });
+  };
 
-    try {
-      const items = await fetchFeed(source, url);
-      if (!items.length) continue;
-      sourcesOk.push(source);
-      for (const item of items) {
-        if (isRelevant(item, strict)) collected.push(item);
+  await Promise.all(
+    TREND_FEEDS.map(async ({ source, url, strict }) => {
+      try {
+        const items = await fetchFeed(source, url);
+        if (items.length) {
+          sourcesOk.push(source);
+          for (const item of items) {
+            if (isRelevant(item, strict)) collected.push(item);
+          }
+        }
+      } catch {
+        /* timeout — other feeds may still succeed */
+      } finally {
+        feedsDone += 1;
+        await emit();
       }
-    } catch {
-      /* timeout or network — try next feed */
-    }
-  }
+    })
+  );
 
-  const items = toTrendItems(collected, limit);
+  const items = await rawToTrendItems(collected, limit);
   return { items, sources: sourcesOk };
+}
+
+async function loadBuildSnapshot(): Promise<TrendScanResponse | null> {
+  try {
+    const res = await fetch(withBasePath("/data/trends-snapshot.json"), {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as TrendScanResponse;
+    return data.items?.length ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+function mergeTrendResults(
+  live: TrendScanResponse,
+  snapshot: TrendScanResponse,
+  limit: number
+): TrendScanResponse {
+  const seen = new Set(live.items.map((i) => i.title.toLowerCase().trim()));
+  const merged = [...live.items];
+  for (const item of snapshot.items) {
+    const key = item.title.toLowerCase().trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  merged.sort((a, b) => {
+    const ta = a.published_at ? Date.parse(a.published_at) : 0;
+    const tb = b.published_at ? Date.parse(b.published_at) : 0;
+    return tb - ta;
+  });
+  const sources = Array.from(new Set([...live.sources_checked, ...snapshot.sources_checked]));
+  return {
+    scanned_at: live.scanned_at,
+    sources_checked: sources,
+    items: merged.slice(0, limit),
+  };
 }
 
 /** Live RSS scan from the browser — works on GitHub Pages (no backend required). */
 export async function scanBrainHealthTrends(
-  limit = 12,
-  options?: { force?: boolean }
+  limit = 16,
+  options?: { force?: boolean; onProgress?: (progress: TrendScanProgress) => void }
 ): Promise<TrendScanResponse> {
   if (!options?.force) {
     const cached = readTrendsCache();
@@ -196,64 +277,39 @@ export async function scanBrainHealthTrends(
   }
 
   const run = async (): Promise<TrendScanResponse> => {
-    const { items, sources } = await fetchFeedsFast(limit);
+    const { items, sources } = await fetchAllFeeds(limit, options?.onProgress);
 
-    if (items.length >= MIN_RELEVANT) {
-      const result: TrendScanResponse = {
+    let result: TrendScanResponse = {
+      scanned_at: new Date().toISOString(),
+      sources_checked: sources,
+      items,
+    };
+
+    const snapshot = await loadBuildSnapshot();
+
+    if (!items.length && snapshot) {
+      result = {
         scanned_at: new Date().toISOString(),
-        sources_checked: sources,
-        items,
+        sources_checked: snapshot.sources_checked,
+        items: snapshot.items.slice(0, limit),
       };
-      writeTrendsCache(result);
-      return result;
+    } else if (items.length > 0 && snapshot && items.length < limit) {
+      result = mergeTrendResults(result, snapshot, limit);
     }
 
-    // Last feed slow or rate-limited — return partial results if any
-    if (items.length > 0) {
-      const result: TrendScanResponse = {
-        scanned_at: new Date().toISOString(),
-        sources_checked: sources,
-        items,
-      };
-      writeTrendsCache(result);
-      return result;
+    if (!result.items.length) {
+      throw new Error(
+        "Could not reach trend sources (Google News, BBC Health, MedlinePlus). Wait a moment and tap Scan again."
+      );
     }
 
-    throw new Error("Trend sources timed out — tap Scan again in a few seconds.");
+    writeTrendsCache(result);
+    return result;
   };
 
   scanInFlight = run().finally(() => {
     scanInFlight = null;
   });
 
-  try {
-    return await scanInFlight;
-  } catch (err) {
-    const fallback = demoTrendScanResponse();
-    writeTrendsCache(fallback);
-    if (options?.force) throw err;
-    return fallback;
-  }
-}
-
-export function demoTrendScanResponse(): TrendScanResponse {
-  return {
-    scanned_at: new Date().toISOString(),
-    sources_checked: ["Sample data"],
-    items: [
-      {
-        id: "demo-1",
-        title: "New study links regular walking pace to lower dementia risk in older adults",
-        url: "https://news.google.com/",
-        source: "Google News",
-        summary:
-          "Researchers report that faster habitual walking may correlate with better cognitive outcomes — relevant for prevention messaging.",
-        published_at: new Date().toISOString(),
-        theme: "Exercise",
-        suggested_hook:
-          "Trending now: movement matters for brain aging — share what APOE4 carriers should know.",
-        deliverable: "story",
-      },
-    ],
-  };
+  return scanInFlight;
 }

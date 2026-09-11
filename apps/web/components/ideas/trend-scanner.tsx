@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, X 
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
-import { readTrendsCache } from "@/lib/trends-scan";
+import { readTrendsCache, scanBrainHealthTrends } from "@/lib/trends-scan";
 import { deliverableLabel } from "@/lib/plan-team";
 import type { TrendItem } from "@/lib/trends-types";
 import type { PlanDeliverable } from "@/lib/types";
@@ -32,16 +32,33 @@ export function TrendScanner() {
   const [scannedAt, setScannedAt] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [feedProgress, setFeedProgress] = useState<{ done: number; total: number } | null>(null);
 
   const scan = useMutation({
-    mutationFn: (force?: boolean) => api.trends.scan({ limit: 12, force }),
+    mutationFn: async (force?: boolean) => {
+      if (isStaticMode()) {
+        return scanBrainHealthTrends(16, {
+          force,
+          onProgress: (p) => {
+            setTrends(p.items);
+            setSources(p.sources_checked);
+            setFeedProgress({ done: p.feeds_done, total: p.feeds_total });
+          },
+        });
+      }
+      return api.trends.scan({ limit: 16, force });
+    },
     onSuccess: (data) => {
       setTrends(data.items);
       setSources(data.sources_checked);
       setScannedAt(data.scanned_at);
+      setFeedProgress(null);
       setErr("");
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not scan trends"),
+    onError: (e) => {
+      setFeedProgress(null);
+      setErr(e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Could not scan trends");
+    },
   });
 
   useEffect(() => {
@@ -68,7 +85,13 @@ export function TrendScanner() {
         title: trend.title.slice(0, 200),
         theme: trend.theme,
         deliverable: trend.deliverable,
-        notes: `${trend.suggested_hook}\n\nSource: ${trend.source}\n${trend.url}`,
+        notes: [
+          trend.suggested_hook,
+          trend.summary ? `\nSummary: ${trend.summary}` : "",
+          trend.published_at ? `\nPublished: ${trend.published_at}` : "",
+          `\nSource: ${trend.source}`,
+          trend.url,
+        ].join("\n"),
         status: "idea",
       }),
     onSuccess: (created) => {
@@ -136,8 +159,8 @@ export function TrendScanner() {
             </p>
             {isStaticMode() && (
               <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 rounded-lg px-3 py-2 leading-relaxed">
-                <strong>Live scan</strong> — pulls real headlines from Google News, BBC Health, and MedlinePlus
-                right in your browser. Add any hit to Plan to start your content workflow.
+                Scans <strong>all four sources</strong> (Google News ×2, BBC Health, MedlinePlus), filters for
+                brain-health relevance, and ranks by publish date. Add any hit to Plan to start your workflow.
               </p>
             )}
           </div>
@@ -150,7 +173,9 @@ export function TrendScanner() {
             {scan.isPending ? (
               <>
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Scanning…
+                {feedProgress
+                  ? `Scanning ${feedProgress.done}/${feedProgress.total} sources…`
+                  : "Scanning…"}
               </>
             ) : (
               <>
@@ -174,8 +199,8 @@ export function TrendScanner() {
 
         {scannedAt && trends.length > 0 && (
           <p className="mt-4 text-xs text-muted-foreground">
-            Last scan · {safeFormat(scannedAt)}
-            {sources.length > 0 && ` · Sources: ${sources.join(", ")}`}
+            {trends.length} result{trends.length === 1 ? "" : "s"} · Last scan {safeFormat(scannedAt)}
+            {sources.length > 0 && ` · ${sources.join(" · ")}`}
           </p>
         )}
       </div>
@@ -201,11 +226,16 @@ export function TrendScanner() {
               <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
                 {trend.theme}
               </span>
-              <h3 className="font-semibold text-sm leading-snug line-clamp-3">{trend.title}</h3>
-              {trend.summary && (
-                <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{trend.summary}</p>
+              <h3 className="font-semibold text-sm leading-snug">{trend.title}</h3>
+              {trend.published_at && (
+                <p className="text-[11px] text-muted-foreground">
+                  Published {safeFormat(trend.published_at)}
+                </p>
               )}
-              <p className="text-xs text-muted-foreground italic border-l-2 border-teal/30 pl-2 line-clamp-2">
+              {trend.summary && (
+                <p className="text-xs text-muted-foreground leading-relaxed">{trend.summary}</p>
+              )}
+              <p className="text-xs text-muted-foreground italic border-l-2 border-teal/30 pl-2 leading-relaxed">
                 {trend.suggested_hook}
               </p>
               <p className="text-xs text-muted-foreground">
