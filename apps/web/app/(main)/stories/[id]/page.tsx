@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Copy, Check, ExternalLink, Trash2, Upload } from "lucide-react";
+import { Copy, Check, ExternalLink, Trash2, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { rememberCategory } from "@/lib/plan-categories";
 import { AuthImage } from "@/components/auth-image";
 import { formatBoardDate } from "@/lib/board-stats";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chrome";
 
 export default function StoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,11 +24,13 @@ export default function StoryDetailPage() {
   const [error, setError] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
   const [initialized, setInitialized] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data: story, isLoading } = useQuery({
+  const { data: story, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["story", id],
     queryFn: () => api.stories.get(id),
     enabled: !!id,
+    retry: 1,
   });
 
   useEffect(() => {
@@ -88,15 +91,38 @@ export default function StoryDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (isLoading) return <p className="text-gray-400">Loading...</p>;
-  if (!story) return <p className="text-red-600">Story not found.</p>;
+  if (isLoading) {
+    return (
+      <div className="max-w-md space-y-6">
+        <PageBackLink />
+        <PageSkeleton rows={3} />
+      </div>
+    );
+  }
+
+  if (isError) {
+    const message =
+      loadError instanceof ApiError
+        ? loadError.message
+        : "Could not load this story. Check your connection and try again.";
+    return (
+      <div className="max-w-md">
+        <PageError message={message} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (!story) {
+    return (
+      <div className="max-w-md">
+        <PageError message="This story was not found — it may have been deleted." />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md space-y-6">
-      <Link href="/board" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
-        <ArrowLeft className="w-4 h-4" />
-        Back to board
-      </Link>
+      <PageBackLink />
 
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -108,7 +134,7 @@ export default function StoryDetailPage() {
           </p>
         </div>
         <button
-          onClick={() => remove.mutate()}
+          onClick={() => setConfirmDelete(true)}
           disabled={remove.isPending}
           className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           title="Delete story"
@@ -116,6 +142,16 @@ export default function StoryDetailPage() {
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete story?"
+        description="This removes the story from your board. You cannot undo this."
+        confirmLabel="Delete story"
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate()}
+        onCancel={() => setConfirmDelete(false)}
+      />
 
       {infoMsg && (
         <div className="p-3 bg-teal/10 text-teal-900 border border-teal/25 rounded-lg text-sm">{infoMsg}</div>

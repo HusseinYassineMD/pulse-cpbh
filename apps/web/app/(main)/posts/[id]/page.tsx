@@ -26,6 +26,7 @@ import { ContentChat } from "@/components/studio/content-chat";
 import { PublishAttempts } from "@/components/posts/publish-attempts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformLabel } from "@/components/ui/platform-badges";
+import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chrome";
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,10 +44,11 @@ export default function PostDetailPage() {
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data: post, isLoading } = useQuery({
+  const { data: post, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["post", id],
     queryFn: () => api.posts.get(id),
     enabled: !!id,
+    retry: 1,
   });
 
   const generate = useMutation({
@@ -132,8 +134,34 @@ export default function PostDetailPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not delete post"),
   });
 
-  if (isLoading) return <p className="text-gray-400">Loading...</p>;
-  if (!post) return <p className="text-red-600">Post not found.</p>;
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl space-y-6">
+        <PageBackLink />
+        <PageSkeleton rows={4} />
+      </div>
+    );
+  }
+
+  if (isError) {
+    const message =
+      loadError instanceof ApiError
+        ? loadError.message
+        : "Could not load this post. Check your connection and try again.";
+    return (
+      <div className="max-w-3xl">
+        <PageError message={message} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  if (!post) {
+    return (
+      <div className="max-w-3xl">
+        <PageError message="This post was not found — it may have been deleted." backLabel="Back to board" />
+      </div>
+    );
+  }
 
   const slides = post.media_assets;
   const currentSlide = slides[slideIndex];

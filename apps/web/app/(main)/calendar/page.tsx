@@ -11,6 +11,7 @@ import { useState } from "react";
 import type { ScheduleItem } from "@/lib/schedule-types";
 import { ScheduleMonthView } from "@/components/calendar/schedule-month-view";
 import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
+import { ModalSheet } from "@/components/ui/modal-sheet";
 
 type ScheduleView = "queue" | "calendar";
 
@@ -222,10 +223,16 @@ export default function CalendarPage() {
       </>
       )}
 
-      {rescheduleTarget && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40">
-          <div className="pulse-card w-full max-w-md p-6 space-y-4 animate-fade-in">
-            <h2 className="font-semibold text-lg">Reschedule</h2>
+      <ModalSheet
+        open={!!rescheduleTarget}
+        title="Reschedule"
+        onClose={() => {
+          setRescheduleTarget(null);
+          setRescheduleAt("");
+        }}
+      >
+        {rescheduleTarget && (
+          <>
             <p className="text-sm text-muted-foreground">{rescheduleTarget.post_title}</p>
             <input
               type="datetime-local"
@@ -240,7 +247,7 @@ export default function CalendarPage() {
                   setRescheduleTarget(null);
                   setRescheduleAt("");
                 }}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary"
+                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary min-h-[44px]"
               >
                 Cancel
               </button>
@@ -253,21 +260,24 @@ export default function CalendarPage() {
                     scheduled_at: new Date(rescheduleAt).toISOString(),
                   })
                 }
-                className="px-4 py-2.5 rounded-lg text-sm font-medium btn-primary disabled:opacity-50"
+                className="px-4 py-2.5 rounded-lg text-sm font-medium btn-primary disabled:opacity-50 min-h-[44px]"
               >
                 {reschedule.isPending ? "Saving…" : "Save new time"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalSheet>
 
-      {removeTarget && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40">
-          <div className="pulse-card w-full max-w-md p-6 space-y-4 animate-fade-in">
-            <h2 className="font-semibold text-lg">
-              {removeTarget.status === "pending" ? "Remove from schedule?" : "Remove from history?"}
-            </h2>
+      <ModalSheet
+        open={!!removeTarget}
+        title={
+          removeTarget?.status === "pending" ? "Remove from schedule?" : "Remove from history?"
+        }
+        onClose={() => setRemoveTarget(null)}
+      >
+        {removeTarget && (
+          <>
             <p className="text-sm text-muted-foreground">
               <strong className="text-foreground">{removeTarget.post_title}</strong>
               {removeTarget.status === "pending" ? (
@@ -284,7 +294,7 @@ export default function CalendarPage() {
               <button
                 type="button"
                 onClick={() => setRemoveTarget(null)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary"
+                className="px-4 py-2.5 rounded-lg text-sm font-medium border border-border hover:bg-secondary min-h-[44px]"
               >
                 Cancel
               </button>
@@ -292,14 +302,14 @@ export default function CalendarPage() {
                 type="button"
                 onClick={() => confirmRemove(removeTarget)}
                 disabled={cancel.isPending}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2.5 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 min-h-[44px]"
               >
                 {cancel.isPending ? "Removing…" : "Yes, remove"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalSheet>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Zap,
@@ -19,6 +19,7 @@ import {
   BarChart3,
   Lightbulb,
   Sparkles,
+  X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
@@ -41,10 +42,13 @@ const nav = [
 const mobileNav = [
   { href: "/", label: "Home", icon: Home },
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
+  { href: "/plan", label: "Plan", icon: ClipboardList },
   { href: "/studio", label: "Create", icon: Sparkles },
   { href: "/board", label: "Board", icon: LayoutGrid },
   { href: "/calendar", label: "Schedule", icon: Calendar },
 ];
+
+const DEMO_BANNER_KEY = "pulse-demo-banner-dismissed";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Home",
@@ -99,11 +103,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showSidebar = sidebarOpen;
 
   return (
-    <div className="min-h-screen md:flex">
+    <div className="flex h-full min-h-0 flex-col md:flex-row overflow-hidden">
       <SkipLink />
-      {/* Desktop sidebar — sticky; page scrolls on document (trackpad-friendly) */}
+      {/* Desktop sidebar — scrolls independently when nav is long */}
       <aside
-        className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden md:sticky md:top-0 md:h-screen md:overflow-y-auto ${
+        className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden md:h-full md:min-h-0 md:overflow-y-auto ${
           showSidebar ? "w-64 opacity-100" : "w-0 opacity-0 border-r-0"
         }`}
         aria-hidden={!showSidebar}
@@ -129,7 +133,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 border-b border-border/80 bg-white/90 backdrop-blur-lg pt-[max(0.75rem,env(safe-area-inset-top))] shrink-0">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
@@ -162,7 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8"
+          className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8"
         >
         {/* Desktop: show sidebar toggle when collapsed */}
         {!showSidebar && (
@@ -186,13 +190,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             showSidebar ? "max-w-6xl pt-2 md:pt-0" : "max-w-[1600px] pt-2"
           }`}
         >
-          {isStaticMode() && (
-            <p className="mb-4 text-xs sm:text-sm text-teal-900 bg-teal/10 border border-teal/25 rounded-xl px-4 py-2.5 leading-relaxed">
-              <strong className="font-semibold">Live demo</strong> — Plan, Pipeline, and Board changes save in{" "}
-              <em>your browser</em> on this device. Summarize and generate use a quick local draft (full AI on{" "}
-              <code className="text-[11px] bg-white/60 px-1 rounded">localhost:3010</code>).
-            </p>
-          )}
+          <DemoBanner />
           {children}
         </div>
         </main>
@@ -205,7 +203,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-white/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
-        <div className="flex items-stretch justify-around max-w-lg mx-auto">
+        <div className="grid grid-cols-6 max-w-lg mx-auto">
           {mobileNav.map(({ href, label, icon: Icon }) => {
             const active = isNavActive(pathname, href);
             const shortLabel = href === "/calendar" ? "Schedule" : label;
@@ -214,17 +212,48 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 flex-1 py-2.5 px-1 min-h-[56px] text-[10px] sm:text-[11px] font-medium transition-colors touch-manipulation ${
+                className={`flex flex-col items-center justify-center gap-0.5 py-2.5 px-0.5 min-h-[56px] text-[9px] font-medium transition-colors touch-manipulation ${
                   active ? "text-primary" : "text-muted-foreground"
                 }`}
               >
-                <Icon className={`w-5 h-5 shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
-                <span className="truncate max-w-[4.5rem]">{shortLabel}</span>
+                <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
+                <span className="truncate max-w-full px-0.5">{shortLabel}</span>
               </Link>
             );
           })}
         </div>
       </nav>
+    </div>
+  );
+}
+
+function DemoBanner() {
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    if (!isStaticMode()) return;
+    setDismissed(sessionStorage.getItem(DEMO_BANNER_KEY) === "1");
+  }, []);
+
+  if (!isStaticMode() || dismissed) return null;
+
+  return (
+    <div className="mb-4 flex gap-2 items-start text-xs sm:text-sm text-teal-900 bg-teal/10 border border-teal/25 rounded-xl px-4 py-2.5 leading-relaxed">
+      <p className="flex-1 min-w-0">
+        <strong className="font-semibold">Live demo</strong> — changes save in <em>your browser</em> on this device.
+        Full AI runs on <code className="text-[11px] bg-white/60 px-1 rounded">localhost:3010</code>.
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          sessionStorage.setItem(DEMO_BANNER_KEY, "1");
+          setDismissed(true);
+        }}
+        className="shrink-0 p-1.5 -mr-1 rounded-lg text-teal-900/70 hover:text-teal-900 hover:bg-teal/15 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+        aria-label="Dismiss demo notice"
+      >
+        <X className="w-4 h-4" />
+      </button>
     </div>
   );
 }

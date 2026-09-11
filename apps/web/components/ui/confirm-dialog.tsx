@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type Props = {
   open: boolean;
@@ -25,15 +26,17 @@ export function ConfirmDialog({
   const descId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     cancelRef.current?.focus();
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !pending) onCancel();
     };
-  }, [open]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, pending, onCancel]);
 
   if (!open) return null;
 

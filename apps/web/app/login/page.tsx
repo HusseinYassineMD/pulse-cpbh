@@ -34,8 +34,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <main id="main-content" className="w-full max-w-md space-y-6">
+    <div className="h-full overflow-y-auto flex items-center justify-center p-6 bg-background">
+      <main className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 cpbh-badge">
             <Zap className="w-4 h-4 text-teal" />

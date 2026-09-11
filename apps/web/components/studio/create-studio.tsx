@@ -188,6 +188,8 @@ export function CreateStudio() {
                 key={id}
                 type="button"
                 disabled={locked}
+                title={locked ? `Complete step ${maxReachableStep} first` : undefined}
+                aria-label={locked ? `${label} — complete step ${maxReachableStep} first` : label}
                 onClick={() => goTo(id)}
                 className={`w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all ${
                   active

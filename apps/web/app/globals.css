@@ -35,15 +35,14 @@
 
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     color-scheme: light;
   }
 
   body {
-    @apply text-foreground antialiased overflow-x-hidden overflow-y-visible;
+    @apply text-foreground antialiased overflow-hidden;
     -webkit-tap-highlight-color: transparent;
     background-color: hsl(var(--background));
     background-image:
@@ -51,7 +50,12 @@
       radial-gradient(ellipse 90% 68% at 46% 44%, hsl(248 44% 78%), hsl(248 44% 78% / 0) 60%),
       radial-gradient(ellipse 68% 54% at 6% 94%, hsl(198 46% 74%), hsl(198 46% 74% / 0) 54%),
       radial-gradient(ellipse 58% 48% at 86% 88%, hsl(258 36% 72%), hsl(258 36% 72% / 0) 50%);
-    min-height: 100vh;
+  }
+
+  /* Primary scroll surface — trackpad/wheel scroll here, not on document */
+  #main-content {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: auto;
   }
 
   ::selection {
@@ -95,9 +99,12 @@
       transition-duration: 0.01ms !important;
     }
 
-    .animate-stagger > * {
+    .animate-stagger > *,
+    .animate-fade-in,
+    .animate-fade-up {
       opacity: 1 !important;
       transform: none !important;
+      animation: none !important;
     }
   }
 }

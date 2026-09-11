@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type Props = {
   open: boolean;
@@ -11,6 +13,17 @@ type Props = {
 };
 
 export function PlanModal({ open, onClose, title, children, footer }: Props) {
+  useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (

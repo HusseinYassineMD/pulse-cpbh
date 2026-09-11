@@ -90,6 +90,10 @@ export function SchedulePanel({
         </div>
       </div>
 
+      {selected.length === 0 && (
+        <p className="text-xs text-muted-foreground">Select at least one platform below to schedule or publish.</p>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setOpen(!open)}
@@ -101,6 +105,7 @@ export function SchedulePanel({
         <button
           onClick={() => publishNow.mutate()}
           disabled={publishNow.isPending || selected.length === 0}
+          title={selected.length === 0 ? "Select at least one platform" : undefined}
           className="inline-flex items-center gap-2 px-4 py-2.5 btn-primary text-sm disabled:opacity-50"
         >
           <Send className="w-4 h-4" />

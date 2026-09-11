@@ -15,6 +15,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 const OPEN_EVENT = "pulse:open-command-palette";
 
@@ -124,14 +125,7 @@ export function CommandPalette() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (!open) return;
