@@ -99,17 +99,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showSidebar = sidebarOpen;
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="min-h-screen md:flex">
       <SkipLink />
-      {/* Desktop sidebar — slides in/out */}
+      {/* Desktop sidebar — sticky; page scrolls on document (trackpad-friendly) */}
       <aside
-        className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden ${
+        className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden md:sticky md:top-0 md:h-screen md:overflow-y-auto ${
           showSidebar ? "w-64 opacity-100" : "w-0 opacity-0 border-r-0"
         }`}
         aria-hidden={!showSidebar}
         aria-label="Primary navigation"
       >
-        <div className="w-64 flex flex-col min-h-screen">
+        <div className="w-64 flex flex-col min-h-full">
           <ShellBrand />
           <DesktopNav pathname={pathname} />
           {dashboard && <ShellOverview dashboard={dashboard} />}
@@ -129,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col min-w-0 min-h-0">
+      <div className="flex flex-1 flex-col min-w-0">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 border-b border-border/80 bg-white/90 backdrop-blur-lg pt-[max(0.75rem,env(safe-area-inset-top))] shrink-0">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
@@ -162,7 +162,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 gpu-smooth"
+          className="flex-1 min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8"
         >
         {/* Desktop: show sidebar toggle when collapsed */}
         {!showSidebar && (

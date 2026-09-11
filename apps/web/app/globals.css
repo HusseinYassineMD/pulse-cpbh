@@ -36,13 +36,14 @@
   html {
     scroll-behavior: smooth;
     overflow-x: hidden;
+    overflow-y: auto;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     color-scheme: light;
   }
 
   body {
-    @apply text-foreground antialiased overflow-x-hidden;
+    @apply text-foreground antialiased overflow-x-hidden overflow-y-visible;
     -webkit-tap-highlight-color: transparent;
     background-color: hsl(var(--background));
     background-image:
@@ -224,10 +225,6 @@
     @apply min-h-[44px] min-w-[44px] touch-manipulation;
   }
 
-  .gpu-smooth {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
 }
 
 @keyframes fadeUp {
