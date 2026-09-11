@@ -1061,13 +1061,9 @@ export const staticApi = {
   },
 
   trends: {
-    scan: async (params?: { limit?: number }) => {
-      const { scanBrainHealthTrends, demoTrendScanResponse } = await import("./trends-scan");
-      try {
-        return await scanBrainHealthTrends(params?.limit ?? 12);
-      } catch {
-        return demoTrendScanResponse();
-      }
+    scan: async (params?: { limit?: number; force?: boolean }) => {
+      const { scanBrainHealthTrends } = await import("./trends-scan");
+      return scanBrainHealthTrends(params?.limit ?? 12, { force: params?.force });
     },
   },
 };

@@ -423,9 +423,11 @@ const liveApi = {
   },
 
   trends: {
-    scan: (params?: { limit?: number }) => {
-      const qs = params?.limit ? `?limit=${params.limit}` : "";
-      return request<import("./trends-types").TrendScanResponse>(`/trends/scan${qs}`);
+    scan: (params?: { limit?: number; force?: boolean }) => {
+      const search = new URLSearchParams();
+      if (params?.limit) search.set("limit", String(params.limit));
+      const qs = search.toString();
+      return request<import("./trends-types").TrendScanResponse>(`/trends/scan${qs ? `?${qs}` : ""}`);
     },
   },
 };

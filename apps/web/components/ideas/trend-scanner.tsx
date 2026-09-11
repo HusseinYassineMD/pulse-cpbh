@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, X 
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
+import { readTrendsCache } from "@/lib/trends-scan";
 import { deliverableLabel } from "@/lib/plan-team";
 import type { TrendItem } from "@/lib/trends-types";
 import type { PlanDeliverable } from "@/lib/types";
@@ -32,24 +33,8 @@ export function TrendScanner() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  useEffect(() => {
-    setExpanded(readTrendsOpen());
-    setMounted(true);
-  }, []);
-
-  // Preload trends on first visit so the page isn't empty
-  useEffect(() => {
-    if (!mounted || trends.length > 0 || scan.isPending) return;
-    scan.mutate();
-  }, [mounted]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleExpanded = (open: boolean) => {
-    setExpanded(open);
-    writeTrendsOpen(open);
-  };
-
   const scan = useMutation({
-    mutationFn: () => api.trends.scan({ limit: 12 }),
+    mutationFn: (force?: boolean) => api.trends.scan({ limit: 12, force }),
     onSuccess: (data) => {
       setTrends(data.items);
       setSources(data.sources_checked);
@@ -58,6 +43,24 @@ export function TrendScanner() {
     },
     onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not scan trends"),
   });
+
+  useEffect(() => {
+    setExpanded(readTrendsOpen());
+    setMounted(true);
+    const cached = readTrendsCache();
+    if (cached?.items.length) {
+      setTrends(cached.items);
+      setSources(cached.sources_checked);
+      setScannedAt(cached.scanned_at);
+      return;
+    }
+    scan.mutate(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleExpanded = (open: boolean) => {
+    setExpanded(open);
+    writeTrendsOpen(open);
+  };
 
   const addToPlan = useMutation({
     mutationFn: (trend: TrendItem) =>
@@ -140,7 +143,7 @@ export function TrendScanner() {
           </div>
           <button
             type="button"
-            onClick={() => scan.mutate()}
+            onClick={() => scan.mutate(true)}
             disabled={scan.isPending}
             className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl text-sm font-medium btn-primary disabled:opacity-50 shrink-0"
           >
