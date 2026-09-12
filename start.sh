@@ -86,7 +86,8 @@ web() {
 
   cd apps/web
 
-  if [ "${2:-}" = "clean" ] || { [ -d .next ] && [ -d out ]; }; then
+  # Only clear cache when explicitly requested — auto-clearing breaks HMR on refresh
+  if [ "${2:-}" = "clean" ]; then
     rm -rf .next node_modules/.cache
     echo "Cleared Next.js cache (.next + node_modules/.cache)"
   fi
@@ -129,17 +130,51 @@ dev() {
   web
 }
 
+stable() {
+  export PULSE_API_PORT
+  export API_URL="$LOCAL_API_URL"
+  export NEXT_PUBLIC_STATIC_MODE="false"
+  unset NEXT_PUBLIC_BASE_PATH GITHUB_PAGES
+
+  echo "Starting Pulse in stable mode (production build, no dev HMR bugs)…"
+  echo "  App  → http://localhost:${PULSE_WEB_PORT}"
+  echo "  API  → ${LOCAL_API_URL}"
+  echo ""
+
+  if lsof -ti :"$PULSE_API_PORT" >/dev/null 2>&1; then
+    kill_port "$PULSE_API_PORT"
+  fi
+  if lsof -ti :"$PULSE_WEB_PORT" >/dev/null 2>&1; then
+    kill_port "$PULSE_WEB_PORT"
+  fi
+
+  api &
+  API_PID=$!
+  trap 'kill "$API_PID" 2>/dev/null || true' EXIT INT TERM
+
+  if ! wait_for_api; then
+    echo "API failed to start."
+    exit 1
+  fi
+
+  cd apps/web
+  npm run build
+  npm run start -- -p "$PULSE_WEB_PORT"
+}
+
 case "$cmd" in
   setup) setup ;;
   api)   api ;;
   web)   web "$@" ;;
   dev)   dev ;;
+  stable) stable ;;
   clear) clear_data ;;
   export-pages) export_pages ;;
   *)
     echo "Usage:"
     echo "  ./start.sh setup        — install deps (first time only)"
     echo "  ./start.sh dev          — start API + web together (easiest)"
+    echo "  ./start.sh stable       — production build (best for demos, no refresh bugs)"
     echo "  ./start.sh api          — start backend only"
     echo "  ./start.sh web          — start frontend only"
     echo "  ./start.sh web clean    — start frontend (clear Next.js cache)"

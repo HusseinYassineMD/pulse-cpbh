@@ -52,19 +52,23 @@ export function PipelineCard({
       style={style}
       className={`pulse-card p-3 flex flex-col gap-2 border bg-white shadow-sm transition-shadow ${
         flash ? "border-teal ring-2 ring-teal/30 shadow-md" : "border-border/80"
-      }`}
+      } ${isDragging ? "ring-2 ring-teal/25 shadow-lg" : ""}`}
     >
       <div className="flex items-start gap-2">
         <button
           type="button"
-          className="mt-0.5 p-2.5 min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary cursor-grab active:cursor-grabbing touch-none hidden sm:flex items-center justify-center"
+          className="mt-0.5 p-2 min-w-[36px] min-h-[36px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shrink-0"
           {...attributes}
           {...listeners}
-          aria-label="Drag to reorder or move"
+          aria-label="Drag to reorder or move between columns"
         >
           <GripVertical className="w-4 h-4" />
         </button>
-        <div className="min-w-0 flex-1">
+        <div
+          className="min-w-0 flex-1 cursor-grab active:cursor-grabbing touch-none py-1"
+          {...attributes}
+          {...listeners}
+        >
           <h3 className="font-semibold text-sm leading-snug break-words">{item.title || "Untitled"}</h3>
           {item.stage === "output" && outputLabel && (
             <span className="inline-block mt-1 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal/15 text-teal">

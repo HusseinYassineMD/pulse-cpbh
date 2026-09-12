@@ -103,11 +103,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showSidebar = sidebarOpen;
 
   return (
-    <div className="flex h-full min-h-0 flex-col md:flex-row overflow-hidden">
+    <div className="min-h-dvh md:flex md:items-start">
       <SkipLink />
       {/* Desktop sidebar — scrolls independently when nav is long */}
       <aside
-        className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden md:h-full md:min-h-0 md:overflow-y-auto ${
+        className={`hidden md:flex flex-col shrink-0 border-r border-sidebar-border/60 sidebar-gradient text-sidebar-foreground transition-[width,opacity] duration-300 ease-in-out overflow-hidden md:sticky md:top-0 md:max-h-dvh md:overflow-y-auto ${
           showSidebar ? "w-64 opacity-100" : "w-0 opacity-0 border-r-0"
         }`}
         aria-hidden={!showSidebar}
@@ -133,7 +133,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
+      <div className="flex flex-1 flex-col min-w-0 w-full">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 border-b border-border/80 bg-white/90 backdrop-blur-lg pt-[max(0.75rem,env(safe-area-inset-top))] shrink-0">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
@@ -166,7 +166,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8"
+          className="flex-1 min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8"
         >
         {/* Desktop: show sidebar toggle when collapsed */}
         {!showSidebar && (
@@ -228,14 +228,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function DemoBanner() {
-  const [dismissed, setDismissed] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (!isStaticMode()) return;
     setDismissed(sessionStorage.getItem(DEMO_BANNER_KEY) === "1");
   }, []);
 
-  if (!isStaticMode() || dismissed) return null;
+  if (!mounted || !isStaticMode() || dismissed) return null;
 
   return (
     <div className="mb-4 flex gap-2 items-start text-xs sm:text-sm text-teal-900 bg-teal/10 border border-teal/25 rounded-xl px-4 py-2.5 leading-relaxed">

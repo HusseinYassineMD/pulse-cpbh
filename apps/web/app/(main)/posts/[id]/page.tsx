@@ -15,6 +15,8 @@ import {
   Pencil,
   ShieldCheck,
   Send,
+  LayoutGrid,
+  Smartphone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
@@ -27,6 +29,8 @@ import { PublishAttempts } from "@/components/posts/publish-attempts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformLabel } from "@/components/ui/platform-badges";
 import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chrome";
+import { InstagramPreview } from "@/components/posts/instagram-preview";
+import { celebrate } from "@/lib/celebrate";
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +47,7 @@ export default function PostDetailPage() {
     null
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [mediaView, setMediaView] = useState<"editor" | "preview">("editor");
 
   const { data: post, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["post", id],
@@ -91,6 +96,9 @@ export default function PostDetailPage() {
       queryClient.setQueryData(["post", id], updated);
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      celebrate();
+      setInfoMsg("Approved — ready to schedule!");
+      setTimeout(() => setInfoMsg(""), 5000);
     },
   });
 
@@ -349,35 +357,72 @@ export default function PostDetailPage() {
       )}
 
       {hasContent && (
-        <div className="pulse-card overflow-hidden max-w-md">
-          <div className="relative bg-gray-50 aspect-square">
-            {currentSlide?.url && (
-              <AuthImage
-                src={currentSlide.url}
-                alt={`Slide ${slideIndex + 1}`}
-                className="w-full h-full object-contain"
-              />
-            )}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold text-sm">Media</h2>
+            <div className="inline-flex rounded-lg border border-border p-0.5 bg-secondary/40 text-xs">
+              <button
+                type="button"
+                onClick={() => setMediaView("editor")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  mediaView === "editor" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Editor
+              </button>
+              <button
+                type="button"
+                onClick={() => setMediaView("preview")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  mediaView === "preview" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Instagram
+              </button>
+            </div>
           </div>
-          {slides.length > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t">
-              <button
-                onClick={() => setSlideIndex((i) => Math.max(0, i - 1))}
-                disabled={slideIndex === 0}
-                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-secondary disabled:opacity-30"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-gray-500">
-                {slideIndex + 1} / {slides.length}
-              </span>
-              <button
-                onClick={() => setSlideIndex((i) => Math.min(slides.length - 1, i + 1))}
-                disabled={slideIndex >= slides.length - 1}
-                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-secondary disabled:opacity-30"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+
+          {mediaView === "preview" ? (
+            <InstagramPreview
+              post={post}
+              slides={slides}
+              slideIndex={slideIndex}
+              onSlideChange={setSlideIndex}
+            />
+          ) : (
+            <div className="pulse-card overflow-hidden max-w-md">
+              <div className="relative bg-gray-50 aspect-square">
+                {currentSlide?.url && (
+                  <AuthImage
+                    src={currentSlide.url}
+                    alt={`Slide ${slideIndex + 1}`}
+                    className="w-full h-full object-contain"
+                  />
+                )}
+              </div>
+              {slides.length > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <button
+                    onClick={() => setSlideIndex((i) => Math.max(0, i - 1))}
+                    disabled={slideIndex === 0}
+                    className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-secondary disabled:opacity-30"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <span className="text-sm text-gray-500">
+                    {slideIndex + 1} / {slides.length}
+                  </span>
+                  <button
+                    onClick={() => setSlideIndex((i) => Math.min(slides.length - 1, i + 1))}
+                    disabled={slideIndex >= slides.length - 1}
+                    className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-secondary disabled:opacity-30"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

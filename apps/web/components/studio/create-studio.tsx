@@ -20,6 +20,7 @@ import { isStaticMode } from "@/lib/base-path";
 import { AuthImage } from "@/components/auth-image";
 import { ContentChat } from "@/components/studio/content-chat";
 import { SchedulePanel } from "@/components/schedule-panel";
+import { celebrate } from "@/lib/celebrate";
 import { HashtagHelper } from "@/components/hashtags/hashtag-helper";
 import { PlatformLabel } from "@/components/ui/platform-badges";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -103,6 +104,7 @@ export function CreateStudio() {
       queryClient.setQueryData(["post", postId], updated);
       setStep(5);
       setError("");
+      celebrate();
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : "Could not approve"),
   });

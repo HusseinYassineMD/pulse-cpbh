@@ -26,7 +26,7 @@ export default function PipelinePage() {
         <span className="px-2 py-0.5 rounded-full bg-secondary">2 Highlights</span>
         <span className="hidden sm:inline">→</span>
         <span className="px-2 py-0.5 rounded-full bg-secondary">3 Output</span>
-        <span className="text-muted-foreground/80 sm:ml-1">· use buttons on phone, drag on desktop</span>
+        <span className="text-muted-foreground/80 sm:ml-1">· drag cards between columns (swipe board on phone)</span>
       </div>
 
       <PipelineBoard />

@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 import type { ScheduleItem } from "@/lib/schedule-types";
 import { ScheduleMonthView } from "@/components/calendar/schedule-month-view";
+import { BestTimeHeatmap } from "@/components/scheduling/best-time-heatmap";
 import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
 import { ModalSheet } from "@/components/ui/modal-sheet";
 
@@ -91,6 +92,16 @@ export default function CalendarPage() {
     cancel.mutate({ id: item.id, revert: item.status === "pending" });
   }
 
+  function handleHeatmapPick(local: string) {
+    setRescheduleAt(local);
+    const first = upcoming[0];
+    if (first) {
+      setRescheduleTarget(first);
+      setMsg(`Reschedule “${first.post_title}” to your picked slot`);
+      setTimeout(() => setMsg(""), 4000);
+    }
+  }
+
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex items-start justify-between gap-4">
@@ -143,6 +154,11 @@ export default function CalendarPage() {
       </div>
 
       {view === "calendar" && items && <ScheduleMonthView items={items} />}
+
+      <BestTimeHeatmap
+        scheduleItems={items ?? []}
+        onPickTime={upcoming.length > 0 ? handleHeatmapPick : undefined}
+      />
 
       {view === "queue" && (
       <>

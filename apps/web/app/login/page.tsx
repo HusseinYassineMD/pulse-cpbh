@@ -34,7 +34,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto flex items-center justify-center p-6 bg-background">
+    <div className="min-h-dvh flex items-center justify-center p-6 bg-background">
       <main className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 cpbh-badge">

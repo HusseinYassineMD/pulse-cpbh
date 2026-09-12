@@ -6,6 +6,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   closestCorners,
@@ -33,12 +34,22 @@ type ItemForm = {
   output_type: PlanDeliverable | null;
 };
 
+function columnDropHint(stage: PipelineStage, dragging?: PipelineItem): string | null {
+  if (!dragging) return null;
+  if (dragging.stage === stage) return "Drop to reorder";
+  if (dragging.stage === "source" && stage === "highlight") return "Drop to summarize →";
+  if (dragging.stage === "source" && stage === "output") return "Drop to create output →";
+  if (dragging.stage === "highlight" && stage === "output") return "Drop to create output →";
+  return null;
+}
+
 function Column({
   stage,
   label,
   description,
   step,
   items,
+  draggingItem,
   children,
 }: {
   stage: PipelineStage;
@@ -46,15 +57,23 @@ function Column({
   description: string;
   step: number;
   items: PipelineItem[];
+  draggingItem?: PipelineItem;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
+  const hint = columnDropHint(stage, draggingItem);
 
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col min-h-[280px] md:min-h-[420px] rounded-2xl border-2 transition-colors ${
-        isOver ? "border-teal bg-teal/5" : "border-border/70 bg-white/50"
+      className={`flex flex-col min-h-[280px] md:min-h-[420px] rounded-2xl border-2 transition-all duration-200 ${
+        isOver && hint
+          ? "border-teal bg-teal/10 shadow-md shadow-teal/10 scale-[1.01]"
+          : isOver
+            ? "border-teal/50 bg-teal/5"
+            : draggingItem && hint
+              ? "border-teal/30 bg-teal/[0.02]"
+              : "border-border/70 bg-white/50"
       }`}
     >
       <div className="px-4 py-3 border-b border-border/60">
@@ -62,11 +81,14 @@ function Column({
           <span className="w-7 h-7 rounded-lg bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">
             {step}
           </span>
-          <div>
+          <div className="min-w-0">
             <h2 className="font-semibold text-sm">{label}</h2>
             <p className="text-[11px] text-muted-foreground">{description}</p>
+            {hint && draggingItem && (
+              <p className="text-[10px] font-semibold text-teal mt-0.5">{hint}</p>
+            )}
           </div>
-          <span className="ml-auto text-xs tabular-nums text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">
             {items.length}
           </span>
         </div>
@@ -92,7 +114,10 @@ export function PipelineBoard() {
   const [flashOutputId, setFlashOutputId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<PipelineStage>("source");
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 6 } })
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ["pipeline"],
@@ -272,8 +297,14 @@ export function PipelineBoard() {
     if (targetStage === activeItem.stage) {
       const column = byStage[targetStage];
       const oldIndex = column.findIndex((i) => i.id === activeItem.id);
-      const overIndex = column.findIndex((i) => i.id === overId);
-      if (oldIndex < 0 || overIndex < 0 || oldIndex === overIndex) return;
+      if (oldIndex < 0) return;
+
+      let overIndex = column.findIndex((i) => i.id === overId);
+      if (overIndex < 0 && overId === targetStage) {
+        overIndex = column.length - 1;
+      }
+      if (overIndex < 0 || oldIndex === overIndex) return;
+
       const next = [...column];
       const [moved] = next.splice(oldIndex, 1);
       next.splice(overIndex, 0, moved);
@@ -330,6 +361,7 @@ export function PipelineBoard() {
       description={col.description}
       step={col.step}
       items={byStage[col.id]}
+      draggingItem={activeItem}
     >
       <SortableContext items={byStage[col.id].map((i) => i.id)} strategy={verticalListSortingStrategy}>
         {byStage[col.id].map((item) => (
@@ -397,8 +429,6 @@ export function PipelineBoard() {
     );
   }
 
-  const mobileCol = PIPELINE_STAGES.find((c) => c.id === mobilePanel)!;
-
   return (
     <>
       {successMessage && (
@@ -454,12 +484,25 @@ export function PipelineBoard() {
           {PIPELINE_STAGES.map((col) => renderStageColumn(col))}
         </div>
 
-        <div className="md:hidden">{renderStageColumn(mobileCol)}</div>
+        <div className="md:hidden -mx-4 px-4 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scroll-smooth">
+          {PIPELINE_STAGES.map((col) => (
+            <div key={col.id} className="min-w-[min(88vw,340px)] snap-center shrink-0">
+              {renderStageColumn(col)}
+            </div>
+          ))}
+        </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.18, 0.67, 0.6, 1)" }}>
           {activeItem ? (
-            <div className="pulse-card p-3 opacity-90 shadow-lg rotate-1 max-w-xs">
-              <p className="font-semibold text-sm">{activeItem.title}</p>
+            <div className="pulse-card p-3 opacity-95 shadow-xl rotate-2 max-w-xs border-2 border-teal/40">
+              <p className="font-semibold text-sm">{activeItem.title || "Untitled"}</p>
+              <p className="text-[10px] text-teal font-medium mt-1 uppercase tracking-wide">
+                {activeItem.stage === "source"
+                  ? "Drag to Highlights to summarize"
+                  : activeItem.stage === "highlight"
+                    ? "Drag to Output to generate"
+                    : "Drag to reorder"}
+              </p>
             </div>
           ) : null}
         </DragOverlay>

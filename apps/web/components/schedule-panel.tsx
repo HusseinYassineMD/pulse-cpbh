@@ -6,6 +6,7 @@ import { Calendar, Send } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { PlatformBadges } from "@/components/ui/platform-badges";
 import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
+import { celebrate } from "@/lib/celebrate";
 
 const PLATFORMS = ["instagram", "facebook", "linkedin"] as const;
 
@@ -34,6 +35,7 @@ export function SchedulePanel({
     onSuccess: () => {
       setOpen(false);
       setError("");
+      celebrate();
       onScheduled?.();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Schedule failed"),
@@ -44,6 +46,7 @@ export function SchedulePanel({
     onSuccess: (attempts) => {
       const ok = attempts.filter((a) => a.status === "success").length;
       setPublishResult(`Published to ${ok}/${attempts.length} platform(s)`);
+      celebrate();
       onScheduled?.();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Publish failed"),

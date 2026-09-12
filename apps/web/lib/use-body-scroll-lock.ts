@@ -2,22 +2,13 @@
 
 import { useEffect } from "react";
 
-const MAIN_ID = "main-content";
-
 let lockCount = 0;
-let previousBodyOverflow: string | null = null;
-let previousMainOverflow: string | null = null;
+let previousOverflow: string | null = null;
 
 function lockBodyScroll() {
   if (lockCount === 0) {
-    previousBodyOverflow = document.body.style.overflow;
+    previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
-    const main = document.getElementById(MAIN_ID);
-    if (main) {
-      previousMainOverflow = main.style.overflow;
-      main.style.overflow = "hidden";
-    }
   }
   lockCount += 1;
 }
@@ -26,18 +17,12 @@ function unlockBodyScroll() {
   if (lockCount <= 0) return;
   lockCount -= 1;
   if (lockCount === 0) {
-    document.body.style.overflow = previousBodyOverflow ?? "";
-    previousBodyOverflow = null;
-
-    const main = document.getElementById(MAIN_ID);
-    if (main) {
-      main.style.overflow = previousMainOverflow ?? "";
-      previousMainOverflow = null;
-    }
+    document.body.style.overflow = previousOverflow ?? "";
+    previousOverflow = null;
   }
 }
 
-/** Ref-counted scroll lock for body + main scroll surface — safe when modals stack. */
+/** Ref-counted body scroll lock — safe when multiple modals stack. */
 export function useBodyScrollLock(active: boolean) {
   useEffect(() => {
     if (!active) return;
