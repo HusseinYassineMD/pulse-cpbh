@@ -30,6 +30,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformLabel } from "@/components/ui/platform-badges";
 import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chrome";
 import { InstagramPreview } from "@/components/posts/instagram-preview";
+import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { celebrate } from "@/lib/celebrate";
 
 export default function PostDetailPage() {
@@ -383,6 +384,8 @@ export default function PostDetailPage() {
               </button>
             </div>
           </div>
+
+          <DownloadImageButtons items={slides} activeIndex={slideIndex} baseName={post.title} />
 
           {mediaView === "preview" ? (
             <InstagramPreview

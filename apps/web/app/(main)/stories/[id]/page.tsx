@@ -11,6 +11,8 @@ import { AuthImage } from "@/components/auth-image";
 import { formatBoardDate } from "@/lib/board-stats";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chrome";
+import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
+import { safeBaseName } from "@/lib/download-media";
 
 export default function StoryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -161,6 +163,12 @@ export default function StoryDetailPage() {
       <div className="pulse-card overflow-hidden max-w-xs mx-auto">
         <div className="relative bg-gray-50 aspect-[9/16]">
           <AuthImage src={story.image_url} alt={story.title} className="w-full h-full object-contain" />
+        </div>
+        <div className="px-4 py-3 border-t flex flex-wrap items-center justify-center gap-2">
+          <DownloadImageButtons
+            items={[{ url: story.image_url, s3_key: `${safeBaseName(story.title || "story")}.png` }]}
+            baseName={story.title || "story"}
+          />
         </div>
         <label className="flex items-center justify-center gap-2 px-4 py-3 border-t text-sm font-medium cursor-pointer hover:bg-secondary transition-colors">
           <Upload className="w-4 h-4" />

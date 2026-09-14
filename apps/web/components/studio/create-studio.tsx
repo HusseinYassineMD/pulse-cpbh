@@ -21,6 +21,7 @@ import { AuthImage } from "@/components/auth-image";
 import { ContentChat } from "@/components/studio/content-chat";
 import { SchedulePanel } from "@/components/schedule-panel";
 import { celebrate } from "@/lib/celebrate";
+import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { HashtagHelper } from "@/components/hashtags/hashtag-helper";
 import { PlatformLabel } from "@/components/ui/platform-badges";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -557,6 +558,8 @@ function StepRefine({
       <div className="grid lg:grid-cols-2 gap-5 items-start">
         <div className="space-y-4">
           {slides.length > 0 && (
+            <div className="space-y-2">
+            <DownloadImageButtons items={slides} activeIndex={slideIndex} baseName={post.title} />
             <div className="pulse-card overflow-hidden">
               <div className="relative bg-muted aspect-square max-h-[360px]">
                 {current?.url ? (
@@ -588,6 +591,7 @@ function StepRefine({
                   </button>
                 </div>
               )}
+            </div>
             </div>
           )}
 
