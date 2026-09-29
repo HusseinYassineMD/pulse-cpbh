@@ -242,8 +242,8 @@ function DemoBanner() {
   return (
     <div className="mb-4 flex gap-2 items-start text-xs sm:text-sm text-teal-900 bg-teal/10 border border-teal/25 rounded-xl px-4 py-2.5 leading-relaxed">
       <p className="flex-1 min-w-0">
-        <strong className="font-semibold">Live demo</strong> — changes save in <em>your browser</em> on this device.
-        Full AI runs on <code className="text-[11px] bg-white/60 px-1 rounded">localhost:3010</code>.
+        <strong className="font-semibold">Preview mode</strong> — edits are stored in this browser session.
+        For full generation, use your local Pulse instance.
       </p>
       <button
         type="button"
@@ -252,7 +252,7 @@ function DemoBanner() {
           setDismissed(true);
         }}
         className="shrink-0 p-1.5 -mr-1 rounded-lg text-teal-900/70 hover:text-teal-900 hover:bg-teal/15 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-        aria-label="Dismiss demo notice"
+        aria-label="Dismiss notice"
       >
         <X className="w-4 h-4" />
       </button>
