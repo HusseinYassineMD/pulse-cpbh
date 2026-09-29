@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Send,
   LayoutGrid,
-  Smartphone,
+  MonitorSmartphone,
 } from "lucide-react";
 import { format } from "date-fns";
 import { api, ApiError } from "@/lib/api";
@@ -29,7 +29,8 @@ import { PublishAttempts } from "@/components/posts/publish-attempts";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformLabel } from "@/components/ui/platform-badges";
 import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chrome";
-import { InstagramPreview } from "@/components/posts/instagram-preview";
+import { PlatformPreviews } from "@/components/posts/platform-previews";
+import { ContentHealthScore } from "@/components/posts/content-health-score";
 import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { celebrate } from "@/lib/celebrate";
 
@@ -330,6 +331,8 @@ export default function PostDetailPage() {
         }}
       />
 
+      {hasContent && post.variants.length > 0 && <ContentHealthScore post={post} />}
+
       {infoMsg && (
         <div className="p-3 bg-teal/10 text-teal-900 border border-teal/25 rounded-lg text-sm">{infoMsg}</div>
       )}
@@ -379,8 +382,8 @@ export default function PostDetailPage() {
                   mediaView === "preview" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
                 }`}
               >
-                <Smartphone className="w-3.5 h-3.5" />
-                Instagram
+                <MonitorSmartphone className="w-3.5 h-3.5" />
+                Preview
               </button>
             </div>
           </div>
@@ -388,7 +391,7 @@ export default function PostDetailPage() {
           <DownloadImageButtons items={slides} activeIndex={slideIndex} baseName={post.title} />
 
           {mediaView === "preview" ? (
-            <InstagramPreview
+            <PlatformPreviews
               post={post}
               slides={slides}
               slideIndex={slideIndex}

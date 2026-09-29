@@ -12,6 +12,7 @@ import type { ScheduleItem } from "@/lib/schedule-types";
 import { ScheduleMonthView } from "@/components/calendar/schedule-month-view";
 import { BestTimeHeatmap } from "@/components/scheduling/best-time-heatmap";
 import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
+import { ContentGapWidget } from "@/components/scheduling/content-gap-widget";
 import { ModalSheet } from "@/components/ui/modal-sheet";
 
 type ScheduleView = "queue" | "calendar";
@@ -152,6 +153,8 @@ export default function CalendarPage() {
         </div>
         <BestTimeWidget compact />
       </div>
+
+      {items && <ContentGapWidget items={items} />}
 
       {view === "calendar" && items && <ScheduleMonthView items={items} />}
 

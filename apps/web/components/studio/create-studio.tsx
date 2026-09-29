@@ -129,6 +129,7 @@ export function CreateStudio() {
     const planId = searchParams.get("planId");
     const urlTitle = searchParams.get("title");
     const urlNotes = searchParams.get("notes");
+    const urlSourceText = searchParams.get("sourceText");
 
     if (planId && planItems?.items) {
       const idea = planItems.items.find((i) => i.id === planId);
@@ -140,7 +141,8 @@ export function CreateStudio() {
     }
     if (urlTitle) {
       setTitle(decodeURIComponent(urlTitle));
-      if (urlNotes) setSourceText(decodeURIComponent(urlNotes));
+      if (urlSourceText) setSourceText(decodeURIComponent(urlSourceText));
+      else if (urlNotes) setSourceText(decodeURIComponent(urlNotes));
       setPrefilled(true);
     }
   }, [searchParams, planItems, prefilled]);

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, X } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, Sparkles, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
@@ -254,15 +255,26 @@ export function TrendScanner() {
                   {deliverableLabel(trend.deliverable as PlanDeliverable)}
                 </strong>
               </p>
-              <button
-                type="button"
-                onClick={() => addToPlan.mutate(trend)}
-                disabled={addToPlan.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium btn-primary disabled:opacity-50 w-fit mt-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add to Plan
-              </button>
+              <div className="flex flex-wrap gap-2 mt-auto">
+                <Link
+                  href={`/studio?title=${encodeURIComponent(trend.title.slice(0, 200))}&sourceText=${encodeURIComponent(
+                    [trend.suggested_hook, trend.summary, `Source: ${trend.source}`, trend.url].filter(Boolean).join("\n\n")
+                  )}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium btn-primary"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Create now
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => addToPlan.mutate(trend)}
+                  disabled={addToPlan.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium border border-border bg-white hover:bg-secondary disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add to Plan
+                </button>
+              </div>
             </article>
           ))}
         </div>

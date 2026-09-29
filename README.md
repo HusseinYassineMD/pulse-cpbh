@@ -12,6 +12,15 @@ Schedule and auto-publish CPBH social content.
 
 Open **http://localhost:3010**
 
+**Live (team):** https://husseinyassinemd.github.io/pulse-cpbh/
+
+## Latest (Sep 2026)
+
+- Multi-platform preview (IG / Facebook / LinkedIn) on post detail
+- Content health score and Home activity feed
+- Ideas: **Create now** from trends → Create Studio
+- Schedule: content gap finder; download carousel images from posts/stories
+
 ## Workflow
 
 1. **Plan** — add content ideas and target dates

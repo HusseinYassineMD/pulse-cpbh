@@ -21,6 +21,8 @@ import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
 import { HeroMockup } from "@/components/hero-mockup";
 import { QuickTools } from "@/components/home/quick-tools";
+import { WhatsNewBanner } from "@/components/home/whats-new-banner";
+import { ActivityFeed } from "@/components/home/activity-feed";
 import { PostNextAction } from "@/components/posts/post-next-action";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -79,8 +81,12 @@ export default function HomePage() {
     postsData?.items.filter((p) => ACTIONABLE_STATUSES.includes(p.status)) ?? [];
   const readyCount = actionPosts.length;
 
+  const allPosts = postsData?.items ?? [];
+
   return (
     <div className="space-y-10 pb-4">
+      <WhatsNewBanner />
+
       {/* Hero */}
       <div className="grid lg:grid-cols-2 gap-10 items-center animate-fade-in">
         <div className="space-y-5">
@@ -176,6 +182,8 @@ export default function HomePage() {
       )}
 
       <QuickTools />
+
+      <ActivityFeed posts={allPosts} schedule={schedule ?? []} />
 
       {/* Command bar */}
       <section className="pulse-card p-6 lg:p-8 pulse-glow animate-glow">
