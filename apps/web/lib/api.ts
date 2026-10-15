@@ -298,6 +298,22 @@ const liveApi = {
     disconnect: (id: string) => request<void>(`/accounts/${id}`, { method: "DELETE" }),
   },
 
+  oauth: {
+    publishStatus: () =>
+      request<{
+        dry_run: boolean;
+        meta_configured: boolean;
+        linkedin_configured: boolean;
+        media_public_base: string;
+        ready_for_live_publish: boolean;
+        notes: string[];
+      }>("/oauth/publish-status"),
+
+    startMeta: () => request<{ url: string }>("/oauth/meta/start", { method: "POST" }),
+
+    startLinkedIn: () => request<{ url: string }>("/oauth/linkedin/start", { method: "POST" }),
+  },
+
   plan: {
     list: (params?: { status?: IdeaStatus; theme?: string }) => {
       const search = new URLSearchParams();

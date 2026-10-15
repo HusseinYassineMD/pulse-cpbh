@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Calendar, Send } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { PlatformBadges } from "@/components/ui/platform-badges";
@@ -24,6 +24,11 @@ export function SchedulePanel({
   const [selected, setSelected] = useState<string[]>([...availablePlatforms]);
   const [error, setError] = useState("");
   const [publishResult, setPublishResult] = useState<string | null>(null);
+
+  const { data: publishStatus } = useQuery({
+    queryKey: ["publish-status"],
+    queryFn: () => api.oauth.publishStatus(),
+  });
 
   const schedule = useMutation({
     mutationFn: () =>
@@ -65,6 +70,12 @@ export function SchedulePanel({
         Schedule & Publish
       </h2>
 
+      {publishStatus?.dry_run && (
+        <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 p-3 rounded-lg">
+          Simulated publish — connect accounts in Settings and set{" "}
+          <code className="text-xs bg-white/80 px-1 rounded">PUBLISH_DRY_RUN=false</code> for live posts.
+        </p>
+      )}
       {publishResult && (
         <p className="text-sm text-teal bg-teal-light p-3 rounded-lg font-medium">{publishResult}</p>
       )}

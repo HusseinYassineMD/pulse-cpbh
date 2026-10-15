@@ -196,21 +196,29 @@ class LinkedInPublisher(BasePublisher):
         if content_type == "story":
             return PublishResult(success=False, error="LinkedIn does not support stories")
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             try:
                 headers = {
                     "Authorization": f"Bearer {access_token}",
                     "Content-Type": "application/json",
                     "X-Restli-Protocol-Version": "2.0.0",
+                    "LinkedIn-Version": "202405",
                 }
 
-                payload = {
+                payload: dict = {
                     "author": f"urn:li:organization:{account_id}",
                     "commentary": caption,
                     "visibility": "PUBLIC",
                     "distribution": {"feedDistribution": "MAIN_FEED"},
                     "lifecycleState": "PUBLISHED",
                 }
+
+                if media_urls:
+                    image_urn = await self._upload_image(
+                        client, access_token, account_id, media_urls[0]
+                    )
+                    if image_urn:
+                        payload["content"] = {"media": {"id": image_urn}}
 
                 resp = await client.post(
                     "https://api.linkedin.com/rest/posts",
@@ -222,6 +230,43 @@ class LinkedInPublisher(BasePublisher):
                 return PublishResult(success=True, platform_post_id=post_id)
             except Exception as e:
                 return PublishResult(success=False, error=str(e))
+
+    async def _upload_image(
+        self,
+        client: httpx.AsyncClient,
+        access_token: str,
+        org_id: str,
+        media_url: str,
+    ) -> str | None:
+        img_resp = await client.get(media_url)
+        img_resp.raise_for_status()
+        image_bytes = img_resp.content
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+            "LinkedIn-Version": "202405",
+        }
+        init_resp = await client.post(
+            "https://api.linkedin.com/rest/images?action=initializeUpload",
+            headers=headers,
+            json={
+                "initializeUploadRequest": {
+                    "owner": f"urn:li:organization:{org_id}",
+                }
+            },
+        )
+        if init_resp.status_code >= 400:
+            return None
+        init_data = init_resp.json().get("value") or {}
+        upload_url = init_data.get("uploadUrl")
+        image_urn = init_data.get("image")
+        if not upload_url or not image_urn:
+            return None
+        put_headers = {"Authorization": f"Bearer {access_token}"}
+        upload_resp = await client.put(upload_url, content=image_bytes, headers=put_headers)
+        upload_resp.raise_for_status()
+        return image_urn
 
 
 PUBLISHERS: dict[Platform, BasePublisher] = {

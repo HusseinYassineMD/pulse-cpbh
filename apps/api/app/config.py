@@ -44,11 +44,14 @@ class Settings(BaseSettings):
 
     meta_app_id: str = ""
     meta_app_secret: str = ""
-    meta_redirect_uri: str = "http://localhost:8000/auth/callback/meta"
+    meta_redirect_uri: str = "http://127.0.0.1:8010/api/v1/oauth/meta/callback"
 
     linkedin_client_id: str = ""
     linkedin_client_secret: str = ""
-    linkedin_redirect_uri: str = "http://localhost:8000/auth/callback/linkedin"
+    linkedin_redirect_uri: str = "http://127.0.0.1:8010/api/v1/oauth/linkedin/callback"
+
+    # Public HTTPS base for media URLs during publish (ngrok or deployed API). Required for Instagram.
+    publish_api_url: str = ""
 
     post_creator_path: Path = Path("../Post_Creator")
     token_encryption_key: str = ""
@@ -93,6 +96,17 @@ class Settings(BaseSettings):
             port = os.environ.get("PULSE_API_PORT", "8010")
             return f"http://127.0.0.1:{port}"
         return self.api_url.rstrip("/")
+
+    @property
+    def media_public_base(self) -> str:
+        """URL platforms use to fetch images — must be reachable from Meta/LinkedIn servers."""
+        pub = (self.publish_api_url or "").strip().rstrip("/")
+        if pub:
+            return pub
+        api = self.api_url.strip().rstrip("/")
+        if api.startswith("https://"):
+            return api
+        return self.effective_api_url
 
     @property
     def resolved_post_creator_path(self) -> Path:

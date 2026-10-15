@@ -170,6 +170,7 @@ case "$cmd" in
   stable) stable ;;
   clear) clear_data ;;
   export-pages) export_pages ;;
+  publish-setup) bash "$ROOT/scripts/setup-live-publish.sh" ;;
   *)
     echo "Usage:"
     echo "  ./start.sh setup        — install deps (first time only)"
@@ -180,5 +181,6 @@ case "$cmd" in
     echo "  ./start.sh web clean    — start frontend (clear Next.js cache)"
     echo "  ./start.sh clear        — remove all posts and plan ideas"
     echo "  ./start.sh export-pages — export posts/media for GitHub Pages"
+    echo "  ./start.sh publish-setup — ngrok + .env for live publishing"
     ;;
 esac
