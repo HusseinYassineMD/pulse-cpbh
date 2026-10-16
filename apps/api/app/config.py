@@ -3,7 +3,24 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _normalize_database_url(url: str) -> str:
+    u = url.strip()
+    if u.startswith("postgres://"):
+        u = "postgresql://" + u[len("postgres://") :]
+    if u.startswith("postgresql://") and "+asyncpg" not in u.split("://", 1)[0]:
+        u = u.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return u
+
+
+def _ensure_https_url(url: str) -> str:
+    s = url.strip().rstrip("/")
+    if s and not s.startswith("http://") and not s.startswith("https://"):
+        return f"https://{s}"
+    return s
 
 
 class Settings(BaseSettings):
@@ -72,6 +89,16 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_db(cls, v: object) -> object:
+        return _normalize_database_url(v) if isinstance(v, str) else v
+
+    @field_validator("api_url", "web_url", "publish_api_url", mode="before")
+    @classmethod
+    def normalize_host_urls(cls, v: object) -> object:
+        return _ensure_https_url(v) if isinstance(v, str) and v.strip() else v
 
     def plan_team_members(self) -> list[dict[str, str]]:
         members: list[dict[str, str]] = []

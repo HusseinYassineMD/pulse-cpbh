@@ -41,12 +41,10 @@ With `AUTH_ENABLED=false` (default on Render blueprint), everyone uses the same 
 
 ## Hosted full app (API + database)
 
-**Render (repo includes `render.yaml`):**
+**Step-by-step:** see **[HOST_RENDER.md](HOST_RENDER.md)**.
 
-1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint** → connect `pulse-cpbh`.
-2. After deploy, note the **web** service URL (e.g. `https://pulse-cpbh-web.onrender.com`).
-3. Add a **PostgreSQL** database on Render and set `DATABASE_URL` on the **api** service (recommended; free SQLite disk can reset on redeploy).
-4. Set `NEXT_PUBLIC_HOSTED_APP_URL` on the **web** service and in GitHub Actions for Pages (optional link-out).
+Quick path: [Render Blueprint](https://dashboard.render.com/select-repo?type=blueprint) → connect **`HusseinYassineMD/pulse-cpbh`** → Apply.  
+`render.yaml` provisions Postgres + API + web.
 
 Student submit hits `POST /api/v1/posts/student-draft` → rows in the database; images saved on the API server.
 

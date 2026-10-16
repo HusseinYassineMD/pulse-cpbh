@@ -43,6 +43,7 @@ jobs:
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_STATIC_MODE: "true"
           NEXT_PUBLIC_BASE_PATH: /pulse-cpbh
+          NEXT_PUBLIC_HOSTED_APP_URL: ${{ vars.HOSTED_APP_URL }}
         run: npm ci && npm run build:pages
 
       - uses: actions/upload-pages-artifact@v3

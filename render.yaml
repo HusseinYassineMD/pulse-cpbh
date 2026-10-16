@@ -1,4 +1,12 @@
-# Deploy: https://dashboard.render.com → New → Blueprint → connect this repo
+# One-click hosted Pulse (API + Postgres + Next.js web)
+# Dashboard: New → Blueprint → connect github.com/HusseinYassineMD/pulse-cpbh
+databases:
+  - name: pulse-cpbh-db
+    databaseName: pulse
+    user: pulse
+    plan: free
+    region: oregon
+
 services:
   - type: web
     name: pulse-cpbh-api
@@ -19,8 +27,21 @@ services:
       - key: PUBLISH_DRY_RUN
         value: "true"
       - key: DATABASE_URL
-        value: sqlite+aiosqlite:///./pulse.db
+        fromDatabase:
+          name: pulse-cpbh-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MEDIA_PUBLISH_KEY
+        generateValue: true
       - key: API_URL
+        fromService:
+          type: web
+          name: pulse-cpbh-api
+          property: host
+      - key: PUBLISH_API_URL
         fromService:
           type: web
           name: pulse-cpbh-api
@@ -37,11 +58,13 @@ services:
     region: oregon
     plan: free
     rootDir: apps/web
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm start -- -p $PORT
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: NODE_ENV
+        value: production
       - key: API_URL
         fromService:
           type: web
