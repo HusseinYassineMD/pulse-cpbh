@@ -12,8 +12,10 @@ import {
   Circle,
   Settings,
   ClipboardList,
+  ClipboardCheck,
   LayoutGrid,
   GitBranch,
+  Send,
   PanelLeftClose,
   PanelLeftOpen,
   BarChart3,
@@ -23,14 +25,17 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
+import { isSimpleUi } from "@/lib/simple-ui";
 import { readSidebarOpen, writeSidebarOpen } from "@/lib/sidebar-prefs";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/ui/command-palette";
 import { SkipLink } from "@/components/ui/skip-link";
 
-const nav = [
+const fullNav = [
   { href: "/", label: "Home", icon: Home },
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
   { href: "/studio", label: "Create", icon: Sparkles },
+  { href: "/submit", label: "Submit", icon: Send },
+  { href: "/review", label: "Review", icon: ClipboardCheck },
   { href: "/plan", label: "Plan", icon: ClipboardList },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/calendar", label: "Schedule", icon: Calendar },
@@ -39,12 +44,27 @@ const nav = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-const mobileNav = [
+const simpleNav = [
+  { href: "/", label: "Start", icon: Home },
+  { href: "/submit", label: "Send draft", icon: Send },
+  { href: "/review", label: "Review", icon: ClipboardCheck },
+  { href: "/calendar", label: "Schedule", icon: Calendar },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
+
+const mobileNavFull = [
   { href: "/", label: "Home", icon: Home },
   { href: "/ideas", label: "Ideas", icon: Lightbulb },
   { href: "/plan", label: "Plan", icon: ClipboardList },
   { href: "/studio", label: "Create", icon: Sparkles },
   { href: "/board", label: "Board", icon: LayoutGrid },
+  { href: "/calendar", label: "Schedule", icon: Calendar },
+];
+
+const mobileNavSimple = [
+  { href: "/", label: "Start", icon: Home },
+  { href: "/submit", label: "Send", icon: Send },
+  { href: "/review", label: "Review", icon: ClipboardCheck },
   { href: "/calendar", label: "Schedule", icon: Calendar },
 ];
 
@@ -60,6 +80,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/analytics": "Analytics",
   "/ideas": "Ideas",
   "/settings": "Settings",
+  "/submit": "Submit draft",
+  "/review": "Review queue",
 };
 
 function mobilePageTitle(pathname: string): string {
@@ -86,6 +108,9 @@ function isNavActive(pathname: string, href: string): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(() => readSidebarOpen());
+  const simple = isSimpleUi();
+  const nav = simple ? simpleNav : fullNav;
+  const mobileNav = simple ? mobileNavSimple : mobileNavFull;
 
   const toggleSidebar = () => {
     setSidebarOpen((open) => {
@@ -98,6 +123,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: dashboard } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.dashboard.get(),
+    enabled: !simple,
   });
 
   const showSidebar = sidebarOpen;
@@ -115,10 +141,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="w-64 flex flex-col min-h-full">
           <ShellBrand />
-          <DesktopNav pathname={pathname} />
+          <DesktopNav pathname={pathname} items={nav} />
           {dashboard && <ShellOverview dashboard={dashboard} />}
           <div className="p-3 border-t border-sidebar-border/60 space-y-2">
-            <CommandPaletteTrigger className="w-full justify-center" />
+            {!simple && <CommandPaletteTrigger className="w-full justify-center" />}
             <button
               type="button"
               onClick={toggleSidebar}
@@ -149,7 +175,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
           <div className="flex items-center gap-1">
-            <CommandPaletteTrigger compact />
+            {!simple && <CommandPaletteTrigger compact />}
             <Link
               href="/settings"
               className={`p-2.5 rounded-xl min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors ${
@@ -181,7 +207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <PanelLeftOpen className="w-4 h-4" />
               Menu
             </button>
-            <CommandPaletteTrigger />
+            {!simple && <CommandPaletteTrigger />}
           </div>
         )}
 
@@ -196,14 +222,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <CommandPalette />
+      {!simple && <CommandPalette />}
 
       {/* Mobile bottom nav */}
       <nav
         className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-white/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
-        <div className="grid grid-cols-6 max-w-lg mx-auto">
+        <div className={`grid max-w-lg mx-auto ${mobileNav.length === 4 ? "grid-cols-4" : "grid-cols-6"}`}>
           {mobileNav.map(({ href, label, icon: Icon }) => {
             const active = isNavActive(pathname, href);
             const shortLabel = href === "/calendar" ? "Schedule" : label;
@@ -242,8 +268,8 @@ function DemoBanner() {
   return (
     <div className="mb-4 flex gap-2 items-start text-xs sm:text-sm text-teal-900 bg-teal/10 border border-teal/25 rounded-xl px-4 py-2.5 leading-relaxed">
       <p className="flex-1 min-w-0">
-        <strong className="font-semibold">Preview mode</strong> — edits are stored in this browser session.
-        For full generation, use your local Pulse instance.
+        <strong className="font-semibold">Preview only</strong> — nothing is saved for the team on this site. Ask your
+        lead for the real app link, or see DEPLOY.md to host it.
       </p>
       <button
         type="button"
@@ -279,10 +305,16 @@ function ShellBrand() {
   );
 }
 
-function DesktopNav({ pathname }: { pathname: string }) {
+function DesktopNav({
+  pathname,
+  items,
+}: {
+  pathname: string;
+  items: typeof simpleNav;
+}) {
   return (
     <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Main menu">
-      {nav.map(({ href, label, icon: Icon }) => {
+      {items.map(({ href, label, icon: Icon }) => {
         const active = isNavActive(pathname, href);
         return (
           <Link

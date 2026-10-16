@@ -50,6 +50,16 @@ class PostCreate(BaseModel):
     source_config: dict | None = None
 
 
+class StudentDraftCreate(BaseModel):
+    title: str
+    submitted_by: str
+    notes: str | None = None
+    caption_instagram: str = ""
+    caption_facebook: str = ""
+    caption_linkedin: str = ""
+    unified_caption: str | None = None
+
+
 class PostUpdate(BaseModel):
     title: str | None = None
     status: PostStatus | None = None

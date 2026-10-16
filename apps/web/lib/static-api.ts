@@ -301,7 +301,9 @@ function dashboardFrom(posts: Post[]): DashboardResponse {
     scheduled: posts.filter((p) => p.status === "scheduled").length,
     published: posts.filter((p) => ["published", "partially_published"].includes(p.status)).length,
     in_review: posts.filter((p) => p.status === "in_review").length,
-    drafts: posts.filter((p) => ["draft", "ready", "approved", "generating"].includes(p.status)).length,
+    drafts: posts.filter((p) =>
+      ["draft", "staged", "ready", "approved", "generating"].includes(p.status)
+    ).length,
   };
   return {
     stats,
@@ -329,8 +331,8 @@ export const staticApi = {
     }),
     me: async () => ({
       id: "static-user",
-      email: "demo@usc.edu",
-      name: "CPBH Demo",
+      email: "team@pulse.local",
+      name: "CPBH Team",
       role: "admin" as const,
       created_at: new Date().toISOString(),
     }),
@@ -375,8 +377,50 @@ export const staticApi = {
       return staticApi.posts.get(id);
     },
 
+    submitStudentDraft: async (form: FormData): Promise<Post> => {
+      const title = String(form.get("title") || "Untitled draft");
+      const submitted_by = String(form.get("submitted_by") || "Student");
+      const unified = String(form.get("unified_caption") || "");
+      const caption = unified || title;
+      const platforms = ["instagram", "facebook", "linkedin"] as const;
+      const cap = (key: string, fallback: string) => {
+        const v = String(form.get(key) || "").trim();
+        return v || fallback;
+      };
+      const post: Post = {
+        id: `post-${Date.now()}`,
+        title,
+        status: "staged",
+        post_creator_id: null,
+        source_config: { type: "student_draft", submitted_by, studio_source: false },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        variants: platforms.map((platform) => ({
+          id: crypto.randomUUID(),
+          platform,
+          caption:
+            platform === "instagram"
+              ? cap("caption_instagram", caption)
+              : platform === "facebook"
+                ? cap("caption_facebook", caption)
+                : cap("caption_linkedin", caption),
+          ai_suggested_caption: null,
+          hashtags: null,
+          approval_status: "pending",
+        })),
+        media_assets: [],
+      };
+      runtimeCreatedPosts.set(post.id, post);
+      return applyPatches(post);
+    },
+
     submitReview: async (id: string): Promise<Post> => {
       patchPost(id, { status: "in_review" });
+      return staticApi.posts.get(id);
+    },
+
+    returnToStudent: async (id: string): Promise<Post> => {
+      patchPost(id, { status: "draft" });
       return staticApi.posts.get(id);
     },
 

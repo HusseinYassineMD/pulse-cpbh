@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,9 +33,13 @@ import { PlatformPreviews } from "@/components/posts/platform-previews";
 import { ContentHealthScore } from "@/components/posts/content-health-score";
 import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { celebrate } from "@/lib/celebrate";
-
-export default function PostDetailPage() {
-  const { id } = useParams<{ id: string }>();
+import { submittedBy } from "@/lib/social-workflow";
+import { isSimpleUi } from "@/lib/simple-ui";
+import { usePostIdContext } from "@/lib/post-id-context";
+export default function PostDetailClient() {
+  const params = useParams<{ id: string }>();
+  const contextId = usePostIdContext();
+  const id = contextId ?? params.id;
   const router = useRouter();
   const queryClient = useQueryClient();
   const [slideIndex, setSlideIndex] = useState(0);
@@ -50,6 +54,8 @@ export default function PostDetailPage() {
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mediaView, setMediaView] = useState<"editor" | "preview">("editor");
+  const [simpleCaption, setSimpleCaption] = useState("");
+  const simple = isSimpleUi();
 
   const { data: post, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["post", id],
@@ -57,6 +63,11 @@ export default function PostDetailPage() {
     enabled: !!id,
     retry: 1,
   });
+
+  useEffect(() => {
+    const cap = post?.variants[0]?.caption;
+    if (cap !== undefined) setSimpleCaption(cap);
+  }, [post?.id, post?.variants[0]?.caption]);
 
   const generate = useMutation({
     mutationFn: () => api.posts.generate(id),
@@ -133,13 +144,25 @@ export default function PostDetailPage() {
     },
   });
 
+  const saveAllCaptions = useMutation({
+    mutationFn: async ({ caption, platforms }: { caption: string; platforms: string[] }) => {
+      await Promise.all(platforms.map((platform) => api.posts.updateVariant(id, platform, caption)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["post", id] });
+      setInfoMsg("Caption saved");
+      setTimeout(() => setInfoMsg(""), 3000);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save caption"),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.posts.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["schedule"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      router.push("/board");
+      router.push(simple ? "/review" : "/board");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not delete post"),
   });
@@ -178,17 +201,20 @@ export default function PostDetailPage() {
   const canGenerate = post.status === "draft" && post.post_creator_id;
   const isGenerating = post.status === "generating";
   const hasContent = slides.length > 0;
-  const canSubmitReview = post.status === "ready";
-  const canApprove = ["ready", "in_review"].includes(post.status);
+  const canSubmitReview = post.status === "ready" || post.status === "staged";
+  const canApprove = ["ready", "in_review", "staged"].includes(post.status);
   const canUnapprove = post.status === "approved";
   const canSchedule = post.variants.length > 0 && !["draft", "generating"].includes(post.status);
   const availablePlatforms = post.variants.map((v) => v.platform);
 
   return (
     <div className="max-w-3xl space-y-6">
-      <Link href="/board" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary">
+      <Link
+        href={simple ? "/review" : "/board"}
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
+      >
         <ArrowLeft className="w-4 h-4" />
-        Back to board
+        {simple ? "Back to review" : "Back to board"}
       </Link>
 
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -237,7 +263,7 @@ export default function PostDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 w-full sm:w-auto shrink-0">
-          {canGenerate && (
+          {!simple && canGenerate && (
             <button
               onClick={() => generate.mutate()}
               disabled={generate.isPending || isGenerating}
@@ -247,7 +273,7 @@ export default function PostDetailPage() {
               {generate.isPending || isGenerating ? "Generating..." : "Generate"}
             </button>
           )}
-          {canSubmitReview && (
+          {!simple && canSubmitReview && (
             <button
               onClick={() => submitReview.mutate()}
               disabled={submitReview.isPending}
@@ -264,10 +290,10 @@ export default function PostDetailPage() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] bg-teal text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex-1 sm:flex-none"
             >
               <Check className="w-4 h-4" />
-              Approve
+              {simple ? "Approve for schedule" : "Approve"}
             </button>
           )}
-          {canUnapprove && (
+          {!simple && canUnapprove && (
             <button
               onClick={() => unapprove.mutate()}
               disabled={unapprove.isPending}
@@ -277,7 +303,7 @@ export default function PostDetailPage() {
               {unapprove.isPending ? "Updating..." : "Unapprove"}
             </button>
           )}
-          {post.variants.length > 0 && (
+          {!simple && post.variants.length > 0 && (
             <button
               onClick={() => checkCompliance.mutate()}
               disabled={checkCompliance.isPending}
@@ -287,13 +313,15 @@ export default function PostDetailPage() {
               {checkCompliance.isPending ? "Checking…" : "Compliance"}
             </button>
           )}
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 flex-1 sm:flex-none"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete
-          </button>
+          {!simple && (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 flex-1 sm:flex-none"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -323,15 +351,23 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      <PostWorkflowBanner
-        post={post}
-        onMessage={(msg) => {
-          setInfoMsg(msg);
-          setTimeout(() => setInfoMsg(""), 5000);
-        }}
-      />
+      {!simple && (
+        <PostWorkflowBanner
+          post={post}
+          onMessage={(msg) => {
+            setInfoMsg(msg);
+            setTimeout(() => setInfoMsg(""), 5000);
+          }}
+        />
+      )}
 
-      {hasContent && post.variants.length > 0 && <ContentHealthScore post={post} />}
+      {submittedBy(post) && (
+        <p className="text-sm text-muted-foreground">
+          Student draft from <span className="font-medium text-foreground">{submittedBy(post)}</span>
+        </p>
+      )}
+
+      {!simple && hasContent && post.variants.length > 0 && <ContentHealthScore post={post} />}
 
       {infoMsg && (
         <div className="p-3 bg-teal/10 text-teal-900 border border-teal/25 rounded-lg text-sm">{infoMsg}</div>
@@ -363,34 +399,36 @@ export default function PostDetailPage() {
       {hasContent && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold text-sm">Media</h2>
-            <div className="inline-flex rounded-lg border border-border p-0.5 bg-secondary/40 text-xs">
-              <button
-                type="button"
-                onClick={() => setMediaView("editor")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
-                  mediaView === "editor" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                Editor
-              </button>
-              <button
-                type="button"
-                onClick={() => setMediaView("preview")}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
-                  mediaView === "preview" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                <MonitorSmartphone className="w-3.5 h-3.5" />
-                Preview
-              </button>
-            </div>
+            <h2 className="font-semibold text-sm">{simple ? "Photos" : "Media"}</h2>
+            {!simple && (
+              <div className="inline-flex rounded-lg border border-border p-0.5 bg-secondary/40 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMediaView("editor")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    mediaView === "editor" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  Editor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaView("preview")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                    mediaView === "preview" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  <MonitorSmartphone className="w-3.5 h-3.5" />
+                  Preview
+                </button>
+              </div>
+            )}
           </div>
 
-          <DownloadImageButtons items={slides} activeIndex={slideIndex} baseName={post.title} />
+          {!simple && <DownloadImageButtons items={slides} activeIndex={slideIndex} baseName={post.title} />}
 
-          {mediaView === "preview" ? (
+          {!simple && mediaView === "preview" ? (
             <PlatformPreviews
               post={post}
               slides={slides}
@@ -434,7 +472,33 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      {post.variants.length > 0 && (
+      {post.variants.length > 0 && simple && (
+        <div className="space-y-3">
+          <h2 className="font-semibold">Caption</h2>
+          <textarea
+            value={simpleCaption}
+            onChange={(e) => setSimpleCaption(e.target.value)}
+            rows={10}
+            className="w-full form-input text-base"
+          />
+          <button
+            type="button"
+            onClick={() =>
+              saveAllCaptions.mutate({
+                caption: simpleCaption,
+                platforms: post.variants.map((v) => v.platform),
+              })
+            }
+            disabled={saveAllCaptions.isPending || !simpleCaption.trim()}
+            className="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50"
+          >
+            {saveAllCaptions.isPending ? "Saving…" : "Save caption"}
+          </button>
+          <p className="text-xs text-muted-foreground">Same text is used for Instagram, Facebook, and LinkedIn.</p>
+        </div>
+      )}
+
+      {post.variants.length > 0 && !simple && (
         <div className="grid lg:grid-cols-2 gap-5 items-start">
           <div className="space-y-4">
             <h2 className="font-semibold">Captions</h2>
@@ -494,9 +558,9 @@ export default function PostDetailPage() {
         </div>
       )}
 
-      <PublishAttempts postId={id} />
+      {!simple && <PublishAttempts postId={id} />}
 
-      {canSchedule && (
+      {(canSchedule || (simple && post.status === "approved")) && (
         <div id="schedule">
           <SchedulePanel
             postId={id}

@@ -1,5 +1,6 @@
 const styles: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
+  staged: "bg-amber-50 text-amber-900 border border-amber-200/80",
   generating: "bg-accent/15 text-accent-foreground",
   ready: "bg-secondary text-secondary-foreground",
   in_review: "bg-sky/15 text-foreground",

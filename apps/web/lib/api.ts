@@ -135,6 +135,8 @@ const liveApi = {
     create: (data: { title: string; post_creator_id?: string }) =>
       request<Post>("/posts", { method: "POST", body: JSON.stringify(data) }),
 
+    submitStudentDraft: (form: FormData) => uploadRequest<Post>("/posts/student-draft", form),
+
     get: (id: string) => request<Post>(`/posts/${id}`),
 
     generate: (id: string) => request<Post>(`/posts/${id}/generate`, { method: "POST" }),
@@ -148,6 +150,9 @@ const liveApi = {
 
     submitReview: (id: string) =>
       request<Post>(`/posts/${id}/submit-review`, { method: "POST" }),
+
+    returnToStudent: (id: string) =>
+      request<Post>(`/posts/${id}/return-to-student`, { method: "POST" }),
 
     updateVariant: (id: string, platform: string, caption: string) =>
       request(`/posts/${id}/variants/${platform}`, {

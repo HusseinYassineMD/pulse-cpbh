@@ -31,7 +31,7 @@ export default function NewPostPage() {
         title: template?.title || templateId,
         post_creator_id: templateId,
       });
-      router.push(`/posts/${post.id}`);
+      router.push(`/post?id=${encodeURIComponent(post.id)}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {

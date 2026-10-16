@@ -14,7 +14,7 @@ import { PageBackLink, PageError, PageSkeleton } from "@/components/ui/page-chro
 import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { safeBaseName } from "@/lib/download-media";
 
-export default function StoryDetailPage() {
+export default function StoryDetailClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();

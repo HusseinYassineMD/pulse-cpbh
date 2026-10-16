@@ -7,10 +7,7 @@ export interface PlanTeamMember {
 }
 
 /** Fallback when API is offline — real roster comes from PLAN_TEAM in server .env. */
-export const DEFAULT_PLAN_TEAM: PlanTeamMember[] = [
-  { name: "Team Lead", email: "lead@example.com" },
-  { name: "Editor", email: "editor@example.com" },
-];
+export const DEFAULT_PLAN_TEAM: PlanTeamMember[] = [];
 
 export const CATEGORY_SUGGESTIONS = [
   "Genetics",

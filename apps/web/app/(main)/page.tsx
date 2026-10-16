@@ -19,13 +19,14 @@ import {
 import { format, parseISO, isPast } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
-import { HeroMockup } from "@/components/hero-mockup";
 import { QuickTools } from "@/components/home/quick-tools";
 import { PostNextAction } from "@/components/posts/post-next-action";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
 import { ACTIONABLE_STATUSES, getPostNextStep } from "@/lib/post-workflow";
+import { isSimpleUi } from "@/lib/simple-ui";
+import { WorkflowHome } from "@/components/workflow-home";
 import type { CommandResult, Post } from "@/lib/types";
 
 const EXAMPLES = ["post exercise-apoe4", "captions apoe4"];
@@ -36,7 +37,7 @@ const STEPS = [
   { icon: Send, label: "Publish", desc: "schedule all platforms", color: "from-accent to-teal" },
 ];
 
-export default function HomePage() {
+function FullHomePage() {
   const queryClient = useQueryClient();
   const [command, setCommand] = useState("");
   const [lastResult, setLastResult] = useState<CommandResult | null>(null);
@@ -82,7 +83,7 @@ export default function HomePage() {
   return (
     <div className="space-y-10 pb-4">
       {/* Hero */}
-      <div className="grid lg:grid-cols-2 gap-10 items-center animate-fade-in">
+      <div className="max-w-3xl animate-fade-in">
         <div className="space-y-5">
           <div className="inline-flex flex-col gap-1.5">
             <div className="cpbh-badge">
@@ -114,7 +115,6 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-        <HeroMockup />
       </div>
 
       {/* Stats */}
@@ -429,4 +429,9 @@ function ResultCard({
       </div>
     </div>
   );
+}
+
+export default function HomePage() {
+  if (isSimpleUi()) return <WorkflowHome />;
+  return <FullHomePage />;
 }

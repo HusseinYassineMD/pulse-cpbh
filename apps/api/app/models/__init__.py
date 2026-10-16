@@ -26,6 +26,7 @@ class Platform(str, enum.Enum):
 
 class PostStatus(str, enum.Enum):
     DRAFT = "draft"
+    STAGED = "staged"
     GENERATING = "generating"
     READY = "ready"
     IN_REVIEW = "in_review"

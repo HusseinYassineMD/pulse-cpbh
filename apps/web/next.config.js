@@ -4,8 +4,13 @@ const basePath = isPages ? "/pulse-cpbh" : "";
 
 const apiPort = process.env.PULSE_API_PORT || "8010";
 const localApi = `http://127.0.0.1:${apiPort}`;
-// Local dev always proxies to localhost — ignore stale tunnel URLs in .env
-const raw = isPages ? process.env.API_URL || localApi : localApi;
+// Local dev: always localhost (ignore stale tunnel URLs in .env). Hosted build: API_URL from Render/etc.
+const isDev = process.env.NODE_ENV !== "production";
+const raw = isPages
+  ? process.env.API_URL || localApi
+  : isDev
+    ? localApi
+    : process.env.API_URL || localApi;
 const apiOrigin = (raw.startsWith("http") ? raw.replace(/\/$/, "") : `https://${raw}`).replace(
   /\/api\/v1$/i,
   ""

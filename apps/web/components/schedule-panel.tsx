@@ -67,7 +67,7 @@ export function SchedulePanel({
     <div className="pulse-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2">
         <Calendar className="w-4 h-4 text-primary" />
-        Schedule & Publish
+        Schedule across platforms
       </h2>
 
       {publishStatus?.dry_run && (

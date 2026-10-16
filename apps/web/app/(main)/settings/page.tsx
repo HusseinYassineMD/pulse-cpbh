@@ -13,6 +13,10 @@ function SettingsPageContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [connecting, setConnecting] = useState<"meta" | "linkedin" | null>(null);
+  const [manualPlatform, setManualPlatform] = useState("instagram");
+  const [manualAccountId, setManualAccountId] = useState("");
+  const [manualAccountName, setManualAccountName] = useState("USC CPBH");
+  const [manualToken, setManualToken] = useState("");
 
   const { data: accounts, isLoading, isError: accountsError } = useQuery({
     queryKey: ["accounts"],
@@ -22,6 +26,24 @@ function SettingsPageContent() {
   const { data: publishStatus } = useQuery({
     queryKey: ["publish-status"],
     queryFn: () => api.oauth.publishStatus(),
+  });
+
+  const connectManual = useMutation({
+    mutationFn: () =>
+      api.accounts.connect({
+        platform: manualPlatform,
+        account_id: manualAccountId.trim(),
+        account_name: manualAccountName.trim() || "Connected account",
+        access_token: manualToken.trim(),
+      }),
+    onSuccess: () => {
+      setSuccess(`${manualPlatform} connected.`);
+      setError("");
+      setManualToken("");
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["publish-status"] });
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : "Could not connect"),
   });
 
   const disconnect = useMutation({
@@ -163,13 +185,86 @@ function SettingsPageContent() {
         {(publishStatus?.meta_configured === false || publishStatus?.linkedin_configured === false) && (
           <div className="flex items-start gap-3 text-sm bg-secondary/50 rounded-xl p-4">
             <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />
-            <p className="text-muted-foreground leading-relaxed">
-              Add Meta and LinkedIn app credentials to your local <code className="text-xs bg-white px-1 rounded">.env</code>{" "}
-              (see <code className="text-xs bg-white px-1 rounded">.env.example</code>), restart the API, then use the
-              buttons above.
-            </p>
+            <div className="text-muted-foreground leading-relaxed space-y-2">
+              <p>
+                <strong className="text-foreground">Instagram/LinkedIn email passwords cannot be used here.</strong>{" "}
+                Pulse needs API tokens from Meta / LinkedIn (one-time sign-in or paste a token below).
+              </p>
+              <p>
+                For one-click connect, add <code className="text-xs bg-white px-1 rounded">META_APP_ID</code> /{" "}
+                <code className="text-xs bg-white px-1 rounded">META_APP_SECRET</code> and LinkedIn app keys to{" "}
+                <code className="text-xs bg-white px-1 rounded">.env</code>, restart the API, then use the buttons above.
+              </p>
+            </div>
           </div>
         )}
+      </div>
+
+      <div className="pulse-card p-5 space-y-4">
+        <h2 className="font-semibold">Connect with access token</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Fastest if OAuth apps are not set up yet: in{" "}
+          <a
+            href="https://developers.facebook.com/tools/explorer/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-teal font-medium hover:underline"
+          >
+            Meta Graph API Explorer
+          </a>
+          , log in as CPBH, generate a token with <code className="text-xs">instagram_content_publish</code> and{" "}
+          <code className="text-xs">pages_show_list</code>, then paste the token and your Instagram Business Account ID
+          below (not your email password).
+        </p>
+        <div className="grid gap-3">
+          <label className="text-sm">
+            <span className="text-muted-foreground">Platform</span>
+            <select
+              value={manualPlatform}
+              onChange={(e) => setManualPlatform(e.target.value)}
+              className="mt-1 w-full px-3 py-2 border border-border rounded-lg bg-background"
+            >
+              <option value="instagram">Instagram</option>
+              <option value="facebook">Facebook</option>
+              <option value="linkedin">LinkedIn</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="text-muted-foreground">Account ID (IG Business ID, Page ID, or LinkedIn org ID)</span>
+            <input
+              value={manualAccountId}
+              onChange={(e) => setManualAccountId(e.target.value)}
+              placeholder="17841400000000000"
+              className="mt-1 w-full px-3 py-2 border border-border rounded-lg bg-background font-mono text-sm"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="text-muted-foreground">Display name</span>
+            <input
+              value={manualAccountName}
+              onChange={(e) => setManualAccountName(e.target.value)}
+              className="mt-1 w-full px-3 py-2 border border-border rounded-lg bg-background"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="text-muted-foreground">Access token</span>
+            <textarea
+              value={manualToken}
+              onChange={(e) => setManualToken(e.target.value)}
+              rows={3}
+              placeholder="Paste API access token"
+              className="mt-1 w-full px-3 py-2 border border-border rounded-lg bg-background font-mono text-xs"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => connectManual.mutate()}
+            disabled={connectManual.isPending || !manualAccountId.trim() || !manualToken.trim()}
+            className="btn-primary px-4 py-2.5 rounded-xl text-sm disabled:opacity-50 w-fit"
+          >
+            {connectManual.isPending ? "Connecting…" : "Save connection"}
+          </button>
+        </div>
       </div>
 
       <div className="pulse-card p-5 space-y-4">

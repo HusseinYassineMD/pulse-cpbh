@@ -1,11 +1,12 @@
 "use client";
 
 import type { Post } from "@/lib/types";
-import { getPostNextStep, postWorkflowStep } from "@/lib/post-workflow";
+import { getPostNextStep } from "@/lib/post-workflow";
+import { workflowStepIndex } from "@/lib/social-workflow";
 import { PostNextAction } from "@/components/posts/post-next-action";
 import { StatusBadge } from "@/components/ui/status-badge";
 
-const STEPS = ["Draft", "Ready", "Approved", "Scheduled", "Published"];
+const STEPS = ["Staged", "Review", "Approved", "Scheduled", "Published"];
 
 export function PostWorkflowBanner({
   post,
@@ -15,7 +16,7 @@ export function PostWorkflowBanner({
   onMessage?: (msg: string) => void;
 }) {
   const step = getPostNextStep(post);
-  const progress = Math.min(4, Math.max(0, postWorkflowStep(post)));
+  const progress = Math.min(4, Math.max(0, workflowStepIndex(post)));
 
   return (
     <div className="pulse-card p-4 sm:p-5 space-y-4 border border-teal/20 bg-teal/[0.03]">

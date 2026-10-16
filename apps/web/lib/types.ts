@@ -2,6 +2,7 @@ export type UserRole = "admin" | "editor" | "reviewer" | "viewer";
 
 export type PostStatus =
   | "draft"
+  | "staged"
   | "generating"
   | "ready"
   | "in_review"
@@ -35,6 +36,8 @@ export interface PostSourceConfig {
   content_idea_id?: string;
   studio_source?: boolean;
   source_text?: string;
+  /** Student submit flow */
+  submitted_by?: string;
 }
 
 export interface Post {

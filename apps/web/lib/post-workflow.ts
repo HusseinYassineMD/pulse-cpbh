@@ -1,14 +1,15 @@
 import type { Post, PostStatus } from "./types";
+import { postPageHref } from "./post-url";
 
 /** Posts that still need a human step before publishing. */
-export const ACTIONABLE_STATUSES: PostStatus[] = ["ready", "in_review", "approved"];
+export const ACTIONABLE_STATUSES: PostStatus[] = ["staged", "ready", "in_review", "approved"];
 
 export function isActionablePost(post: Post): boolean {
   return ACTIONABLE_STATUSES.includes(post.status);
 }
 
 export function postWorkflowStep(post: Post): number {
-  const order: PostStatus[] = ["draft", "generating", "ready", "in_review", "approved", "scheduled", "published"];
+  const order: PostStatus[] = ["draft", "staged", "generating", "ready", "in_review", "approved", "scheduled", "published"];
   const idx = order.indexOf(post.status);
   if (idx >= 0) return idx;
   if (post.status === "partially_published") return order.indexOf("published");
@@ -23,11 +24,19 @@ export type PostNextStep =
   | { kind: "view"; label: string; hint: string; href: string };
 
 export function getPostNextStep(post: Post): PostNextStep {
+  if (post.status === "staged") {
+    return {
+      kind: "view",
+      label: "Review",
+      hint: "Student draft — edit and approve in Review queue",
+      href: "/review",
+    };
+  }
   if (["ready", "in_review"].includes(post.status)) {
     return {
       kind: "approve",
       label: "Approve",
-      hint: "Sign off so you can schedule",
+      hint: "Sign off so you can schedule across platforms",
     };
   }
   if (post.status === "approved") {
@@ -35,7 +44,7 @@ export function getPostNextStep(post: Post): PostNextStep {
       kind: "schedule",
       label: "Schedule",
       hint: "Pick a time and platforms",
-      href: `/posts/${post.id}#schedule`,
+      href: postPageHref(post.id, "schedule"),
     };
   }
   if (post.status === "scheduled") {
@@ -58,6 +67,6 @@ export function getPostNextStep(post: Post): PostNextStep {
     kind: "view",
     label: "Open post",
     hint: "Review details",
-    href: `/posts/${post.id}`,
+    href: postPageHref(post.id),
   };
 }

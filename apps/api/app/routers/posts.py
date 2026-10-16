@@ -1,8 +1,10 @@
 """Post CRUD and lifecycle routes."""
 
+import tempfile
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,6 +23,9 @@ from app.schemas import (
 from app.services.content import ContentService
 from app.services.post_queries import load_post_for_response
 from app.services.serialize import post_to_response
+from app.services.student_draft import create_student_draft
+
+ALLOWED_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -142,6 +147,50 @@ async def generate_content(
     return post_to_response(post)
 
 
+@router.post("/student-draft", response_model=PostResponse, status_code=201)
+async def submit_student_draft(
+    title: str = Form(...),
+    submitted_by: str = Form(...),
+    notes: str | None = Form(None),
+    caption_instagram: str = Form(""),
+    caption_facebook: str = Form(""),
+    caption_linkedin: str = Form(""),
+    unified_caption: str | None = Form(None),
+    images: list[UploadFile] = File(default=[]),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    tmp_paths: list[Path] = []
+    try:
+        for upload in images[:10]:
+            if not upload.content_type or not upload.content_type.startswith("image/"):
+                continue
+            ext = Path(upload.filename or "slide.png").suffix.lower()
+            if ext not in ALLOWED_IMAGE_EXT:
+                ext = ".png"
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(await upload.read())
+                tmp_paths.append(Path(tmp.name))
+        post = await create_student_draft(
+            db,
+            user.id,
+            title=title,
+            submitted_by=submitted_by,
+            notes=notes,
+            caption_instagram=caption_instagram,
+            caption_facebook=caption_facebook,
+            caption_linkedin=caption_linkedin,
+            unified_caption=unified_caption,
+            image_paths=tmp_paths or None,
+        )
+    finally:
+        for p in tmp_paths:
+            p.unlink(missing_ok=True)
+
+    post = await load_post_for_response(db, post.id)
+    return post_to_response(post)
+
+
 @router.post("/{post_id}/submit-review", response_model=PostResponse)
 async def submit_for_review(
     post_id: UUID,
@@ -152,9 +201,30 @@ async def submit_for_review(
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post.status != PostStatus.READY:
+    if post.status not in (PostStatus.READY, PostStatus.STAGED):
         raise HTTPException(status_code=400, detail=f"Cannot review post in '{post.status}' status")
     post.status = PostStatus.IN_REVIEW
+    await db.flush()
+    post = await load_post_for_response(db, post.id)
+    return post_to_response(post)
+
+
+@router.post("/{post_id}/return-to-student", response_model=PostResponse)
+async def return_to_student(
+    post_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
+    post = result.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.status not in (PostStatus.STAGED, PostStatus.IN_REVIEW):
+        raise HTTPException(status_code=400, detail=f"Cannot return post in '{post.status}' status")
+    cfg = dict(post.source_config or {})
+    cfg["returned_for_revision"] = True
+    post.source_config = cfg
+    post.status = PostStatus.DRAFT
     await db.flush()
     post = await load_post_for_response(db, post.id)
     return post_to_response(post)
@@ -170,7 +240,7 @@ async def approve_post(
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post.status not in (PostStatus.READY, PostStatus.IN_REVIEW):
+    if post.status not in (PostStatus.READY, PostStatus.IN_REVIEW, PostStatus.STAGED):
         raise HTTPException(status_code=400, detail=f"Cannot approve post in '{post.status}' status")
     post.status = PostStatus.APPROVED
     await db.flush()
