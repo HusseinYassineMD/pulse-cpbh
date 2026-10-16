@@ -171,6 +171,8 @@ case "$cmd" in
   clear) clear_data ;;
   export-pages) export_pages ;;
   publish-setup) bash "$ROOT/scripts/setup-live-publish.sh" ;;
+  host) bash "$ROOT/scripts/open-render-blueprint.sh" ;;
+  tunnel) bash "$ROOT/scripts/host-local-tunnel.sh" ;;
   *)
     echo "Usage:"
     echo "  ./start.sh setup        — install deps (first time only)"
@@ -180,6 +182,8 @@ case "$cmd" in
     echo "  ./start.sh web          — start frontend only"
     echo "  ./start.sh web clean    — start frontend (clear Next.js cache)"
     echo "  ./start.sh clear        — remove all posts and plan ideas"
+    echo "  ./start.sh host         — open Render Blueprint (permanent hosting)"
+    echo "  ./start.sh tunnel       — public trycloudflare URL (local DB, keep running)"
     echo "  ./start.sh export-pages — export posts/media for GitHub Pages"
     echo "  ./start.sh publish-setup — ngrok + .env for live publishing"
     ;;
