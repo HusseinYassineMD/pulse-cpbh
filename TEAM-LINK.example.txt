@@ -1,0 +1,8 @@
+# Team links (Render — runs 24/7, no Mac required)
+#
+# One-time: ./start.sh host → Apply blueprint → wait until Live
+# Replace YOUR-WEB-URL with pulse-cpbh-web URL from Render dashboard
+#
+Submit:  https://YOUR-WEB-URL.onrender.com/submit
+Review:  https://YOUR-WEB-URL.onrender.com/review
+Schedule: https://YOUR-WEB-URL.onrender.com/calendar

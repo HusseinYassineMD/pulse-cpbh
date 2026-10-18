@@ -1,6 +1,9 @@
 # One-click hosted Pulse (API + Postgres + Next.js web)
 # Dashboard: New → Blueprint → connect github.com/HusseinYassineMD/pulse-cpbh
 # Or run: ./start.sh host
+#
+# Note: API and web do not cross-reference each other's env here (avoids Blueprint UI hanging).
+# After both are Live, set WEB_URL on pulse-cpbh-api to your pulse-cpbh-web URL (https://…onrender.com).
 databases:
   - name: pulse-cpbh-db
     databaseName: pulse
@@ -49,11 +52,6 @@ services:
           type: web
           name: pulse-cpbh-api
           property: host
-      - key: WEB_URL
-        fromService:
-          type: web
-          name: pulse-cpbh-web
-          property: host
 
   - type: web
     name: pulse-cpbh-web
@@ -65,11 +63,14 @@ services:
     rootDir: apps/web
     buildCommand: npm ci && npm run build
     startCommand: npm start -- -p $PORT
+    healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: "20"
       - key: NODE_ENV
         value: production
+      - key: NEXT_PUBLIC_STATIC_MODE
+        value: "false"
       - key: API_URL
         fromService:
           type: web

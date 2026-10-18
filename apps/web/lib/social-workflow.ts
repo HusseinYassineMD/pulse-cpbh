@@ -14,6 +14,19 @@ export function submittedBy(post: Post): string | null {
   return name?.trim() || null;
 }
 
+export function returnNotes(post: Post): string | null {
+  const cfg = post.source_config;
+  if (!cfg || typeof cfg !== "object") return null;
+  const notes = (cfg as { return_notes?: string }).return_notes;
+  return notes?.trim() || null;
+}
+
+export function isReturnedForRevision(post: Post): boolean {
+  const cfg = post.source_config;
+  if (!cfg || typeof cfg !== "object") return false;
+  return post.status === "draft" && (cfg as { returned_for_revision?: boolean }).returned_for_revision === true;
+}
+
 export const WORKFLOW_STEPS = [
   { id: "stage", label: "Stage", desc: "Students submit drafts" },
   { id: "review", label: "Review", desc: "You edit & approve" },

@@ -8,14 +8,26 @@ import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
 import { HOSTED_APP_URL } from "@/lib/static-config";
 import { readSubmitName, writeSubmitName } from "@/lib/submit-prefs";
+import { SUBMIT_PLATFORMS } from "@/lib/submit-platforms";
 
 export default function SubmitDraftPage() {
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
   const [caption, setCaption] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
+  const [platforms, setPlatforms] = useState<string[]>(["instagram", "facebook", "linkedin"]);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+
+  function togglePlatform(id: string) {
+    setPlatforms((prev) => {
+      if (prev.includes(id)) {
+        const next = prev.filter((p) => p !== id);
+        return next.length ? next : prev;
+      }
+      return [...prev, id];
+    });
+  }
 
   useEffect(() => {
     setName(readSubmitName());
@@ -31,6 +43,7 @@ export default function SubmitDraftPage() {
       form.set("caption_instagram", caption.trim());
       form.set("caption_facebook", caption.trim());
       form.set("caption_linkedin", caption.trim());
+      platforms.forEach((p) => form.append("platforms", p));
       if (files) {
         Array.from(files).forEach((f) => form.append("images", f));
       }
@@ -41,7 +54,14 @@ export default function SubmitDraftPage() {
       setDone(true);
       setError("");
     },
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Could not send — try again."),
+    onError: (e) => {
+      const msg = e instanceof ApiError ? e.message : "Could not send — try again.";
+      setError(
+        msg.includes("500") || msg.toLowerCase().includes("internal")
+          ? "Server error — ask your lead to restart the team app, then try again."
+          : msg
+      );
+    },
   });
 
   if (done) {
@@ -100,6 +120,10 @@ export default function SubmitDraftPage() {
             setError("Please paste your caption.");
             return;
           }
+          if (platforms.length === 0) {
+            setError("Pick at least one place to post.");
+            return;
+          }
           submit.mutate();
         }}
       >
@@ -136,10 +160,36 @@ export default function SubmitDraftPage() {
             onChange={(e) => setCaption(e.target.value)}
             rows={8}
             className="form-input mt-1.5 w-full text-base"
-            placeholder="Paste the text for Instagram, Facebook, and LinkedIn…"
+            placeholder="Paste your post text…"
             required
           />
         </label>
+
+        <fieldset className="block">
+          <legend className="text-sm font-medium">Where should this go?</legend>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">
+            Your lead schedules the actual post — you only choose the channels.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {SUBMIT_PLATFORMS.map(({ id, label }) => {
+              const on = platforms.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => togglePlatform(id)}
+                  className={`px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors min-h-[44px] ${
+                    on
+                      ? "border-teal bg-teal/10 text-teal"
+                      : "border-border text-muted-foreground hover:border-teal/30"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
 
         <label className="block">
           <span className="text-sm font-medium flex items-center gap-2">

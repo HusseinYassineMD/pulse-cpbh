@@ -69,6 +69,14 @@ export default function PostDetailClient() {
     if (cap !== undefined) setSimpleCaption(cap);
   }, [post?.id, post?.variants[0]?.caption]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || window.location.hash !== "#schedule") return;
+    const t = window.setTimeout(() => {
+      document.getElementById("schedule")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [post?.id, post?.status]);
+
   const generate = useMutation({
     mutationFn: () => api.posts.generate(id),
     onSuccess: (updated) => {
@@ -109,7 +117,12 @@ export default function PostDetailClient() {
       queryClient.setQueryData(["post", id], updated);
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
       celebrate();
+      if (simple) {
+        router.push(`/calendar?post=${encodeURIComponent(id)}`);
+        return;
+      }
       setInfoMsg("Approved — ready to schedule!");
       setTimeout(() => setInfoMsg(""), 5000);
     },
@@ -293,6 +306,14 @@ export default function PostDetailClient() {
               {simple ? "Approve for schedule" : "Approve"}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 flex-1 sm:flex-none"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
           {!simple && canUnapprove && (
             <button
               onClick={() => unapprove.mutate()}
@@ -311,15 +332,6 @@ export default function PostDetailClient() {
             >
               <ShieldCheck className="w-4 h-4" />
               {checkCompliance.isPending ? "Checking…" : "Compliance"}
-            </button>
-          )}
-          {!simple && (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 flex-1 sm:flex-none"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
             </button>
           )}
         </div>
@@ -570,8 +582,10 @@ export default function PostDetailClient() {
               queryClient.invalidateQueries({ queryKey: ["posts"] });
               queryClient.invalidateQueries({ queryKey: ["dashboard"] });
               queryClient.invalidateQueries({ queryKey: ["schedule"] });
+              queryClient.invalidateQueries({ queryKey: ["posts", "approved-for-schedule"] });
               queryClient.invalidateQueries({ queryKey: ["publish-attempts", id] });
               setInfoMsg("Scheduled — it will show on your calendar.");
+              if (simple) router.push("/calendar");
               setTimeout(() => setInfoMsg(""), 5000);
             }}
           />

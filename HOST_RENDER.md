@@ -1,6 +1,8 @@
 # Host Pulse on Render (shared team database)
 
-This gives you a **real URL** where student drafts are stored in **PostgreSQL** for the whole team.
+Use this instead of running Pulse on your Mac or Cloudflare tunnel. After setup, **you can shut down your laptop** — the team uses Render’s URL.
+
+Student drafts live in **PostgreSQL** for everyone on the same links.
 
 ## 1. Create the stack (~10 minutes)
 
@@ -12,6 +14,13 @@ This gives you a **real URL** where student drafts are stored in **PostgreSQL** 
    - **pulse-cpbh-api** (FastAPI)
    - **pulse-cpbh-web** (Next.js)
 5. Click **Apply** and wait until all three are **Live** (first deploy ~5–10 min).
+
+### Blueprint page keeps loading?
+
+- Use **Chrome/Safari private window**, or turn off ad blockers for `dashboard.render.com`.
+- Or skip GitHub connect: scroll to **Public Git Repository**, paste  
+  `https://github.com/HusseinYassineMD/pulse-cpbh`, click **Continue**.
+- After **api** and **web** are Live: open **pulse-cpbh-api** → **Environment** → add **`WEB_URL`** = your **pulse-cpbh-web** URL (`https://…onrender.com`, no trailing slash) → Save (redeploys API).
 
 ## 2. Your team URLs
 

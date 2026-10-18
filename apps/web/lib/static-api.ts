@@ -81,6 +81,8 @@ function markStoryDeleted(id: string) {
   saveCrudState(state);
 }
 
+const STATIC_DATA_VERSION_KEY = "pulse-static-data-version";
+
 function clearLegacyStorage() {
   if (typeof window === "undefined" || !isStaticMode()) return;
   [
@@ -89,6 +91,14 @@ function clearLegacyStorage() {
     "pulse-static-overrides-v3",
     "pulse-data-version",
   ].forEach((key) => localStorage.removeItem(key));
+
+  const stored = localStorage.getItem(STATIC_DATA_VERSION_KEY);
+  if (stored !== String(STATIC_DATA_VERSION)) {
+    localStorage.removeItem(STATIC_CRUD_KEY);
+    localStorage.removeItem(PLAN_STORAGE_KEY);
+    localStorage.removeItem(PIPELINE_STORAGE_KEY);
+    localStorage.setItem(STATIC_DATA_VERSION_KEY, String(STATIC_DATA_VERSION));
+  }
 }
 
 if (typeof window !== "undefined") {
@@ -343,15 +353,12 @@ export const staticApi = {
   },
 
   templates: {
-    list: async (): Promise<Template[]> => [
-      { post_creator_id: "exercise-apoe4", title: "Exercise, Sitting, and APOE4", slide_count: 4, platforms: ["instagram", "facebook", "linkedin"] },
-      { post_creator_id: "protein-maxing", title: "Protein Maxing", slide_count: 4, platforms: ["instagram", "facebook", "linkedin"] },
-    ],
+    list: async (): Promise<Template[]> => [],
   },
 
   commands: {
     run: async (command: string): Promise<CommandResult> => ({
-      message: "Generation runs on the local app — this GitHub demo shows saved posts.",
+      message: "Commands need the hosted app with API — this preview site has no generator.",
       help_text: `You typed: ${command}\n\nBrowse the Board to review posts and stories.`,
       post: null,
     }),
@@ -382,7 +389,12 @@ export const staticApi = {
       const submitted_by = String(form.get("submitted_by") || "Student");
       const unified = String(form.get("unified_caption") || "");
       const caption = unified || title;
-      const platforms = ["instagram", "facebook", "linkedin"] as const;
+      const selected = form.getAll("platforms").map((p) => String(p).toLowerCase());
+      const platforms = (
+        selected.length
+          ? selected.filter((p) => p === "instagram" || p === "facebook" || p === "linkedin")
+          : ["instagram", "facebook", "linkedin"]
+      ) as ("instagram" | "facebook" | "linkedin")[];
       const cap = (key: string, fallback: string) => {
         const v = String(form.get(key) || "").trim();
         return v || fallback;
@@ -419,9 +431,70 @@ export const staticApi = {
       return staticApi.posts.get(id);
     },
 
-    returnToStudent: async (id: string): Promise<Post> => {
-      patchPost(id, { status: "draft" });
+    returnToStudent: async (id: string, returnNotes?: string): Promise<Post> => {
+      const post = await staticApi.posts.get(id);
+      patchPost(id, {
+        status: "draft",
+        source_config: {
+          ...post.source_config,
+          returned_for_revision: true,
+          ...(returnNotes?.trim() ? { return_notes: returnNotes.trim() } : {}),
+        },
+      });
       return staticApi.posts.get(id);
+    },
+
+    studentInbox: async (submittedBy: string): Promise<PostListResponse> => {
+      const needle = submittedBy.trim().toLowerCase();
+      const items = (await getPosts()).filter((p) => {
+        if (p.status !== "draft") return false;
+        const cfg = p.source_config as { submitted_by?: string; returned_for_revision?: boolean } | undefined;
+        if (!cfg?.returned_for_revision) return false;
+        return (cfg.submitted_by || "").trim().toLowerCase() === needle;
+      });
+      return { items, total: items.length };
+    },
+
+    resubmitStudentDraft: async (postId: string, form: FormData): Promise<Post> => {
+      const post = await staticApi.posts.get(postId);
+      const title = String(form.get("title") || post.title);
+      const unified = String(form.get("unified_caption") || "");
+      const caption = unified || title;
+      const selected = form.getAll("platforms").map((p) => String(p).toLowerCase());
+      const platforms = (
+        selected.length
+          ? selected.filter((p) => p === "instagram" || p === "facebook" || p === "linkedin")
+          : post.variants.map((v) => v.platform)
+      ) as ("instagram" | "facebook" | "linkedin")[];
+      const cap = (key: string, fallback: string) => {
+        const v = String(form.get(key) || "").trim();
+        return v || fallback;
+      };
+      const cfg = { ...(post.source_config as object) } as Record<string, unknown>;
+      delete cfg.returned_for_revision;
+      delete cfg.return_notes;
+      const updated: Post = {
+        ...post,
+        title,
+        status: "staged",
+        source_config: cfg,
+        updated_at: new Date().toISOString(),
+        variants: platforms.map((platform) => ({
+          id: crypto.randomUUID(),
+          platform,
+          caption:
+            platform === "instagram"
+              ? cap("caption_instagram", caption)
+              : platform === "facebook"
+                ? cap("caption_facebook", caption)
+                : cap("caption_linkedin", caption),
+          ai_suggested_caption: null,
+          hashtags: null,
+          approval_status: "pending" as const,
+        })),
+      };
+      runtimeCreatedPosts.set(postId, updated);
+      return applyPatches(updated);
     },
 
     approve: async (id: string): Promise<Post> => {
@@ -493,7 +566,7 @@ export const staticApi = {
       });
       patchPost(id, { variants });
       return {
-        reply: "Updated captions locally (demo mode). Full AI chat on localhost.",
+        reply: "Updated captions in this browser only. Use the hosted app for full AI chat.",
         captions: variants.map((v) => ({ platform: v.platform, caption: v.caption })),
       };
     },
@@ -1098,8 +1171,8 @@ export const staticApi = {
       return {
         post: applyPatches(post),
         message: data.template_id
-          ? "Demo carousel + captions from your source (run localhost for real slides)."
-          : "Demo captions from your pasted content (run localhost for AI generation).",
+          ? "Preview only — use the hosted app to generate real slides."
+          : "Preview only — use the hosted app for AI captions.",
       };
     },
   },

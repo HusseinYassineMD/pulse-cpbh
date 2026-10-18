@@ -3,21 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lightbulb, Plus, Sparkles, ArrowRight, RefreshCw } from "lucide-react";
+import { Lightbulb, Sparkles, ArrowRight } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { TrendScanner } from "@/components/ideas/trend-scanner";
 import { CONTENT_IDEA_PROMPTS } from "@/lib/insights";
 import { deliverableLabel } from "@/lib/plan-team";
 import type { PlanDeliverable } from "@/lib/types";
 
+type IdeaPrompt = (typeof CONTENT_IDEA_PROMPTS)[number];
+
 export default function IdeasPage() {
   const queryClient = useQueryClient();
-  const [ideas, setIdeas] = useState(() => [...CONTENT_IDEA_PROMPTS]);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const ideas = CONTENT_IDEA_PROMPTS;
 
   const addToPlan = useMutation({
-    mutationFn: (idea: (typeof CONTENT_IDEA_PROMPTS)[0]) =>
+    mutationFn: (idea: IdeaPrompt) =>
       api.plan.create({
         title: idea.title,
         theme: idea.theme,
@@ -34,10 +36,6 @@ export default function IdeasPage() {
     onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not add to Plan"),
   });
 
-  const shuffle = () => {
-    setIdeas([...CONTENT_IDEA_PROMPTS].sort(() => Math.random() - 0.5));
-  };
-
   return (
     <div className="space-y-8 animate-fade-in pb-8">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -48,17 +46,9 @@ export default function IdeasPage() {
             Ideas
           </h1>
           <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">
-            Scan the web for what&apos;s trending in brain health, or browse curated CPBH angles — then send any idea to Plan.
+            Scan live brain-health headlines, then send anything you like to Plan or Create Studio.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={shuffle}
-          className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl border border-border hover:bg-secondary text-sm font-medium"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Shuffle ideas
-        </button>
       </div>
 
       {msg && (
@@ -70,44 +60,40 @@ export default function IdeasPage() {
 
       <TrendScanner />
 
-      <div>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-          Curated starters
-        </h2>
-      </div>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {ideas.map((idea) => (
-          <article key={idea.title} className="pulse-card-hover p-5 flex flex-col gap-3">
-            <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-              {idea.theme}
-            </span>
-            <h2 className="font-semibold text-base leading-snug">{idea.title}</h2>
-            <p className="text-sm text-muted-foreground flex-1 leading-relaxed">{idea.hook}</p>
-            <p className="text-xs text-muted-foreground">
-              Suggested format: <strong className="text-foreground">{deliverableLabel(idea.deliverable as PlanDeliverable)}</strong>
-            </p>
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-border/60">
-              <Link
-                href={`/studio?title=${encodeURIComponent(idea.title)}&notes=${encodeURIComponent(idea.hook)}`}
-                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium btn-primary"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Create in Studio
-              </Link>
-              <button
-                type="button"
-                onClick={() => addToPlan.mutate(idea)}
-                disabled={addToPlan.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium border border-border hover:bg-secondary disabled:opacity-50"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add to Plan
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
+      {ideas.length > 0 && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {ideas.map((idea) => (
+            <article key={idea.title} className="pulse-card-hover p-5 flex flex-col gap-3">
+              <span className="inline-block w-fit text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                {idea.theme}
+              </span>
+              <h2 className="font-semibold text-base leading-snug">{idea.title}</h2>
+              <p className="text-sm text-muted-foreground flex-1 leading-relaxed">{idea.hook}</p>
+              <p className="text-xs text-muted-foreground">
+                Suggested format:{" "}
+                <strong className="text-foreground">{deliverableLabel(idea.deliverable as PlanDeliverable)}</strong>
+              </p>
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border/60">
+                <Link
+                  href={`/studio?title=${encodeURIComponent(idea.title)}&notes=${encodeURIComponent(idea.hook)}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium btn-primary"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Create in Studio
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => addToPlan.mutate(idea)}
+                  disabled={addToPlan.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-lg text-xs font-medium border border-border hover:bg-secondary disabled:opacity-50"
+                >
+                  Add to Plan
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <div className="pulse-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

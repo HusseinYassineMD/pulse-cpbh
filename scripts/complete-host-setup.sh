@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
-# Everything automatable for CPBH hosting (Render + optional local tunnel).
+# One-time hosted team app on Render (no Mac tunnel).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "=== Pulse host setup ==="
+echo "=== Pulse team hosting (Render) ==="
+echo ""
+echo "This sets up a permanent URL. You do NOT need to keep your Mac running."
 echo ""
 
-if ! command -v render >/dev/null 2>&1; then
-  echo "Tip: brew install render  (CLI optional)"
-else
+if command -v render >/dev/null 2>&1; then
   if render whoami >/dev/null 2>&1; then
     echo "✓ Render CLI logged in"
     render blueprints validate "$ROOT/render.yaml" 2>/dev/null || true
   else
-    echo "→ Render CLI: run  render login  (one-time), then Blueprint Apply in browser"
+    echo "→ Optional: render login  (CLI not required — browser is enough)"
   fi
+else
+  echo "Tip: brew install render  (optional CLI)"
 fi
 
 echo ""
@@ -23,28 +25,10 @@ echo "→ Opening Render Blueprint (connect repo + Apply)…"
 "$ROOT/scripts/open-render-blueprint.sh" || true
 
 echo ""
-if command -v cloudflared >/dev/null 2>&1; then
-  LOG_DIR="${TMPDIR:-/tmp}/pulse-host"
-  mkdir -p "$LOG_DIR"
-  echo "→ Starting team tunnel in background (shared DB on this Mac)…"
-  echo "  Logs: $LOG_DIR/"
-  nohup "$ROOT/scripts/host-local-tunnel.sh" >>"$LOG_DIR/nohup.log" 2>&1 &
-  sleep 12
-  if [ -f "$ROOT/.pulse-team-url" ]; then
-    BASE=$(cat "$ROOT/.pulse-team-url")
-    echo ""
-    echo "✓ Team URLs ready:"
-    echo "  ${BASE}/submit"
-    echo "  ${BASE}/review"
-  else
-    echo "  Tunnel still starting — check ${TMPDIR:-/tmp}/pulse-host/nohup.log"
-  fi
-else
-  echo "Install cloudflared for instant team URL: brew install cloudflared"
-  echo "Then: ./start.sh tunnel"
-fi
-
+echo "After all three services are Live (db + api + web):"
+echo "  1. Copy the pulse-cpbh-web URL from Render"
+echo "  2. Save team links in TEAM-LINK.txt (see TEAM-LINK.example.txt)"
+echo "  3. GitHub → Settings → Actions → Variables → HOSTED_APP_URL = that URL"
 echo ""
-echo "GitHub Pages (preview): https://husseinyassinemd.github.io/pulse-cpbh/submit/"
-echo "After Render is Live, set GitHub Actions variable HOSTED_APP_URL to your Render web URL."
+echo "GitHub Pages preview: https://husseinyassinemd.github.io/pulse-cpbh/"
 echo ""

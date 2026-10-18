@@ -29,7 +29,7 @@ import { isSimpleUi } from "@/lib/simple-ui";
 import { WorkflowHome } from "@/components/workflow-home";
 import type { CommandResult, Post } from "@/lib/types";
 
-const EXAMPLES = ["post exercise-apoe4", "captions apoe4"];
+const EXAMPLES = ["post my-carousel", "captions draft-id"];
 
 const STEPS = [
   { icon: Terminal, label: "Command", desc: "post · captions", color: "from-gray-800 to-gray-900" },
@@ -197,7 +197,7 @@ function FullHomePage() {
               <input
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
-                placeholder="post exercise-apoe4"
+                placeholder="post my-carousel"
                 aria-label="Generate content command"
                 className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-gray-600 text-base min-h-[44px]"
                 disabled={run.isPending}

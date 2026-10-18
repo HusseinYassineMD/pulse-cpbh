@@ -9,9 +9,12 @@ from app.config import get_settings
 
 settings = get_settings()
 
-_connect_args = {}
+_connect_args: dict = {}
 if settings.database_url.startswith("sqlite"):
     _connect_args["check_same_thread"] = False
+elif settings.database_url.startswith("postgresql"):
+    # Render Postgres requires TLS
+    _connect_args["ssl"] = "require"
 
 engine = create_async_engine(
     settings.database_url,

@@ -105,8 +105,8 @@ function SettingsPageContent() {
         <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-1">Publishing</p>
         <h1 className="text-3xl font-bold tracking-tight">Connected accounts</h1>
         <p className="text-muted-foreground mt-2">
-          Authorize Pulse to publish on your behalf. Use <strong>Publish now</strong> on any approved post after
-          connecting.
+          Connect accounts so posts go out at the <strong>scheduled</strong> time you pick in Schedule — not from a
+          separate publish button.
         </p>
       </div>
 

@@ -32,19 +32,17 @@ Commands:
   captions <topic>   → captions only (no images)
   help               → show this help
 
-Topics (templates):
-  exercise-apoe4     — Exercise, Sitting, and APOE4
-  protein-maxing     — Protein Maxing
+Topics match your Post_Creator templates (run with --list on generate.py).
 
 Examples:
-  post exercise-apoe4
-  captions protein
+  post <template-id>
+  captions <template-id>
 """.strip()
 
 
 async def resolve_template(query: str | None) -> str:
     if not query:
-        raise ValueError("Tell me which topic — e.g. post exercise-apoe4")
+        raise ValueError("Tell me which topic — e.g. post <template-id>")
 
     templates = await list_templates()
     if not templates:
@@ -67,7 +65,7 @@ async def resolve_template(query: str | None) -> str:
 async def parse_command(text: str) -> ParsedCommand:
     raw = text.strip()
     if not raw:
-        raise ValueError("Type a command — try: post exercise-apoe4")
+        raise ValueError("Type a command — try: post <template-id>")
 
     parts = raw.split()
     action_word = parts[0].lower()
@@ -79,12 +77,12 @@ async def parse_command(text: str) -> ParsedCommand:
         raise ValueError("Stories aren't available right now — use: post <topic>")
 
     if action_word not in ("post", "captions"):
-        # Shorthand: "exercise-apoe4" defaults to post
+        # Shorthand: "<template-id>" defaults to post
         template_id = await resolve_template(raw)
         return ParsedCommand(action=CommandAction.POST, template_id=template_id, raw=raw)
 
     if len(parts) < 2:
-        raise ValueError(f"'{action_word}' needs a topic — e.g. {action_word} exercise-apoe4")
+        raise ValueError(f"'{action_word}' needs a topic — e.g. {action_word} <template-id>")
 
     template_id = await resolve_template(parts[1])
     return ParsedCommand(

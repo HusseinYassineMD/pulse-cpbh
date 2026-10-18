@@ -38,6 +38,9 @@ export interface PostSourceConfig {
   source_text?: string;
   /** Student submit flow */
   submitted_by?: string;
+  student_notes?: string;
+  returned_for_revision?: boolean;
+  return_notes?: string;
 }
 
 export interface Post {

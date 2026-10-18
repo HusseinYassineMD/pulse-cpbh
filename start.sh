@@ -173,7 +173,8 @@ case "$cmd" in
   publish-setup) bash "$ROOT/scripts/setup-live-publish.sh" ;;
   host) bash "$ROOT/scripts/open-render-blueprint.sh" ;;
   host-all) bash "$ROOT/scripts/complete-host-setup.sh" ;;
-  tunnel) bash "$ROOT/scripts/host-local-tunnel.sh" ;;
+  tunnel) bash "$ROOT/scripts/tunnel-only.sh" ;;
+  tunnel-fresh) bash "$ROOT/scripts/host-local-tunnel.sh" ;;
   *)
     echo "Usage:"
     echo "  ./start.sh setup        — install deps (first time only)"
@@ -183,8 +184,10 @@ case "$cmd" in
     echo "  ./start.sh web          — start frontend only"
     echo "  ./start.sh web clean    — start frontend (clear Next.js cache)"
     echo "  ./start.sh clear        — remove all posts and plan ideas"
-    echo "  ./start.sh host         — open Render Blueprint (permanent hosting)"
-    echo "  ./start.sh tunnel       — public trycloudflare URL (local DB, keep running)"
+    echo "  ./start.sh host         — team app on Render (24/7, recommended)"
+    echo "  ./start.sh host-all     — same as host (opens blueprint)"
+    echo "  ./start.sh tunnel       — temporary dev URL (Mac must stay on; not for team)"
+    echo "  ./start.sh tunnel-fresh — restart local stack + tunnel (dev only)"
     echo "  ./start.sh export-pages — export posts/media for GitHub Pages"
     echo "  ./start.sh publish-setup — ngrok + .env for live publishing"
     ;;

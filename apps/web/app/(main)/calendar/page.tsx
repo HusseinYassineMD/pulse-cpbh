@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, CheckCircle2, Radio, Zap, Trash2 } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, Radio, Trash2 } from "lucide-react";
 import { format, isPast, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { PlatformBadges } from "@/components/ui/platform-badges";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { ScheduleItem } from "@/lib/schedule-types";
+import { postPageHref } from "@/lib/post-url";
+import type { Post } from "@/lib/types";
 import { ScheduleMonthView } from "@/components/calendar/schedule-month-view";
 import { BestTimeHeatmap } from "@/components/scheduling/best-time-heatmap";
 import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
@@ -17,7 +20,9 @@ import { ModalSheet } from "@/components/ui/modal-sheet";
 
 type ScheduleView = "queue" | "calendar";
 
-export default function CalendarPage() {
+function CalendarPageInner() {
+  const searchParams = useSearchParams();
+  const highlightPostId = searchParams.get("post")?.trim() || "";
   const queryClient = useQueryClient();
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -30,6 +35,23 @@ export default function CalendarPage() {
     queryKey: ["schedule"],
     queryFn: () => api.schedule.list(),
   });
+
+  const { data: approvedData, isLoading: approvedLoading } = useQuery({
+    queryKey: ["posts", "approved-for-schedule"],
+    queryFn: () => api.posts.list({ status: "approved", limit: 50 }),
+  });
+  const needsTime: Post[] = approvedData?.items ?? [];
+
+  useEffect(() => {
+    if (!highlightPostId || needsTime.length === 0) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(`schedule-pick-${highlightPostId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [highlightPostId, needsTime.length]);
 
   const cancel = useMutation({
     mutationFn: ({ id, revert }: { id: string; revert: boolean }) =>
@@ -70,22 +92,6 @@ export default function CalendarPage() {
     },
   });
 
-  const publishNow = useMutation({
-    mutationFn: (item: ScheduleItem) =>
-      api.schedule.publishNow(item.post_id, item.platform_targets),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule"] });
-      queryClient.invalidateQueries({ queryKey: ["plan"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      setMsg("Published — check History below");
-      setTimeout(() => setMsg(""), 4000);
-    },
-    onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "Publish failed");
-      setTimeout(() => setError(""), 5000);
-    },
-  });
-
   const upcoming = items?.filter((i) => i.status === "pending") ?? [];
   const past = items?.filter((i) => i.status !== "pending") ?? [];
 
@@ -114,7 +120,7 @@ export default function CalendarPage() {
           </h1>
           <p className="text-muted-foreground mt-2 flex items-center gap-2">
             <Radio className="w-3.5 h-3.5 text-teal animate-pulse" />
-            Finish in Plan, publish here · remove anytime to revert to Plan
+            Approve in Review → pick a date here → then it appears in Upcoming
           </p>
         </div>
       </div>
@@ -165,6 +171,28 @@ export default function CalendarPage() {
 
       {view === "queue" && (
       <>
+      {!approvedLoading && needsTime.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xs font-bold text-teal uppercase tracking-widest">Pick a date (approved)</h2>
+          {needsTime.map((post) => (
+            <Link
+              key={post.id}
+              id={post.id === highlightPostId ? `schedule-pick-${post.id}` : undefined}
+              href={postPageHref(post.id, "schedule")}
+              className={`pulse-card block p-5 transition-colors ${
+                post.id === highlightPostId ? "border-2 border-teal/40 bg-teal/[0.04]" : "hover:border-teal/25"
+              }`}
+            >
+              <p className="font-semibold truncate">{post.title}</p>
+              <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                {post.variants[0]?.caption || "No caption"}
+              </p>
+              <p className="text-xs text-teal font-medium mt-2">Choose platforms & time →</p>
+            </Link>
+          ))}
+        </section>
+      )}
+
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="pulse-card-hover p-6 flex items-center gap-4 bg-gradient-to-br from-secondary/80 to-card">
           <div className="w-14 h-14 rounded-2xl bg-cyan/15 flex items-center justify-center">
@@ -194,33 +222,31 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {!isLoading && upcoming.length === 0 && past.length === 0 && (
+      {!isLoading && !approvedLoading && upcoming.length === 0 && past.length === 0 && needsTime.length === 0 && (
         <div className="pulse-card p-16 text-center">
           <Calendar className="w-12 h-12 mx-auto text-gray-200 mb-4" />
           <p className="text-muted-foreground">
-            Nothing scheduled yet.{" "}
-            <Link href="/plan" className="text-primary hover:underline font-semibold">
-              Approve ideas in Plan
+            Nothing here yet. Approve drafts in{" "}
+            <Link href="/review" className="text-primary hover:underline font-semibold">
+              Review
             </Link>
-            , then use <strong>Send to schedule</strong> from the work queue.
+            , then pick a date in the list above.
           </p>
         </div>
       )}
 
       {upcoming.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ready to publish</h2>
+          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Upcoming</h2>
           {upcoming.map((item) => (
             <ScheduleRow
               key={item.id}
               item={item}
               onRemove={() => setRemoveTarget(item)}
-              onPublish={() => publishNow.mutate(item)}
               onReschedule={() => {
                 setRescheduleTarget(item);
                 setRescheduleAt(format(parseISO(item.scheduled_at), "yyyy-MM-dd'T'HH:mm"));
               }}
-              publishing={publishNow.isPending}
             />
           ))}
         </section>
@@ -333,19 +359,23 @@ export default function CalendarPage() {
   );
 }
 
+export default function CalendarPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-muted-foreground p-6">Loading schedule…</p>}>
+      <CalendarPageInner />
+    </Suspense>
+  );
+}
+
 function ScheduleRow({
   item,
   onRemove,
-  onPublish,
   onReschedule,
-  publishing,
   muted,
 }: {
   item: ScheduleItem;
   onRemove?: () => void;
-  onPublish?: () => void;
   onReschedule?: () => void;
-  publishing?: boolean;
   muted?: boolean;
 }) {
   const dt = parseISO(item.scheduled_at);
@@ -381,16 +411,6 @@ function ScheduleRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 shrink-0">
-        {onPublish && item.status === "pending" && (
-          <button
-            onClick={onPublish}
-            disabled={publishing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-60 min-h-[40px]"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            {publishing ? "Publishing…" : "Publish now"}
-          </button>
-        )}
         <StatusBadge status={overdue ? "pending" : item.status} />
         {overdue && (
           <span className="text-[10px] font-bold uppercase text-amber-600">overdue</span>

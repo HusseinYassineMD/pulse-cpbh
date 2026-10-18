@@ -170,41 +170,10 @@ export function localDatetimeFromHeatmapCell(dayIdx: number, hour: number): stri
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export const CONTENT_IDEA_PROMPTS = [
-  {
-    title: "APOE4 & exercise myth-bust",
-    theme: "Exercise",
-    hook: "What APOE4 carriers should know about movement before symptoms appear.",
-    deliverable: "post" as const,
-  },
-  {
-    title: "Sleep & brain clearance",
-    theme: "Sleep",
-    hook: "How sleep supports glymphatic clearance — patient-friendly explainer.",
-    deliverable: "story" as const,
-  },
-  {
-    title: "MIND diet quick wins",
-    theme: "Nutrition",
-    hook: "Three grocery swaps that support cognitive health this week.",
-    deliverable: "caption" as const,
-  },
-  {
-    title: "Prevention clinic spotlight",
-    theme: "Newsletter",
-    hook: "Who should consider a personalized brain health evaluation at CPBH?",
-    deliverable: "newsletter" as const,
-  },
-  {
-    title: "Social connection & cognition",
-    theme: "Social",
-    hook: "Loneliness and dementia risk — actionable community tips.",
-    deliverable: "post" as const,
-  },
-  {
-    title: "Heart-brain axis primer",
-    theme: "Heart-brain",
-    hook: "Why vascular health matters for Alzheimer's prevention.",
-    deliverable: "patient_handout" as const,
-  },
-];
+/** User-added ideas only — no bundled starters. */
+export const CONTENT_IDEA_PROMPTS: {
+  title: string;
+  theme: string;
+  hook: string;
+  deliverable: "post" | "story" | "caption" | "newsletter" | "patient_handout";
+}[] = [];

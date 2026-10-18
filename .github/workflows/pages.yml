@@ -27,10 +27,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Export full trend snapshot (Python RSS — used as live fallback)
-        working-directory: apps/api
-        run: pip install -r requirements.txt && python scripts/export_trends.py
-
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

@@ -15,6 +15,7 @@ __pycache__/
 .env.test
 !.env.example
 .pulse-team-url
+TEAM-LINK.txt
 
 # Local credentials / keys
 credentials.json

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, RotateCcw } from "lucide-react";
+import { ArrowRight, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
@@ -12,6 +13,7 @@ import { postPageHref } from "@/lib/post-url";
 import type { Post } from "@/lib/types";
 
 export default function ReviewQueuePage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -35,32 +37,45 @@ export default function ReviewQueuePage() {
 
   const approve = useMutation({
     mutationFn: (id: string) => api.posts.approve(id),
-    onSuccess: () => {
+    onSuccess: (_post, id) => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
-      setMsg("Approved — open the post to pick a date.");
-      setTimeout(() => setMsg(""), 5000);
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      router.push(`/calendar?post=${encodeURIComponent(id)}`);
     },
     onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not approve"),
   });
 
-  const returnDraft = useMutation({
-    mutationFn: (id: string) => api.posts.returnToStudent(id),
+  const remove = useMutation({
+    mutationFn: (id: string) => api.posts.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
-      setMsg("Sent back to the student.");
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setMsg("Draft deleted.");
       setTimeout(() => setMsg(""), 4000);
     },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not update"),
+    onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not delete"),
   });
 
   const queue = data?.queue ?? [];
   const readyToSchedule = data?.readyToSchedule ?? [];
 
+  function confirmDelete(post: Post) {
+    if (
+      !window.confirm(
+        `Delete "${post.title}" permanently? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    remove.mutate(post.id);
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-10 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold">Review drafts</h1>
-        <p className="text-sm text-muted-foreground mt-1">Open a draft to edit, then approve and schedule.</p>
+        <p className="text-sm text-muted-foreground mt-1">Edit, approve for schedule, or delete.</p>
       </div>
 
       {msg && <p className="text-sm text-teal-900 bg-teal/10 border border-teal/25 px-4 py-2.5 rounded-xl">{msg}</p>}
@@ -71,7 +86,9 @@ export default function ReviewQueuePage() {
       {!isLoading && queue.length === 0 && (
         <div className="pulse-card p-8 text-center space-y-2">
           <p className="font-medium">No drafts right now</p>
-          <p className="text-sm text-muted-foreground">When students send drafts, they show up here.</p>
+          <p className="text-sm text-muted-foreground">
+            When students send drafts on the <strong>same team link</strong> as this page, they show up here.
+          </p>
         </div>
       )}
 
@@ -113,16 +130,16 @@ export default function ReviewQueuePage() {
                   disabled={approve.isPending}
                   className="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl border border-teal/30 bg-teal/10 text-teal text-sm font-semibold"
                 >
-                  Approve
+                  Approve → Schedule
                 </button>
                 <button
                   type="button"
-                  onClick={() => returnDraft.mutate(post.id)}
-                  disabled={returnDraft.isPending}
-                  className="inline-flex items-center justify-center gap-1 px-4 py-3 rounded-xl text-sm text-muted-foreground hover:bg-secondary"
+                  onClick={() => confirmDelete(post)}
+                  disabled={remove.isPending}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  Send back
+                  <Trash2 className="w-4 h-4" />
+                  Delete
                 </button>
               </div>
             </article>
@@ -132,17 +149,11 @@ export default function ReviewQueuePage() {
 
       {readyToSchedule.length > 0 && (
         <section className="space-y-2 pt-4 border-t border-border">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Ready to schedule</h2>
-          {readyToSchedule.map((post) => (
-            <Link
-              key={post.id}
-              href={postPageHref(post.id, "schedule")}
-              className="pulse-card block p-4 hover:border-teal/25"
-            >
-              <p className="font-medium truncate">{post.title}</p>
-              <p className="text-xs text-teal mt-1">Pick date & platforms →</p>
-            </Link>
-          ))}
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">On Schedule page</h2>
+          <p className="text-xs text-muted-foreground">
+            These are approved — open <Link href="/calendar" className="text-teal font-medium hover:underline">Schedule</Link>{" "}
+            to pick a date.
+          </p>
         </section>
       )}
     </div>
