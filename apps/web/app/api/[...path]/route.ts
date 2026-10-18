@@ -2,18 +2,49 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
+/** Hosted Pulse API (Render blueprint service name). */
+const RENDER_API_DEFAULT = "https://pulse-cpbh-api.onrender.com";
+
 function upstreamBase(): string {
-  let raw = (process.env.API_URL || "http://127.0.0.1:8010").trim().replace(/\/$/, "");
+  let raw = (process.env.API_URL || "").trim();
+  if (!raw && process.env.RENDER) {
+    raw = RENDER_API_DEFAULT;
+  }
+  if (!raw) {
+    raw = "http://127.0.0.1:8010";
+  }
+  raw = raw.replace(/\/$/, "");
   if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
     raw = `https://${raw}`;
   }
   return raw.replace(/\/api\/v1$/i, "");
 }
 
+async function fetchUpstream(url: string, init: RequestInit): Promise<Response> {
+  const attempts = process.env.RENDER ? 4 : 1;
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetch(url, {
+        ...init,
+        cache: "no-store",
+        signal: AbortSignal.timeout(120_000),
+      });
+    } catch (err) {
+      lastError = err;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 8000));
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response> {
   const suffix = pathSegments.join("/");
   const incoming = new URL(req.url);
-  const target = `${upstreamBase()}/api/v1/${suffix}${incoming.search}`;
+  const base = upstreamBase();
+  const target = `${base}/api/v1/${suffix}${incoming.search}`;
 
   const headers = new Headers();
   const auth = req.headers.get("authorization");
@@ -29,11 +60,10 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
   }
 
   try {
-    const res = await fetch(target, {
+    const res = await fetchUpstream(target, {
       method: req.method,
       headers,
       body,
-      cache: "no-store",
     });
     return new Response(res.body, {
       status: res.status,
@@ -44,8 +74,8 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
     const message = err instanceof Error ? err.message : "Upstream request failed";
     return Response.json(
       {
-        detail: `Could not reach Pulse API (${message}). Check API_URL on pulse-cpbh-web.`,
-        upstream: upstreamBase(),
+        detail: `Could not reach Pulse API (${message}). Set API_URL=https://pulse-cpbh-api.onrender.com on pulse-cpbh-web and redeploy.`,
+        upstream: base,
       },
       { status: 502 }
     );
