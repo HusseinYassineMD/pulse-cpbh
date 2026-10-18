@@ -61,14 +61,13 @@ services:
     repo: https://github.com/HusseinYassineMD/pulse-cpbh
     branch: main
     rootDir: apps/web
-    buildCommand: npm ci && npm run build
+    # Install devDependencies for next build (NODE_ENV=production would skip them)
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start -- -p $PORT
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: "20"
-      - key: NODE_ENV
-        value: production
       - key: NEXT_PUBLIC_STATIC_MODE
         value: "false"
       - key: API_URL
