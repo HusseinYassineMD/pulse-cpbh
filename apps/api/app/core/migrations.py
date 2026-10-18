@@ -1,4 +1,7 @@
-"""Lightweight SQLite column migrations for local dev."""
+"""Lightweight SQLite column migrations for local dev (legacy DBs).
+
+On PostgreSQL (Render), schema comes from SQLAlchemy models via create_all — PRAGMA is SQLite-only.
+"""
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -6,8 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 async def run_migrations(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
-        await conn.run_sync(_migrate_plan)
-        await conn.run_sync(_migrate_stories)
+        await conn.run_sync(_run_sqlite_migrations)
+
+
+def _run_sqlite_migrations(conn) -> None:
+    if conn.dialect.name != "sqlite":
+        return
+    _migrate_plan(conn)
+    _migrate_stories(conn)
 
 
 def _migrate_stories(conn) -> None:
