@@ -172,6 +172,7 @@ case "$cmd" in
   export-pages) export_pages ;;
   publish-setup) bash "$ROOT/scripts/setup-live-publish.sh" ;;
   host) bash "$ROOT/scripts/open-render-blueprint.sh" ;;
+  host-all) bash "$ROOT/scripts/complete-host-setup.sh" ;;
   tunnel) bash "$ROOT/scripts/host-local-tunnel.sh" ;;
   *)
     echo "Usage:"

@@ -1,58 +1,84 @@
 #!/usr/bin/env bash
-# Public URL to your local Pulse (shared SQLite DB). Keep this terminal open.
+# Public URL → local Pulse (shared SQLite). Keeps running until Ctrl+C.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 PULSE_WEB_PORT="${PULSE_WEB_PORT:-3010}"
 PULSE_API_PORT="${PULSE_API_PORT:-8010}"
+URL_FILE="$ROOT/.pulse-team-url"
+LOG_DIR="${TMPDIR:-/tmp}/pulse-host"
+mkdir -p "$LOG_DIR"
 
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "Install cloudflared: brew install cloudflared"
   exit 1
 fi
 
-echo "Starting Pulse (API + web)…"
-"$ROOT/start.sh" dev &
-PULSE_PID=$!
+kill_stale() {
+  lsof -ti :"$PULSE_WEB_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+  lsof -ti :"$PULSE_API_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+  pkill -f "cloudflared tunnel --url http://127.0.0.1:${PULSE_WEB_PORT}" 2>/dev/null || true
+  sleep 1
+}
+
+kill_stale
+
+echo "Starting Pulse API + web (production build, logs: $LOG_DIR)…"
+"$ROOT/start.sh" stable >>"$LOG_DIR/pulse.log" 2>&1 &
+DEV_PID=$!
 
 cleanup() {
-  kill "$PULSE_PID" 2>/dev/null || true
+  echo ""
+  echo "Stopping Pulse and tunnel…"
+  kill "$DEV_PID" 2>/dev/null || true
+  pkill -P "$DEV_PID" 2>/dev/null || true
   pkill -f "cloudflared tunnel --url http://127.0.0.1:${PULSE_WEB_PORT}" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
-echo "Waiting for app on :${PULSE_WEB_PORT}…"
-for i in $(seq 1 90); do
-  if curl -sf "http://127.0.0.1:${PULSE_WEB_PORT}/" >/dev/null 2>&1; then
-    break
-  fi
+echo "Waiting for API…"
+for _ in $(seq 1 60); do
+  curl -sf "http://127.0.0.1:${PULSE_API_PORT}/health" >/dev/null 2>&1 && break
+  sleep 1
+done
+
+echo "Waiting for web…"
+for _ in $(seq 1 90); do
+  curl -sf "http://127.0.0.1:${PULSE_WEB_PORT}/" >/dev/null 2>&1 && break
   sleep 2
 done
 
-LOG=/tmp/pulse-cf-web.log
-pkill -f "cloudflared tunnel --url http://127.0.0.1:${PULSE_WEB_PORT}" 2>/dev/null || true
-cloudflared tunnel --url "http://127.0.0.1:${PULSE_WEB_PORT}" >"$LOG" 2>&1 &
-sleep 4
-PUBLIC=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$LOG" | head -1 || true)
+CF_LOG="$LOG_DIR/cloudflared.log"
+cloudflared tunnel --url "http://127.0.0.1:${PULSE_WEB_PORT}" >"$CF_LOG" 2>&1 &
+CF_PID=$!
+
+PUBLIC=""
+for _ in $(seq 1 30); do
+  PUBLIC=$(grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" | head -1 || true)
+  [ -n "$PUBLIC" ] && break
+  sleep 1
+done
 
 if [ -z "$PUBLIC" ]; then
-  echo "Tunnel failed — see $LOG"
-  tail -20 "$LOG"
-  wait "$PULSE_PID"
+  echo "Tunnel failed. See $CF_LOG"
+  tail -30 "$CF_LOG"
   exit 1
 fi
 
+printf '%s\n' "$PUBLIC" >"$URL_FILE"
+
 echo ""
 echo "══════════════════════════════════════════════════════════"
-echo "  TEAM APP (shared database on this computer)"
+echo "  TEAM APP (shared database on this Mac)"
 echo "  Students:  ${PUBLIC}/submit"
 echo "  Review:    ${PUBLIC}/review"
 echo "  Schedule:  ${PUBLIC}/calendar"
 echo ""
-echo "  Leave this terminal open. For 24/7 hosting use Render"
-echo "  (./scripts/open-render-blueprint.sh)"
+echo "  Saved to:  .pulse-team-url"
+echo "  24/7 host: ./start.sh host  (Render Blueprint in browser)"
+echo "  Leave this running — Ctrl+C to stop"
 echo "══════════════════════════════════════════════════════════"
 echo ""
 
-wait "$PULSE_PID"
+wait "$CF_PID"
