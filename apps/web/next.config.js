@@ -22,18 +22,7 @@ const nextConfig = {
   assetPrefix: isPages ? `${basePath}/` : undefined,
   trailingSlash: isPages,
   images: { unoptimized: true },
-  ...(isPages
-    ? {}
-    : {
-        async rewrites() {
-          return [
-            {
-              source: "/api/:path*",
-              destination: `${apiOrigin}/api/v1/:path*`,
-            },
-          ];
-        },
-      }),
+  // /api/* is proxied at runtime in app/api/[...path]/route.ts (Render API_URL is not always known at build time).
 };
 
 module.exports = nextConfig;
