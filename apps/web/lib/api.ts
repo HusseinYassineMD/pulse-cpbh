@@ -58,7 +58,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(typeof window !== "undefined" ? 90000 : 15000),
   });
 
   if (!response.ok) {
@@ -82,7 +82,7 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
     method,
     body: formData,
     headers,
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(90000),
   });
 
   if (!response.ok) {

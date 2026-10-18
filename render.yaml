@@ -71,7 +71,4 @@ services:
       - key: NEXT_PUBLIC_STATIC_MODE
         value: "false"
       - key: API_URL
-        fromService:
-          type: web
-          name: pulse-cpbh-api
-          property: host
+        value: https://pulse-cpbh-api.onrender.com

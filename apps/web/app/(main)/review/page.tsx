@@ -18,7 +18,7 @@ export default function ReviewQueuePage() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["posts", "review-queue"],
     queryFn: async () => {
       const [staged, inReview, approved] = await Promise.all([
@@ -82,6 +82,14 @@ export default function ReviewQueuePage() {
       {err && <p className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl">{err}</p>}
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {isError && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl">
+          Could not load drafts — {loadError instanceof ApiError ? loadError.message : "check connection"}.
+          <button type="button" className="ml-2 underline font-medium" onClick={() => refetch()}>
+            Retry
+          </button>
+        </p>
+      )}
 
       {!isLoading && queue.length === 0 && (
         <div className="pulse-card p-8 text-center space-y-2">
