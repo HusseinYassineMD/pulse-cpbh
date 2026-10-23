@@ -404,7 +404,12 @@ export const staticApi = {
         title,
         status: "staged",
         post_creator_id: null,
-        source_config: { type: "student_draft", submitted_by, studio_source: false },
+        source_config: {
+          type: "student_draft",
+          ticket_id: `CPBH-${new Date().toISOString().slice(2, 10).replace(/-/g, "")}-${Math.random().toString(16).slice(2, 6).toUpperCase()}`,
+          submitted_by,
+          studio_source: false,
+        },
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         variants: platforms.map((platform) => ({
@@ -1182,5 +1187,20 @@ export const staticApi = {
       const { scanBrainHealthTrends } = await import("./trends-scan");
       return scanBrainHealthTrends(params?.limit ?? 16, { force: params?.force });
     },
+  },
+
+  ideation: {
+    captions: async (data: { title: string; source_text: string }) => {
+      const snippet = data.source_text.trim().slice(0, 400);
+      const base = `${data.title}\n\n${snippet}`;
+      return {
+        instagram: base.slice(0, 280),
+        facebook: base.slice(0, 600),
+        linkedin: base.slice(0, 1200),
+      };
+    },
+    chat: async (data: { message: string }) => ({
+      reply: `Preview mode: try "${data.message.slice(0, 80)}" on the hosted team app for full AI ideation chat.`,
+    }),
   },
 };

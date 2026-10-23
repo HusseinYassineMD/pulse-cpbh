@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Calendar, ClipboardCheck, Send } from "lucide-react";
+import { Calendar, ClipboardCheck, Lightbulb, Send } from "lucide-react";
 
 export function WorkflowHome() {
   return (
@@ -9,11 +9,27 @@ export function WorkflowHome() {
       <div className="text-center space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">CPBH social posts</h1>
         <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-          Send drafts, review them, then pick when to post. Nothing goes live until the lead approves and schedules.
+          Ideate → send draft → lead reviews &amp; schedules. Nothing goes live until Tiffany approves a time and platform.
         </p>
       </div>
 
       <div className="space-y-3">
+        <Link
+          href="/ideate"
+          className="pulse-card block p-6 sm:p-7 hover:border-primary/20 transition-colors"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <Lightbulb className="w-6 h-6" />
+            </div>
+            <div className="min-w-0 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 1</p>
+              <p className="text-lg font-bold mt-0.5">Ideation</p>
+              <p className="text-sm text-muted-foreground mt-1">Hot topics, caption drafts, and idea chat.</p>
+            </div>
+          </div>
+        </Link>
+
         <Link
           href="/submit"
           className="pulse-card block p-6 sm:p-7 border-2 border-teal/25 bg-teal/[0.04] hover:border-teal/40 transition-colors"
@@ -23,9 +39,9 @@ export function WorkflowHome() {
               <Send className="w-6 h-6" />
             </div>
             <div className="min-w-0 text-left">
-              <p className="text-xs font-semibold uppercase tracking-wide text-teal">Students</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-teal">Step 2</p>
               <p className="text-lg font-bold mt-0.5">Send a draft</p>
-              <p className="text-sm text-muted-foreground mt-1">Your name, caption, and photos — one form.</p>
+              <p className="text-sm text-muted-foreground mt-1">Caption, Canva/Drive link, sources — get a ticket ID.</p>
             </div>
           </div>
         </Link>
@@ -39,9 +55,9 @@ export function WorkflowHome() {
               <ClipboardCheck className="w-6 h-6" />
             </div>
             <div className="min-w-0 text-left">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Team lead</p>
-              <p className="text-lg font-bold mt-0.5">Review drafts</p>
-              <p className="text-sm text-muted-foreground mt-1">Edit captions, approve, then schedule.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 3 · Lead</p>
+              <p className="text-lg font-bold mt-0.5">Review &amp; schedule</p>
+              <p className="text-sm text-muted-foreground mt-1">Approve with time &amp; platforms, send back, or delete.</p>
             </div>
           </div>
         </Link>

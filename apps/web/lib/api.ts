@@ -462,6 +462,23 @@ const liveApi = {
       return request<import("./trends-types").TrendScanResponse>(`/trends/scan${qs ? `?${qs}` : ""}`);
     },
   },
+
+  ideation: {
+    captions: (data: { title: string; source_text: string }) =>
+      request<{ instagram: string; facebook: string; linkedin: string }>("/ideation/captions", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    chat: (data: {
+      message: string;
+      history?: { role: string; content: string }[];
+      context?: string;
+    }) =>
+      request<{ reply: string }>("/ideation/chat", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
 };
 
 function resolveApi() {

@@ -7,6 +7,12 @@ export function isReviewQueuePost(post: Post): boolean {
   return REVIEW_QUEUE_STATUSES.includes(post.status);
 }
 
+export function isStudentDraft(post: Post): boolean {
+  const cfg = post.source_config;
+  if (!cfg || typeof cfg !== "object") return false;
+  return (cfg as { type?: string }).type === "student_draft";
+}
+
 export function submittedBy(post: Post): string | null {
   const cfg = post.source_config;
   if (!cfg || typeof cfg !== "object") return null;

@@ -1,5 +1,6 @@
 """Post CRUD and lifecycle routes."""
 
+import json
 import tempfile
 from pathlib import Path
 from uuid import UUID
@@ -24,14 +25,46 @@ from app.schemas import (
 from app.services.content import ContentService
 from app.services.post_queries import load_post_for_response
 from app.services.serialize import post_to_response
+from app.services.storage import save_post_source_file
 from app.services.student_draft import (
     create_student_draft,
     is_student_draft,
     list_returned_for_student,
     resubmit_student_draft,
 )
+from app.services.student_review_email import notify_new_student_draft
 
 ALLOWED_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
+ALLOWED_SOURCE_EXT = ALLOWED_IMAGE_EXT | {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt"}
+SOURCE_KINDS = {
+    "substack",
+    "journal_article",
+    "patient_handout",
+    "yassinelab_substack",
+    "other",
+}
+
+
+def _parse_link_sources(sources_json: str) -> list[dict]:
+    try:
+        raw = json.loads(sources_json or "[]")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail="Invalid sources_json") from e
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="sources_json must be a JSON array")
+    out: list[dict] = []
+    for entry in raw[:20]:
+        if not isinstance(entry, dict):
+            continue
+        kind = str(entry.get("kind") or "other").strip().lower()
+        if kind not in SOURCE_KINDS:
+            kind = "other"
+        label = str(entry.get("label") or "").strip() or kind.replace("_", " ").title()
+        url = str(entry.get("url") or "").strip()
+        if not url:
+            continue
+        out.append({"kind": kind, "label": label, "url": url})
+    return out
 
 
 class ReturnToStudentBody(BaseModel):
@@ -194,12 +227,28 @@ async def submit_student_draft(
     unified_caption: str | None = Form(None),
     images: list[UploadFile] = File(default=[]),
     platforms: list[str] = Form(default=[]),
+    deliverable: str = Form("post"),
+    canva_link: str = Form(...),
+    canva_slide_numbers: str | None = Form(None),
+    cta_link: str | None = Form(None),
+    link_in_bio: str | None = Form(None),
+    sources_json: str = Form("[]"),
+    source_files: list[UploadFile] = File(default=[]),
+    source_file_kinds: list[str] = Form(default=[]),
+    source_file_labels: list[str] = Form(default=[]),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not canva_link.strip():
+        raise HTTPException(status_code=400, detail="Content link is required (Canva or Google Drive)")
+    if deliverable.strip().lower() not in ("post", "story"):
+        raise HTTPException(status_code=400, detail="Deliverable must be post or story")
+
     platform_set = _platforms_from_form(platforms)
+    link_sources = _parse_link_sources(sources_json)
 
     tmp_paths: list[Path] = []
+    tmp_sources: list[tuple[Path, str, str]] = []
     try:
         for upload in images[:10]:
             if not upload.content_type or not upload.content_type.startswith("image/"):
@@ -210,6 +259,21 @@ async def submit_student_draft(
             with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
                 tmp.write(await upload.read())
                 tmp_paths.append(Path(tmp.name))
+
+        for i, upload in enumerate(source_files[:10]):
+            ext = Path(upload.filename or "source.pdf").suffix.lower()
+            if ext not in ALLOWED_SOURCE_EXT:
+                continue
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(await upload.read())
+                kind = (source_file_kinds[i] if i < len(source_file_kinds) else "other").strip().lower()
+                if kind not in SOURCE_KINDS:
+                    kind = "other"
+                label = (source_file_labels[i] if i < len(source_file_labels) else "").strip()
+                if not label:
+                    label = upload.filename or "Source file"
+                tmp_sources.append((Path(tmp.name), kind, label))
+
         try:
             post = await create_student_draft(
                 db,
@@ -223,11 +287,34 @@ async def submit_student_draft(
                 unified_caption=unified_caption,
                 image_paths=tmp_paths or None,
                 platforms=platform_set,
+                deliverable=deliverable.strip().lower(),
+                canva_link=canva_link,
+                canva_slide_numbers=canva_slide_numbers,
+                cta_link=cta_link,
+                link_in_bio=link_in_bio,
+                source_materials=link_sources,
             )
+            cfg = dict(post.source_config or {})
+            materials = list(cfg.get("source_materials") or [])
+            for src_path, kind, label in tmp_sources:
+                stored = save_post_source_file(post.id, src_path, label)
+                materials.append(
+                    {
+                        "kind": kind,
+                        "label": label,
+                        "filename": stored,
+                    }
+                )
+            cfg["source_materials"] = materials
+            post.source_config = cfg
+            await db.flush()
+            await notify_new_student_draft(post)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
     finally:
         for p in tmp_paths:
+            p.unlink(missing_ok=True)
+        for p, _, _ in tmp_sources:
             p.unlink(missing_ok=True)
 
     post = await load_post_for_response(db, post.id)

@@ -1,6 +1,6 @@
 # Pulse
 
-CPBH social workflow: students **submit** → lead **reviews** → **schedule** (shared database).
+CPBH social workflow: **ideation** → **submit** → lead **review & schedule** (shared database). See [WORKFLOWS.md](./WORKFLOWS.md).
 
 ## Team app (24/7 — no Mac)
 
@@ -8,8 +8,8 @@ The real app for your team runs on **Render**, not on your laptop.
 
 1. **One-time:** run `./start.sh host` and in the browser connect **HusseinYassineMD/pulse-cpbh** → **Apply** the blueprint ([details](HOST_RENDER.md)).
 2. When **pulse-cpbh-web** is **Live**, share:
-   - Students: `https://<your-web-host>/submit`
-   - Lead: `https://<your-web-host>/review`
+   - Students: `https://<your-web-host>/ideate` and `/submit`
+   - Lead: `https://<your-web-host>/review` and `/calendar`
 3. Optional: set GitHub Actions variable **`HOSTED_APP_URL`** to that web URL so the GitHub Pages preview points students to Render.
 
 You can **close your Mac** after that. Render keeps API + Postgres + web running (free tier may sleep after ~15 min idle; first visit wakes in ~30–60s).

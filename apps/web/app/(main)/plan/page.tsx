@@ -25,6 +25,7 @@ import {
   type PlanFormState,
 } from "@/components/plan/plan-idea-form";
 import { PlanModal } from "@/components/plan/plan-modal";
+import { TrendScanner } from "@/components/ideas/trend-scanner";
 import {
   DEFAULT_PLAN_TEAM,
   isBoardStatus,
@@ -578,60 +579,65 @@ function PlanContent() {
       )}
 
       {!isLoading && viewMode === "board" && (
-        <>
-          {/* Desktop: side-by-side columns */}
-          <div className="hidden md:grid md:grid-cols-2 gap-5">
-            <BoardColumn
-              title="Parking lot"
-              description="New ideas start here"
-              icon={Lightbulb}
-              count={parkingLot.length}
-              empty="No ideas yet — add one to get started."
-              ideas={parkingLot}
-              showMoveToQueue
-              {...sectionProps}
-            />
-            <BoardColumn
-              title="Work queue"
-              description="Approved & in production — send to Schedule when ready"
-              icon={ListTodo}
-              count={workQueue.length}
-              empty="Approve an idea from the parking lot to begin."
-              ideas={workQueue}
-              showSendToSchedule
-              {...sectionProps}
-            />
-          </div>
-
-          {/* Mobile: one panel at a time */}
-          <div className="md:hidden">
-            {boardPanel === "parking" ? (
+        <div className="flex flex-col xl:flex-row gap-5 items-start">
+          <aside className="w-full xl:w-72 shrink-0 xl:sticky xl:top-24">
+            <TrendScanner layout="sidebar" />
+          </aside>
+          <div className="flex-1 min-w-0 w-full space-y-5">
+            {/* Desktop: side-by-side columns */}
+            <div className="hidden md:grid md:grid-cols-2 gap-5">
               <BoardColumn
                 title="Parking lot"
                 description="New ideas start here"
                 icon={Lightbulb}
                 count={parkingLot.length}
-                empty="No ideas yet — tap Add idea."
+                empty="No ideas yet — add one or pick a hot topic."
                 ideas={parkingLot}
                 showMoveToQueue
-                compact
                 {...sectionProps}
               />
-            ) : (
               <BoardColumn
                 title="Work queue"
                 description="Approved & in production — send to Schedule when ready"
                 icon={ListTodo}
                 count={workQueue.length}
-                empty="Approve an idea to see it here."
+                empty="Approve an idea from the parking lot to begin."
                 ideas={workQueue}
                 showSendToSchedule
-                compact
                 {...sectionProps}
               />
-            )}
+            </div>
+
+            {/* Mobile: one panel at a time */}
+            <div className="md:hidden">
+              {boardPanel === "parking" ? (
+                <BoardColumn
+                  title="Parking lot"
+                  description="New ideas start here"
+                  icon={Lightbulb}
+                  count={parkingLot.length}
+                  empty="No ideas yet — tap Add idea."
+                  ideas={parkingLot}
+                  showMoveToQueue
+                  compact
+                  {...sectionProps}
+                />
+              ) : (
+                <BoardColumn
+                  title="Work queue"
+                  description="Approved & in production — send to Schedule when ready"
+                  icon={ListTodo}
+                  count={workQueue.length}
+                  empty="Approve an idea to see it here."
+                  ideas={workQueue}
+                  showSendToSchedule
+                  compact
+                  {...sectionProps}
+                />
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {!isLoading && viewMode === "list" && (

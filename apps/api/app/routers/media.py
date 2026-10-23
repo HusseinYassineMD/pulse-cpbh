@@ -128,6 +128,35 @@ async def get_plan_source(
     return FileResponse(path, media_type=_guess_media_type(filename), filename=filename)
 
 
+@router.get("/posts/{post_id}/sources/{filename}")
+async def get_post_source_file(
+    post_id: UUID,
+    filename: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    post_check = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
+    post = post_check.scalar_one_or_none()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    import json
+
+    cfg = post.source_config or {}
+    allowed = False
+    for entry in cfg.get("source_materials") or []:
+        if isinstance(entry, dict) and Path(str(entry.get("filename") or "")).name == filename:
+            allowed = True
+            break
+    if not allowed:
+        raise HTTPException(status_code=404, detail="Source file not found")
+
+    path = media_root() / "posts" / str(post_id) / "sources" / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path, media_type=_guess_media_type(filename), filename=filename)
+
+
 @router.get("/{post_id}/{filename}")
 async def get_media(
     post_id: UUID,

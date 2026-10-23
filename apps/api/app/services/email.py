@@ -148,6 +148,26 @@ def _send_via_smtp(settings: Settings, assignee_email: str, subject: str, body: 
         server.send_message(message)
 
 
+async def send_notification_email(to_email: str, subject: str, body: str) -> tuple[bool, str]:
+    """Send a plain-text notification (no compose fallback)."""
+    settings = Settings()
+    resend_result = await _send_via_resend(settings, to_email, subject, body)
+    if resend_result is not None:
+        ok, message = resend_result
+        return ok, message
+
+    if settings.smtp_host and settings.smtp_user and settings.smtp_password:
+        try:
+            await asyncio.to_thread(_send_via_smtp, settings, to_email, subject, body)
+            return True, f"Email sent to {to_email}"
+        except Exception as exc:
+            logger.exception("Notification email via SMTP failed")
+            return False, str(exc)
+
+    logger.info("Notification (no mailer configured)\n  To: %s\n  Subject: %s\n%s", to_email, subject, body)
+    return False, "Email not configured — set RESEND_API_KEY or SMTP in .env"
+
+
 async def send_plan_assignment(idea: ContentIdea, assignee_email: str) -> tuple[bool, str, bool]:
     """Returns (ok, message, use_compose_fallback)."""
     settings = Settings()

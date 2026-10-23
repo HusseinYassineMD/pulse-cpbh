@@ -72,6 +72,27 @@ def delete_plan_source(idea_id: UUID, stored_name: str) -> None:
         path.unlink()
 
 
+def post_sources_dir(post_id: UUID) -> Path:
+    path = post_media_dir(post_id) / "sources"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def save_post_source_file(post_id: UUID, src: Path, original_name: str) -> str:
+    dest_dir = post_sources_dir(post_id)
+    safe = Path(original_name).name.replace(" ", "_")
+    dest = dest_dir / safe
+    if dest.exists():
+        stem = dest.stem
+        suffix = dest.suffix
+        n = 2
+        while dest.exists():
+            dest = dest_dir / f"{stem}_{n}{suffix}"
+            n += 1
+    shutil.copy2(src, dest)
+    return f"sources/{dest.name}"
+
+
 def save_images(post_id: UUID, image_paths: list[Path]) -> list[str]:
     """Copy images into media/posts/{id}/. Returns stored filenames."""
     dest_dir = post_media_dir(post_id)

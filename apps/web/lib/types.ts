@@ -37,10 +37,22 @@ export interface PostSourceConfig {
   studio_source?: boolean;
   source_text?: string;
   /** Student submit flow */
+  ticket_id?: string;
   submitted_by?: string;
   student_notes?: string;
   returned_for_revision?: boolean;
   return_notes?: string;
+  deliverable?: "post" | "story";
+  canva_link?: string;
+  canva_slide_numbers?: string;
+  cta_link?: string;
+  link_in_bio?: string;
+  source_materials?: Array<{
+    kind?: string;
+    label?: string;
+    url?: string;
+    filename?: string;
+  }>;
 }
 
 export interface Post {

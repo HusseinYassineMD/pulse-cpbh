@@ -33,6 +33,7 @@ import { PlatformPreviews } from "@/components/posts/platform-previews";
 import { ContentHealthScore } from "@/components/posts/content-health-score";
 import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { celebrate } from "@/lib/celebrate";
+import { StudentDraftDetails } from "@/components/posts/student-draft-details";
 import { submittedBy } from "@/lib/social-workflow";
 import { isSimpleUi } from "@/lib/simple-ui";
 import { usePostIdContext } from "@/lib/post-id-context";
@@ -374,9 +375,12 @@ export default function PostDetailClient() {
       )}
 
       {submittedBy(post) && (
-        <p className="text-sm text-muted-foreground">
-          Student draft from <span className="font-medium text-foreground">{submittedBy(post)}</span>
-        </p>
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Student draft from <span className="font-medium text-foreground">{submittedBy(post)}</span>
+          </p>
+          <StudentDraftDetails post={post} />
+        </div>
       )}
 
       {!simple && hasContent && post.variants.length > 0 && <ContentHealthScore post={post} />}

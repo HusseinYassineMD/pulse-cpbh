@@ -79,6 +79,10 @@ class Settings(BaseSettings):
     # Plan — team roster as "Name:email,Name:email"
     plan_team: str = ""
 
+    # Student draft review — lead gets first email + reminders until approve
+    review_lead_email: str = ""
+    review_reminder_hours: int = 12
+
     # Email — Resend is tried first (easiest auto-send); SMTP is optional fallback
     resend_api_key: str = ""
     resend_from: str = "Pulse CPBH <onboarding@resend.dev>"

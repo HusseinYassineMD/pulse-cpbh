@@ -407,6 +407,48 @@ class AIService:
         hook = prefix if not from_highlights else f"From our latest research roundup: {prefix}"
         return f"{hook}\n\n{snippet}{tags}"
 
+    async def ideation_brainstorm(
+        self,
+        message: str,
+        *,
+        history: list[dict[str, str]] | None = None,
+        context: str = "",
+    ) -> str:
+        """Reply-only chat for early ideation (no post record)."""
+        if not self.settings.openai_api_key:
+            return (
+                "Here are a few angles to explore: lead with a patient question, tie the topic to "
+                "everyday brain health, and end with a soft CTA to USC CPBH. "
+                "(Add OPENAI_API_KEY on the server for full AI chat.)"
+            )
+
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+        system = (
+            "You are a CPBH social media ideation coach for USC brain health content. "
+            "Help students brainstorm post/story ideas, hooks, plain-language explanations, and ethical "
+            "patient-friendly framing. Be concise and actionable. Do not invent clinical claims. "
+            f"{BRAND_GUIDELINES}"
+        )
+        messages: list[dict[str, str]] = [{"role": "system", "content": system}]
+        if context.strip():
+            messages.append({"role": "user", "content": f"Context they are working from:\n{context[:6000]}"})
+            messages.append({"role": "assistant", "content": "Got it — I'll keep that context in mind."})
+        for turn in history or []:
+            role = turn.get("role", "user")
+            if role not in ("user", "assistant"):
+                continue
+            messages.append({"role": role, "content": str(turn.get("content", ""))[:4000]})
+        messages.append({"role": "user", "content": message[:4000]})
+
+        response = await client.chat.completions.create(
+            model=self.settings.ai_model,
+            messages=messages,
+            temperature=0.7,
+        )
+        return (response.choices[0].message.content or "Try a more specific question about your topic.").strip()
+
 
 _PIPELINE_OUTPUT_INSTRUCTIONS: dict[PlanDeliverable, str] = {
     PlanDeliverable.POST: (

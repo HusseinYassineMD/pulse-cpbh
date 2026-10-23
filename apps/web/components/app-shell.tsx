@@ -46,6 +46,7 @@ const fullNav = [
 
 const simpleNav = [
   { href: "/", label: "Start", icon: Home },
+  { href: "/ideate", label: "Ideation", icon: Lightbulb },
   { href: "/submit", label: "Send draft", icon: Send },
   { href: "/review", label: "Review", icon: ClipboardCheck },
   { href: "/calendar", label: "Schedule", icon: Calendar },
@@ -63,6 +64,7 @@ const mobileNavFull = [
 
 const mobileNavSimple = [
   { href: "/", label: "Start", icon: Home },
+  { href: "/ideate", label: "Ideate", icon: Lightbulb },
   { href: "/submit", label: "Send", icon: Send },
   { href: "/review", label: "Review", icon: ClipboardCheck },
   { href: "/calendar", label: "Schedule", icon: Calendar },
@@ -72,6 +74,7 @@ const DEMO_BANNER_KEY = "pulse-demo-banner-dismissed";
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Home",
+  "/ideate": "Ideation",
   "/studio": "Create",
   "/plan": "Plan",
   "/pipeline": "Pipeline",

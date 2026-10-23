@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
@@ -23,6 +25,19 @@ def _caption_for(body_caption: str, unified: str | None, fallback: str) -> str:
 
 def _normalize_name(name: str) -> str:
     return " ".join(name.strip().lower().split())
+
+
+def make_ticket_id() -> str:
+    """Human-friendly reference for emails and review (e.g. CPBH-251024-A3F9)."""
+    day = datetime.now(timezone.utc).strftime("%y%m%d")
+    suffix = secrets.token_hex(2).upper()
+    return f"CPBH-{day}-{suffix}"
+
+
+def ticket_id(post: Post) -> str | None:
+    cfg = post.source_config or {}
+    tid = str(cfg.get("ticket_id") or "").strip()
+    return tid or None
 
 
 def is_student_draft(post: Post) -> bool:
@@ -48,6 +63,12 @@ async def create_student_draft(
     unified_caption: str | None,
     image_paths: list[Path] | None = None,
     platforms: list[Platform] | None = None,
+    deliverable: str = "post",
+    canva_link: str | None = None,
+    canva_slide_numbers: str | None = None,
+    cta_link: str | None = None,
+    link_in_bio: str | None = None,
+    source_materials: list[dict] | None = None,
 ) -> Post:
     post = Post(
         user_id=user_id,
@@ -55,8 +76,16 @@ async def create_student_draft(
         status=PostStatus.STAGED,
         source_config={
             "type": "student_draft",
+            "ticket_id": make_ticket_id(),
             "submitted_by": submitted_by.strip(),
             "student_notes": (notes or "").strip(),
+            "deliverable": deliverable if deliverable in ("post", "story") else "post",
+            "canva_link": (canva_link or "").strip(),
+            "canva_slide_numbers": (canva_slide_numbers or "").strip(),
+            "cta_link": (cta_link or "").strip(),
+            "link_in_bio": (link_in_bio or "").strip(),
+            "source_materials": source_materials or [],
+            "review_notified_at": datetime.now(timezone.utc).isoformat(),
         },
     )
     db.add(post)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, Sparkles, X } from "lucide-react";
@@ -24,7 +24,12 @@ function writeTrendsOpen(open: boolean) {
   localStorage.setItem(TRENDS_OPEN_KEY, open ? "open" : "closed");
 }
 
-export function TrendScanner() {
+type TrendScannerProps = {
+  /** Left rail on Plan/Ideas — always-visible hot topics list */
+  layout?: "default" | "sidebar";
+};
+
+export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -34,6 +39,7 @@ export function TrendScanner() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [feedProgress, setFeedProgress] = useState<{ done: number; total: number } | null>(null);
+  const sidebarAutoScan = useRef(false);
 
   const scan = useMutation({
     mutationFn: async (force?: boolean) => {
@@ -66,6 +72,13 @@ export function TrendScanner() {
     setExpanded(readTrendsOpen());
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || layout !== "sidebar" || sidebarAutoScan.current) return;
+    sidebarAutoScan.current = true;
+    setFeedProgress({ done: 0, total: 4 });
+    scan.mutate(false);
+  }, [mounted, layout]);
 
   function handleScan() {
     setTrends([]);
@@ -107,6 +120,94 @@ export function TrendScanner() {
   });
 
   if (!mounted) return null;
+
+  if (layout === "sidebar") {
+    return (
+      <section className="pulse-card border border-teal/20 bg-gradient-to-b from-teal/[0.05] to-white overflow-hidden flex flex-col max-h-[min(32rem,70dvh)] lg:max-h-[calc(100dvh-8rem)]">
+        <div className="p-4 border-b border-border/60 space-y-3 shrink-0">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-teal flex items-center gap-1.5">
+                <Radar className="w-3.5 h-3.5" />
+                Hot topics
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Brain-health headlines — add any to the parking lot.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleScan}
+              disabled={scan.isPending}
+              className="p-2 rounded-lg border border-teal/25 text-teal hover:bg-teal/10 disabled:opacity-50 shrink-0"
+              aria-label="Refresh hot topics"
+            >
+              <RefreshCw className={`w-4 h-4 ${scan.isPending ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+          {msg && <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 px-2 py-1.5 rounded-lg">{msg}</p>}
+          {err && <p className="text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1.5 rounded-lg">{err}</p>}
+          {scannedAt && trends.length > 0 && (
+            <p className="text-[10px] text-muted-foreground">
+              {trends.length} topics · {safeFormat(scannedAt)}
+            </p>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-[8rem]">
+          {scan.isPending && trends.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">Scanning sources…</p>
+          )}
+          {!scan.isPending && trends.length === 0 && !err && (
+            <button
+              type="button"
+              onClick={handleScan}
+              className="w-full text-xs font-medium py-2.5 rounded-lg border border-dashed border-teal/30 text-teal hover:bg-teal/5"
+            >
+              Load hot topics
+            </button>
+          )}
+          {trends.map((trend) => (
+            <article key={trend.id} className="rounded-xl border border-border/80 bg-white/80 p-3 space-y-2">
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-[9px] font-semibold uppercase tracking-wide text-teal">{trend.source}</span>
+                <a
+                  href={trend.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary p-0.5"
+                  aria-label="Open article"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+              <h3 className="text-xs font-semibold leading-snug line-clamp-3">{trend.title}</h3>
+              <p className="text-[10px] text-muted-foreground line-clamp-2 italic">{trend.suggested_hook}</p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => addToPlan.mutate(trend)}
+                  disabled={addToPlan.isPending}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-teal/10 text-teal border border-teal/20 hover:bg-teal/15 disabled:opacity-50"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add to Plan
+                </button>
+                <Link
+                  href={`/studio?title=${encodeURIComponent(trend.title.slice(0, 200))}&sourceText=${encodeURIComponent(
+                    [trend.suggested_hook, trend.summary, `Source: ${trend.source}`, trend.url].filter(Boolean).join("\n\n")
+                  )}`}
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium border border-border hover:bg-secondary"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Studio
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   if (!expanded) {
     return (
