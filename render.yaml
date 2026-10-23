@@ -52,6 +52,18 @@ services:
           type: web
           name: pulse-cpbh-api
           property: host
+      - key: WEB_URL
+        fromService:
+          type: web
+          name: pulse-cpbh-web
+          property: host
+      # Set in Render dashboard (never commit real values):
+      - key: REVIEW_LEAD_EMAIL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: REVIEW_REMINDER_HOURS
+        value: "12"
 
   - type: web
     name: pulse-cpbh-web

@@ -29,10 +29,9 @@ def _lead_email() -> str | None:
     return None
 
 
-def _review_url(post_id) -> str:
+def _review_url() -> str:
     settings = get_settings()
-    base = settings.web_url.rstrip("/")
-    return f"{base}/post?id={post_id}"
+    return f"{settings.web_url.rstrip('/')}/review"
 
 
 def _format_sources(cfg: dict) -> str:
@@ -73,7 +72,7 @@ Link in bio: {cfg.get("link_in_bio") or "—"}
 Source material:
 {_format_sources(cfg)}
 
-Open review: {_review_url(post.id)}
+Open review queue: {_review_url()}
 
 Approve and schedule a date in Pulse to stop reminder emails.
 
