@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowRight, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
@@ -19,8 +19,6 @@ export default function ReviewQueuePage() {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [schedulePost, setSchedulePost] = useState<Post | null>(null);
-  const [returnPost, setReturnPost] = useState<Post | null>(null);
-  const [returnNotes, setReturnNotes] = useState("");
 
   const { data, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["posts", "review-queue"],
@@ -48,18 +46,6 @@ export default function ReviewQueuePage() {
     onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not delete"),
   });
 
-  const sendBack = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes: string }) => api.posts.returnToStudent(id, notes),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["posts"] });
-      setReturnPost(null);
-      setReturnNotes("");
-      setMsg("Sent back to student for edits. Reminders paused until they resubmit.");
-      setTimeout(() => setMsg(""), 5000);
-    },
-    onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not send back"),
-  });
-
   const queue = data?.queue ?? [];
 
   function confirmDelete(post: Post) {
@@ -77,8 +63,8 @@ export default function ReviewQueuePage() {
       <div>
         <h1 className="text-2xl font-bold">Review drafts</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Open tickets from students — approve &amp; schedule, send back for edits, or delete. Unfinished tickets email
-          Tiffany every 12 hours.
+          Open tickets from students — approve &amp; schedule, or delete. Unfinished tickets email Tiffany every 12
+          hours.
         </p>
       </div>
 
@@ -129,45 +115,30 @@ export default function ReviewQueuePage() {
                 </div>
               </div>
               <StudentDraftDetails post={post} compact />
-              <div className="flex flex-col gap-2">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Link
-                    href={postPageHref(post.id)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl btn-primary text-sm font-semibold"
-                  >
-                    Open &amp; edit
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setSchedulePost(post)}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl border border-teal/30 bg-teal/10 text-teal text-sm font-semibold"
-                  >
-                    Approve &amp; schedule
-                  </button>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReturnPost(post);
-                      setReturnNotes("");
-                    }}
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl text-sm font-medium border border-border hover:bg-muted/50"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Send back for edits
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => confirmDelete(post)}
-                    disabled={remove.isPending}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    Delete
-                  </button>
-                </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link
+                  href={postPageHref(post.id)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl btn-primary text-sm font-semibold"
+                >
+                  Open &amp; edit
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setSchedulePost(post)}
+                  className="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl border border-teal/30 bg-teal/10 text-teal text-sm font-semibold"
+                >
+                  Approve &amp; schedule
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmDelete(post)}
+                  disabled={remove.isPending}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl text-sm font-medium text-red-600 border border-red-200 hover:bg-red-50 sm:max-w-[140px]"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
               </div>
             </article>
           );
@@ -187,35 +158,6 @@ export default function ReviewQueuePage() {
             setSchedulePost(null);
           }}
         />
-      )}
-
-      {returnPost && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-md rounded-2xl bg-background border border-border shadow-xl p-5 space-y-4">
-            <h2 className="text-lg font-bold">Send back — {draftTicketLabel(returnPost)}</h2>
-            <p className="text-sm text-muted-foreground">Student sees your notes and can resubmit the same ticket.</p>
-            <textarea
-              value={returnNotes}
-              onChange={(e) => setReturnNotes(e.target.value)}
-              rows={4}
-              className="form-input w-full text-sm"
-              placeholder="What should they change?"
-            />
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setReturnPost(null)} className="flex-1 py-3 rounded-xl border border-border text-sm">
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={sendBack.isPending || !returnNotes.trim()}
-                onClick={() => sendBack.mutate({ id: returnPost.id, notes: returnNotes.trim() })}
-                className="flex-1 py-3 rounded-xl btn-primary text-sm font-semibold"
-              >
-                {sendBack.isPending ? "Sending…" : "Send back"}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       <p className="text-center text-xs text-muted-foreground pt-2">

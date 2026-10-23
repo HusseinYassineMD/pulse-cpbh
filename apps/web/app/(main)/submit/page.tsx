@@ -28,7 +28,6 @@ export default function SubmitDraftPage() {
   const [deliverable, setDeliverable] = useState<"post" | "story">("post");
   const [canvaLink, setCanvaLink] = useState("");
   const [canvaSlides, setCanvaSlides] = useState("");
-  const [ctaLink, setCtaLink] = useState("");
   const [linkInBio, setLinkInBio] = useState("");
   const [linkSources, setLinkSources] = useState<SourceMaterialLink[]>([
     { id: newId(), kind: "yassinelab_substack", label: "", url: "" },
@@ -72,7 +71,6 @@ export default function SubmitDraftPage() {
       form.set("deliverable", deliverable);
       form.set("canva_link", canvaLink.trim());
       if (canvaSlides.trim()) form.set("canva_slide_numbers", canvaSlides.trim());
-      if (ctaLink.trim()) form.set("cta_link", ctaLink.trim());
       if (linkInBio.trim()) form.set("link_in_bio", linkInBio.trim());
 
       const sourcesPayload = linkSources
@@ -109,7 +107,6 @@ export default function SubmitDraftPage() {
     setNotes("");
     setCanvaLink("");
     setCanvaSlides("");
-    setCtaLink("");
     setLinkInBio("");
     setLinkSources([{ id: newId(), kind: "yassinelab_substack", label: "", url: "" }]);
     setLastPost(null);
@@ -202,9 +199,7 @@ export default function SubmitDraftPage() {
 
         <fieldset className="block">
           <legend className="text-sm font-medium">Post or story?</legend>
-          <p className="text-xs text-muted-foreground mt-1 mb-2">
-            You still build in Canva either way. Stories use link stickers / “READ here” — add those URLs below.
-          </p>
+          <p className="text-xs text-muted-foreground mt-1 mb-2">You still build in Canva either way.</p>
           <div className="flex gap-2">
             {(["post", "story"] as const).map((d) => {
               const on = deliverable === d;
@@ -269,16 +264,6 @@ export default function SubmitDraftPage() {
               onChange={(e) => setCanvaSlides(e.target.value)}
               className="form-input mt-1.5 w-full text-base py-3"
               placeholder="e.g. slides 3–7"
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">CTA / “READ here” link</span>
-            <input
-              value={ctaLink}
-              onChange={(e) => setCtaLink(e.target.value)}
-              type="url"
-              className="form-input mt-1.5 w-full text-base py-3"
-              placeholder="Where the story or post should send people"
             />
           </label>
           <label className="block">

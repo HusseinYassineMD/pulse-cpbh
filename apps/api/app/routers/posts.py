@@ -5,8 +5,7 @@ import tempfile
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, UploadFile
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -26,12 +25,7 @@ from app.services.content import ContentService
 from app.services.post_queries import load_post_for_response
 from app.services.serialize import post_to_response
 from app.services.storage import save_post_source_file
-from app.services.student_draft import (
-    create_student_draft,
-    is_student_draft,
-    list_returned_for_student,
-    resubmit_student_draft,
-)
+from app.services.student_draft import create_student_draft
 from app.services.student_review_email import notify_new_student_draft
 
 ALLOWED_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
@@ -65,10 +59,6 @@ def _parse_link_sources(sources_json: str) -> list[dict]:
             continue
         out.append({"kind": kind, "label": label, "url": url})
     return out
-
-
-class ReturnToStudentBody(BaseModel):
-    return_notes: str | None = None
 
 
 def _platforms_from_form(raw: list[str]) -> list[Platform]:
@@ -132,16 +122,6 @@ async def create_post(
     await db.flush()
     post = await load_post_for_response(db, post.id)
     return post_to_response(post)
-
-
-@router.get("/student-inbox", response_model=PostListResponse)
-async def student_inbox(
-    submitted_by: str = Query(..., min_length=2),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    posts = await list_returned_for_student(db, user.id, submitted_by)
-    return PostListResponse(items=[post_to_response(p) for p in posts], total=len(posts))
 
 
 @router.get("/{post_id}", response_model=PostResponse)
@@ -321,66 +301,6 @@ async def submit_student_draft(
     return post_to_response(post)
 
 
-@router.post("/{post_id}/student-resubmit", response_model=PostResponse)
-async def student_resubmit(
-    post_id: UUID,
-    title: str = Form(...),
-    submitted_by: str = Form(...),
-    notes: str | None = Form(None),
-    caption_instagram: str = Form(""),
-    caption_facebook: str = Form(""),
-    caption_linkedin: str = Form(""),
-    unified_caption: str | None = Form(None),
-    images: list[UploadFile] = File(default=[]),
-    platforms: list[str] = Form(default=[]),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Post)
-        .where(Post.id == post_id, Post.user_id == user.id)
-        .options(selectinload(Post.variants), selectinload(Post.media_assets))
-    )
-    post = result.scalar_one_or_none()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-
-    platform_set = _platforms_from_form(platforms)
-    tmp_paths: list[Path] = []
-    try:
-        for upload in images[:10]:
-            if not upload.content_type or not upload.content_type.startswith("image/"):
-                continue
-            ext = Path(upload.filename or "slide.png").suffix.lower()
-            if ext not in ALLOWED_IMAGE_EXT:
-                ext = ".png"
-            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-                tmp.write(await upload.read())
-                tmp_paths.append(Path(tmp.name))
-        try:
-            await resubmit_student_draft(
-                db,
-                post,
-                submitted_by=submitted_by,
-                title=title,
-                notes=notes,
-                caption_instagram=caption_instagram,
-                caption_facebook=caption_facebook,
-                caption_linkedin=caption_linkedin,
-                unified_caption=unified_caption,
-                image_paths=tmp_paths or None,
-                platforms=platform_set,
-            )
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
-    finally:
-        for p in tmp_paths:
-            p.unlink(missing_ok=True)
-
-    post = await load_post_for_response(db, post.id)
-    return post_to_response(post)
-
-
 @router.post("/{post_id}/submit-review", response_model=PostResponse)
 async def submit_for_review(
     post_id: UUID,
@@ -394,32 +314,6 @@ async def submit_for_review(
     if post.status not in (PostStatus.READY, PostStatus.STAGED):
         raise HTTPException(status_code=400, detail=f"Cannot review post in '{post.status}' status")
     post.status = PostStatus.IN_REVIEW
-    await db.flush()
-    post = await load_post_for_response(db, post.id)
-    return post_to_response(post)
-
-
-@router.post("/{post_id}/return-to-student", response_model=PostResponse)
-async def return_to_student(
-    post_id: UUID,
-    body: ReturnToStudentBody | None = Body(None),
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(select(Post).where(Post.id == post_id, Post.user_id == user.id))
-    post = result.scalar_one_or_none()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    if post.status not in (PostStatus.STAGED, PostStatus.IN_REVIEW):
-        raise HTTPException(status_code=400, detail=f"Cannot return post in '{post.status}' status")
-    if not is_student_draft(post):
-        raise HTTPException(status_code=400, detail="Only student drafts can be sent back")
-    cfg = dict(post.source_config or {})
-    cfg["returned_for_revision"] = True
-    if body and body.return_notes and body.return_notes.strip():
-        cfg["return_notes"] = body.return_notes.strip()[:2000]
-    post.source_config = cfg
-    post.status = PostStatus.DRAFT
     await db.flush()
     post = await load_post_for_response(db, post.id)
     return post_to_response(post)

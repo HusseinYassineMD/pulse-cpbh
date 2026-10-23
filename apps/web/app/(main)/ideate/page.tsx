@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, Bot, Copy, Check, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, Check, Copy, Sparkles, Wand2 } from "lucide-react";
 import { TrendScanner } from "@/components/ideas/trend-scanner";
 import { api, ApiError } from "@/lib/api";
-
-type ChatMessage = { id: string; role: "user" | "assistant"; text: string };
 
 export default function IdeatePage() {
   const [topic, setTopic] = useState("");
@@ -16,15 +14,6 @@ export default function IdeatePage() {
     null
   );
   const [copied, setCopied] = useState<string | null>(null);
-  const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      text: "Ask for story angles, hooks, or how to explain a topic for patients. When you are ready, copy a caption into Send draft.",
-    },
-  ]);
-  const chatRef = useRef<HTMLDivElement>(null);
 
   const gen = useMutation({
     mutationFn: () =>
@@ -33,29 +22,6 @@ export default function IdeatePage() {
         source_text: notes.trim() || topic.trim(),
       }),
     onSuccess: (data) => setCaptions(data),
-  });
-
-  const chat = useMutation({
-    mutationFn: () => {
-      const history = messages
-        .filter((m) => m.id !== "welcome")
-        .map((m) => ({ role: m.role, content: m.text }));
-      return api.ideation.chat({
-        message: chatInput.trim(),
-        history,
-        context: [topic, notes].filter(Boolean).join("\n\n"),
-      });
-    },
-    onSuccess: (data) => {
-      const userText = chatInput.trim();
-      setMessages((prev) => [
-        ...prev,
-        { id: `u-${Date.now()}`, role: "user", text: userText },
-        { id: `a-${Date.now()}`, role: "assistant", text: data.reply },
-      ]);
-      setChatInput("");
-      requestAnimationFrame(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }));
-    },
   });
 
   useEffect(() => {
@@ -85,7 +51,7 @@ export default function IdeatePage() {
       <div className="text-center space-y-2 mb-6">
         <h1 className="text-2xl font-bold">Ideation</h1>
         <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-          Explore hot topics, draft captions, and chat through ideas — then send a draft to your lead.
+          Explore hot topics, draft captions from your notes, then send a draft to your lead.
         </p>
       </div>
 
@@ -100,6 +66,10 @@ export default function IdeatePage() {
               <Wand2 className="w-4 h-4 text-teal" />
               Caption drafts
             </h2>
+            <p className="text-xs text-muted-foreground">
+              Builds simple platform captions from what you paste — no AI account required. You can also skip this and
+              write your caption directly on Send draft.
+            </p>
             <label className="block">
               <span className="text-sm font-medium">Topic</span>
               <input
@@ -153,39 +123,6 @@ export default function IdeatePage() {
                 ))}
               </div>
             )}
-          </section>
-
-          <section className="pulse-card p-5 space-y-3">
-            <h2 className="font-semibold flex items-center gap-2">
-              <Bot className="w-4 h-4 text-teal" />
-              Idea chat
-            </h2>
-            <div ref={chatRef} className="max-h-64 overflow-y-auto space-y-2 rounded-xl bg-muted/30 p-3 text-sm">
-              {messages.map((m) => (
-                <p key={m.id} className={m.role === "user" ? "text-foreground font-medium" : "text-muted-foreground"}>
-                  {m.role === "user" ? "You: " : "Coach: "}
-                  {m.text}
-                </p>
-              ))}
-            </div>
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!chatInput.trim() || chat.isPending) return;
-                chat.mutate();
-              }}
-            >
-              <input
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className="form-input flex-1 text-sm"
-                placeholder="Ask for hooks, story structure, plain-language tips…"
-              />
-              <button type="submit" disabled={chat.isPending} className="btn-primary px-4 rounded-xl text-sm font-semibold">
-                Send
-              </button>
-            </form>
           </section>
 
           <Link

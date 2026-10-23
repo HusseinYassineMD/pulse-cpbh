@@ -137,14 +137,6 @@ const liveApi = {
 
     submitStudentDraft: (form: FormData) => uploadRequest<Post>("/posts/student-draft", form),
 
-    studentInbox: (submittedBy: string) =>
-      request<PostListResponse>(
-        `/posts/student-inbox?${new URLSearchParams({ submitted_by: submittedBy.trim() })}`
-      ),
-
-    resubmitStudentDraft: (postId: string, form: FormData) =>
-      uploadRequest<Post>(`/posts/${postId}/student-resubmit`, form),
-
     get: (id: string) => request<Post>(`/posts/${id}`),
 
     generate: (id: string) => request<Post>(`/posts/${id}/generate`, { method: "POST" }),
@@ -158,12 +150,6 @@ const liveApi = {
 
     submitReview: (id: string) =>
       request<Post>(`/posts/${id}/submit-review`, { method: "POST" }),
-
-    returnToStudent: (id: string, returnNotes?: string) =>
-      request<Post>(`/posts/${id}/return-to-student`, {
-        method: "POST",
-        body: JSON.stringify(returnNotes?.trim() ? { return_notes: returnNotes.trim() } : {}),
-      }),
 
     updateVariant: (id: string, platform: string, caption: string) =>
       request(`/posts/${id}/variants/${platform}`, {

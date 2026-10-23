@@ -25,7 +25,7 @@ export function WorkflowHome() {
             <div className="min-w-0 text-left">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 1</p>
               <p className="text-lg font-bold mt-0.5">Ideation</p>
-              <p className="text-sm text-muted-foreground mt-1">Hot topics, caption drafts, and idea chat.</p>
+              <p className="text-sm text-muted-foreground mt-1">Hot topics and caption drafts from your notes.</p>
             </div>
           </div>
         </Link>
@@ -57,7 +57,7 @@ export function WorkflowHome() {
             <div className="min-w-0 text-left">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 3 · Lead</p>
               <p className="text-lg font-bold mt-0.5">Review &amp; schedule</p>
-              <p className="text-sm text-muted-foreground mt-1">Approve with time &amp; platforms, send back, or delete.</p>
+              <p className="text-sm text-muted-foreground mt-1">Approve with time &amp; platforms, or delete.</p>
             </div>
           </div>
         </Link>

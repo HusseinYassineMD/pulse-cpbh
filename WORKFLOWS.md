@@ -13,15 +13,14 @@ flowchart LR
 ### 1. Ideation (`/ideate`)
 
 - **Hot topics** — latest brain-health trends from public feeds.
-- **Caption drafts** — generate Instagram / Facebook / LinkedIn text from a topic or pasted notes (copy into Send draft).
-- **Idea chat** — brainstorm angles, hooks, and patient-friendly wording (no account required beyond team login if auth is on).
+- **Caption drafts** — generate Instagram / Facebook / LinkedIn text from a topic or pasted notes (copy into Send draft). Works without OpenAI; richer wording when an API key is added later.
 
 ### 2. Send draft (`/submit`)
 
 - **Post vs story**
 - **Content link** — one URL: **Canva design** or **Google Drive folder** with exports (no image upload required).
 - **Source material** — links (Substack, handouts, articles, etc.)
-- **CTA / READ link**, **link in bio**, slide numbers for dept Canva folder
+- **Link in bio** (optional), slide numbers for dept Canva folder
 - Submit receives a **ticket ID** (e.g. `CPBH-251024-A3F9`) shown on confirmation and in emails.
 
 ---
@@ -31,9 +30,7 @@ flowchart LR
 ```mermaid
 flowchart LR
   Q[Review queue] -->|Approve + schedule| C[Calendar]
-  Q -->|Send back| E[Student edits]
   Q -->|Delete| X[Removed]
-  E --> S[Send draft again]
 ```
 
 ### Review (`/review`)
@@ -43,11 +40,10 @@ Each open draft is an **unfinished ticket** until one of:
 | Action | Result |
 |--------|--------|
 | **Approve & schedule** | Pick **platforms** + **date/time** → post appears on **Schedule** |
-| **Send back for edits** | Notes to student; reminders **pause** until they resubmit |
 | **Delete** | Removed; reminders stop |
 
 - **Ticket ID** on every card and email so Tiffany can reference the draft in Slack/email.
-- **Emails:** immediate notice when someone submits (“Brooke submitted … — ticket CPBH-…”). **Every 12 hours** while still in the review queue until approve, send-back, or delete.
+- **Emails:** immediate notice when someone submits (“Brooke submitted … — ticket CPBH-…”). **Every 12 hours** while still in the review queue until approve or delete.
 
 ### Schedule (`/calendar`)
 

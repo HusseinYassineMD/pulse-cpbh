@@ -45,11 +45,6 @@ export function StudentDraftDetails({ post, compact = false }: { post: Post; com
         </a>
       ) : null)}
       {row("Slide #s (dept folder)", cfg.canva_slide_numbers)}
-      {row("CTA / READ link", cfg.cta_link ? (
-        <a href={cfg.cta_link} target="_blank" rel="noopener noreferrer" className="text-teal underline">
-          {cfg.cta_link}
-        </a>
-      ) : null)}
       {row("Link in bio", cfg.link_in_bio ? (
         <a href={cfg.link_in_bio} target="_blank" rel="noopener noreferrer" className="text-teal underline">
           {cfg.link_in_bio}

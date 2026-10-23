@@ -68,7 +68,6 @@ Title: {post.title}
 Type: {deliverable}
 Canva: {cfg.get("canva_link") or "—"}
 Slide #s (dept Canva): {cfg.get("canva_slide_numbers") or "—"}
-CTA / READ link: {cfg.get("cta_link") or "—"}
 Link in bio: {cfg.get("link_in_bio") or "—"}
 
 Source material:
