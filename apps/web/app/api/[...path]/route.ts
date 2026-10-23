@@ -17,6 +17,18 @@ function upstreamBase(): string {
   if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
     raw = `https://${raw}`;
   }
+  try {
+    const host = new URL(raw).hostname;
+    // Render blueprint sometimes sets API_URL to the service name only (no .onrender.com).
+    if (!host.includes(".") && process.env.RENDER) {
+      raw = `https://${host}.onrender.com`;
+    }
+  } catch {
+    /* keep raw */
+  }
+  if (process.env.RENDER && raw.includes("pulse-cpbh-api") && !raw.includes(".onrender.com")) {
+    raw = RENDER_API_DEFAULT;
+  }
   return raw.replace(/\/api\/v1$/i, "");
 }
 
