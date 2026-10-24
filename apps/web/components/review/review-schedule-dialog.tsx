@@ -57,7 +57,7 @@ export function ReviewScheduleDialog({ postId, defaultPlatforms, open, onClose, 
               Approve &amp; schedule
             </h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Stephanie picks platforms and time — the post moves to Schedule immediately.
+              Tiffany picks platforms and time — the post moves to Schedule immediately.
             </p>
           </div>
           <button type="button" onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground" aria-label="Close">

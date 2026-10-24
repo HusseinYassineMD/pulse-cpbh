@@ -25,7 +25,7 @@ flowchart LR
 
 ---
 
-## Workflow B — Lead review & schedule (Stephanie)
+## Workflow B — Lead review & schedule (Tiffany)
 
 ```mermaid
 flowchart LR
@@ -42,13 +42,13 @@ Each open draft is an **unfinished ticket** until one of:
 | **Approve & schedule** | Pick **platforms** + **date/time** → post appears on **Schedule** |
 | **Delete** | Removed; reminders stop |
 
-- **Ticket ID** on every card and email so Stephanie can reference the draft in Slack/email.
+- **Ticket ID** on every card and email so Tiffany can reference the draft in Slack/email.
 - **Emails:** immediate notice when someone submits (“Brooke submitted … — ticket CPBH-…”). **Every 12 hours** while still in the review queue until approve or delete.
 
 ### Schedule (`/calendar`)
 
 - Approved items scheduled from Review show here.
-- Stephanie can adjust timing on Calendar; publishing stays schedule-only (no student publish).
+- Tiffany can adjust timing on Calendar; publishing stays schedule-only (no student publish).
 
 ---
 
@@ -56,7 +56,7 @@ Each open draft is an **unfinished ticket** until one of:
 
 1. Render: **pulse-cpbh-db**, **pulse-cpbh-api**, **pulse-cpbh-web** all **Live**.
 2. **pulse-cpbh-web** env: `API_URL=https://pulse-cpbh-api.onrender.com`
-3. **pulse-cpbh-api** env: `WEB_URL=https://pulse-cpbh-web.onrender.com`, `REVIEW_LEAD_EMAIL=` (Stephanie), `RESEND_API_KEY=` (or SMTP)
+3. **pulse-cpbh-api** env: `WEB_URL=https://pulse-cpbh-web.onrender.com`, `REVIEW_LEAD_EMAIL=` (Tiffany), `RESEND_API_KEY=` (or SMTP)
 4. Smoke test: Ideate → Submit → email → Review → Approve & schedule → Calendar
 5. Share links: `/ideate`, `/submit`, `/review`, `/calendar`
 

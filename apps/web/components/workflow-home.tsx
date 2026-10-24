@@ -9,7 +9,7 @@ export function WorkflowHome() {
       <div className="text-center space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">CPBH social posts</h1>
         <p className="text-muted-foreground text-sm sm:text-base leading-relaxed">
-          Ideate → send draft → lead reviews &amp; schedules. Nothing goes live until Stephanie approves a time and platform.
+          Ideate → send draft → lead reviews &amp; schedules. Nothing goes live until Tiffany approves a time and platform.
         </p>
       </div>
 
