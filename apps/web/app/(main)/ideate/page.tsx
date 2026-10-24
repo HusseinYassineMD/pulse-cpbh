@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ArrowRight, Check, Copy, Sparkles, Wand2 } from "lucide-react";
 import { TrendScanner } from "@/components/ideas/trend-scanner";
 import { api, ApiError } from "@/lib/api";
+import { draftSocialCaptions } from "@/lib/caption-draft";
 
 export default function IdeatePage() {
   const [topic, setTopic] = useState("");
@@ -22,15 +23,14 @@ export default function IdeatePage() {
       const title = topic.trim() || "CPBH post";
       const source = notes.trim() || topic.trim();
       try {
-        return await api.ideation.captions({ title, source_text: source });
+        const fromApi = await api.ideation.captions({ title, source_text: source });
+        if (fromApi.instagram.includes("#") || /[\u{1F300}-\u{1FAFF}]/u.test(fromApi.instagram)) {
+          return fromApi;
+        }
       } catch {
-        const base = `${title}\n\n${source.slice(0, 400)}`.trim();
-        return {
-          instagram: base.slice(0, 280),
-          facebook: base.slice(0, 600),
-          linkedin: base.slice(0, 1200),
-        };
+        /* use local draft */
       }
+      return draftSocialCaptions(title, source);
     },
     onSuccess: (data) => {
       setCaptions(data);
@@ -83,8 +83,8 @@ export default function IdeatePage() {
               Caption drafts
             </h2>
             <p className="text-xs text-muted-foreground">
-              Builds simple platform captions from what you paste — no AI account required. You can also skip this and
-              write your caption directly on Send draft.
+              Drafts hooks, emojis, and CPBH hashtags from your topic — no OpenAI key required. Edit before you send
+              draft.
             </p>
             <label className="block">
               <span className="text-sm font-medium">Topic</span>

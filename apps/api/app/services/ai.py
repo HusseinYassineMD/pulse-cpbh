@@ -130,12 +130,13 @@ class AIService:
         """Draft Instagram, Facebook, LinkedIn captions from free-form source."""
         platforms = [Platform.INSTAGRAM, Platform.FACEBOOK, Platform.LINKEDIN]
         if not self.settings.openai_api_key:
-            snippet = source_text.strip()[:400]
-            base = f"{title}\n\n{snippet}" if snippet else title
+            from app.services.caption_draft import draft_social_captions
+
+            caps = draft_social_captions(title, source_text)
             return {
-                Platform.INSTAGRAM: base[:280],
-                Platform.FACEBOOK: base[:600],
-                Platform.LINKEDIN: base[:1200],
+                Platform.INSTAGRAM: caps["instagram"],
+                Platform.FACEBOOK: caps["facebook"],
+                Platform.LINKEDIN: caps["linkedin"],
             }
 
         from openai import AsyncOpenAI

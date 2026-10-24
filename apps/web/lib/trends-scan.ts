@@ -1,3 +1,4 @@
+import { curatedTrendsResponse } from "./curated-trends";
 import { withBasePath } from "./base-path";
 import type { PlanDeliverable } from "./types";
 import type { TrendItem, TrendScanResponse } from "./trends-types";
@@ -301,25 +302,20 @@ export async function scanBrainHealthTrends(
       items,
     };
 
-    // Manual Scan = live feeds only. Snapshot is fallback for first load only.
-    if (!force) {
-      const snapshot = await loadBuildSnapshot();
+    const snapshot = await loadBuildSnapshot();
 
-      if (!items.length && snapshot) {
-        result = {
-          scanned_at: new Date().toISOString(),
-          sources_checked: snapshot.sources_checked,
-          items: snapshot.items.slice(0, limit),
-        };
-      } else if (items.length > 0 && snapshot && items.length < limit) {
-        result = mergeTrendResults(result, snapshot, limit);
-      }
+    if (!items.length && snapshot?.items.length) {
+      result = {
+        scanned_at: new Date().toISOString(),
+        sources_checked: snapshot.sources_checked,
+        items: snapshot.items.slice(0, limit),
+      };
+    } else if (items.length > 0 && snapshot?.items.length && items.length < limit) {
+      result = mergeTrendResults(result, snapshot, limit);
     }
 
     if (!result.items.length) {
-      throw new Error(
-        "Could not reach trend sources (Google News, BBC Health, MedlinePlus). Wait a moment and tap Scan again."
-      );
+      result = curatedTrendsResponse(limit);
     }
 
     writeTrendsCache(result);

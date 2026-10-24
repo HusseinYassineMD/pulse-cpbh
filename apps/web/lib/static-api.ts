@@ -1,3 +1,4 @@
+import { draftSocialCaptions } from "./caption-draft";
 import { isStaticMode, withBasePath } from "./base-path";
 import { STATIC_DATA_VERSION } from "./static-config";
 import type {
@@ -1124,15 +1125,8 @@ export const staticApi = {
   },
 
   ideation: {
-    captions: async (data: { title: string; source_text: string }) => {
-      const snippet = data.source_text.trim().slice(0, 400);
-      const base = `${data.title}\n\n${snippet}`;
-      return {
-        instagram: base.slice(0, 280),
-        facebook: base.slice(0, 600),
-        linkedin: base.slice(0, 1200),
-      };
-    },
+    captions: async (data: { title: string; source_text: string }) =>
+      draftSocialCaptions(data.title, data.source_text),
     chat: async (data: { message: string }) => ({
       reply: `Preview mode: try "${data.message.slice(0, 80)}" on the hosted team app for full AI ideation chat.`,
     }),

@@ -71,6 +71,10 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
       setScannedAt(data.scanned_at);
       setFeedProgress(null);
       setErr("");
+      if (data.sources_checked?.includes("CPBH curated") && data.sources_checked.length === 1) {
+        setMsg("Live headlines unavailable — showing curated brain-health starters.");
+        setTimeout(() => setMsg(""), 6000);
+      }
     },
     onError: (e) => {
       setFeedProgress(null);
