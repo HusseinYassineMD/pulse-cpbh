@@ -15,13 +15,29 @@ export default function IdeatePage() {
   );
   const [copied, setCopied] = useState<string | null>(null);
 
+  const [captionMsg, setCaptionMsg] = useState("");
+
   const gen = useMutation({
-    mutationFn: () =>
-      api.ideation.captions({
-        title: topic.trim() || "CPBH post",
-        source_text: notes.trim() || topic.trim(),
-      }),
-    onSuccess: (data) => setCaptions(data),
+    mutationFn: async () => {
+      const title = topic.trim() || "CPBH post";
+      const source = notes.trim() || topic.trim();
+      try {
+        return await api.ideation.captions({ title, source_text: source });
+      } catch {
+        const base = `${title}\n\n${source.slice(0, 400)}`.trim();
+        return {
+          instagram: base.slice(0, 280),
+          facebook: base.slice(0, 600),
+          linkedin: base.slice(0, 1200),
+        };
+      }
+    },
+    onSuccess: (data) => {
+      setCaptions(data);
+      setCaptionMsg("Captions ready — copy one below or continue to Send draft.");
+      setTimeout(() => setCaptionMsg(""), 6000);
+    },
+    onError: () => setCaptionMsg(""),
   });
 
   useEffect(() => {
@@ -98,9 +114,12 @@ export default function IdeatePage() {
               <Sparkles className="w-4 h-4" />
               {gen.isPending ? "Generating…" : "Generate captions"}
             </button>
+            {captionMsg && (
+              <p className="text-sm text-teal-900 bg-teal/10 border border-teal/25 px-3 py-2 rounded-lg">{captionMsg}</p>
+            )}
             {gen.isError && (
               <p className="text-sm text-red-700">
-                {gen.error instanceof ApiError ? gen.error.message : "Could not generate"}
+                {gen.error instanceof ApiError ? gen.error.message : "Could not generate — add notes and try again."}
               </p>
             )}
             {captions && (

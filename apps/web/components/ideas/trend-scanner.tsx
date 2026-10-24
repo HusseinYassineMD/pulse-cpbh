@@ -43,8 +43,8 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
 
   const scan = useMutation({
     mutationFn: async (force?: boolean) => {
-      if (isStaticMode()) {
-        return scanBrainHealthTrends(16, {
+      const clientScan = () =>
+        scanBrainHealthTrends(16, {
           force,
           onProgress: (p) => {
             setTrends(p.items);
@@ -52,8 +52,18 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
             setFeedProgress({ done: p.feeds_done, total: p.feeds_total });
           },
         });
+
+      if (isStaticMode()) {
+        return clientScan();
       }
-      return api.trends.scan({ limit: 16, force });
+      try {
+        return await api.trends.scan({ limit: 12, force });
+      } catch (e) {
+        // Render cold start / 502 — load RSS from the browser instead of failing silently
+        const fallback = await clientScan();
+        if (fallback.items.length === 0) throw e;
+        return fallback;
+      }
     },
     onSuccess: (data) => {
       setTrends(data.items);
@@ -157,13 +167,13 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
           {scan.isPending && trends.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">Scanning sources…</p>
           )}
-          {!scan.isPending && trends.length === 0 && !err && (
+          {!scan.isPending && trends.length === 0 && (
             <button
               type="button"
               onClick={handleScan}
               className="w-full text-xs font-medium py-2.5 rounded-lg border border-dashed border-teal/30 text-teal hover:bg-teal/5"
             >
-              Load hot topics
+              {err ? "Retry hot topics" : "Load hot topics"}
             </button>
           )}
           {trends.map((trend) => (
