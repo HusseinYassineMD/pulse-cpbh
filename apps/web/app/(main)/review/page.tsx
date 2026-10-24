@@ -63,7 +63,7 @@ export default function ReviewQueuePage() {
       <div>
         <h1 className="text-2xl font-bold">Review drafts</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Open tickets from students — approve &amp; schedule, or delete. Unfinished tickets email Tiffany every 12
+          Open tickets from students — approve &amp; schedule, or delete. Unfinished tickets email Stephanie every 12
           hours.
         </p>
       </div>

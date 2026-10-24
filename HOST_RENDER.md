@@ -47,13 +47,13 @@ So the old Pages site tells students to use the real app:
 2. Add variable **`HOSTED_APP_URL`** = `https://YOUR-WEB-URL` (no trailing slash).
 3. Re-run the **Deploy GitHub Pages** workflow (or push any commit to `main`).
 
-## 4. Email Tiffany when students submit (required for notifications)
+## 4. Email Stephanie (lead) when students submit (required for notifications)
 
-Pulse does **not** store Tiffany’s email in GitHub. You add it only in **Render → pulse-cpbh-api → Environment**.
+Pulse does **not** store the lead email in GitHub. You add it only in **Render → pulse-cpbh-api → Environment**.
 
 | Variable | What to put |
 |----------|-------------|
-| **`REVIEW_LEAD_EMAIL`** | Tiffany’s work email (e.g. `tkolchins@…`) — who gets “new draft” + 12h reminders |
+| **`REVIEW_LEAD_EMAIL`** | Stephanie’s work email — who gets “new draft” + 12h reminders |
 | **`RESEND_API_KEY`** | From [resend.com](https://resend.com) → API Keys (free tier is enough to start) |
 | **`WEB_URL`** | Should be `https://pulse-cpbh-web.onrender.com` (blueprint links web host; confirm after deploy) |
 
@@ -63,9 +63,11 @@ Pulse does **not** store Tiffany’s email in GitHub. You add it only in **Rende
 2. API tries **Resend** first; if no key, tries **SMTP**; if neither is set, **no email is sent** (draft still appears on `/review`).
 3. **Reminders** every 12 hours while the draft is still in review — same recipient, same Resend/SMTP requirement.
 
-Until `REVIEW_LEAD_EMAIL` and `RESEND_API_KEY` are set on the **API** service, Tiffany will **not** get mail — use the **Review** page on the team URL instead.
+Until `REVIEW_LEAD_EMAIL` and `RESEND_API_KEY` are set on the **API** service, Stephanie will **not** get mail — use the **Review** page on the team URL instead.
 
-Optional fallback: set **`PLAN_TEAM=Tiffany:her@email.com,...`** on the API if you skip `REVIEW_LEAD_EMAIL` (first roster email is used).
+Optional fallback: set **`PLAN_TEAM=Stephanie:email@…,...`** on the API if you skip `REVIEW_LEAD_EMAIL` (first roster email is used).
+
+**Test reminders faster:** set **`REVIEW_REMINDER_HOURS=1`** on the API, submit a draft, wait ~1 hour (API must be awake), then set back to **`12`** for production.
 
 ## 5. Free tier notes
 
@@ -82,6 +84,6 @@ Optional fallback: set **`PLAN_TEAM=Tiffany:her@email.com,...`** on the API if y
 | Empty review after submit | Confirm you are on the **Render web URL**, not GitHub Pages. |
 | Web `/api/…` returns 502 | Wake **pulse-cpbh-api** (open `/health`), confirm **pulse-cpbh-web** has `API_URL=https://pulse-cpbh-api.onrender.com`, redeploy web. |
 | `/ideate` 404 | Redeploy **pulse-cpbh-web** from latest `main` commit. |
-| No emails to Tiffany | Set **REVIEW_LEAD_EMAIL** + **RESEND_API_KEY** on **pulse-cpbh-api**, Save (redeploy). Check API logs for “skipping student draft notification”. |
+| No emails to lead | Set **REVIEW_LEAD_EMAIL** + **RESEND_API_KEY** on **pulse-cpbh-api**, Save (redeploy). Check API logs for “skipping student draft notification”. |
 
 Local full stack (same behavior): `./start.sh dev` → http://localhost:3010
