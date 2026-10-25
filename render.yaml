@@ -84,3 +84,19 @@ services:
         value: "false"
       - key: API_URL
         value: https://pulse-cpbh-api.onrender.com
+      # Shared secret for Tiffany / leads — students never need this (Review & Schedule only).
+      - key: LEAD_ACCESS_PIN
+        sync: false
+
+  # Pings API + web every 14 min so student Submit stays fast (free tier sleeps ~15 min idle).
+  - type: cron
+    name: pulse-cpbh-keep-warm
+    runtime: node
+    region: oregon
+    schedule: "*/14 * * * *"
+    startCommand: >-
+      node -e "const u=['https://pulse-cpbh-api.onrender.com/health','https://pulse-cpbh-web.onrender.com/api/warm'];
+      Promise.allSettled(u.map(x=>fetch(x,{signal:AbortSignal.timeout(55000)}))).then(()=>process.exit(0));"
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

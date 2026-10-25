@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Copy, Sparkles, Wand2 } from "lucide-react";
+import { saveIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
 import { TrendScanner } from "@/components/ideas/trend-scanner";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { draftSocialCaptions } from "@/lib/caption-draft";
 
 export default function IdeatePage() {
+  const router = useRouter();
   const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
   const [captions, setCaptions] = useState<{ instagram: string; facebook: string; linkedin: string } | null>(
@@ -17,28 +18,40 @@ export default function IdeatePage() {
   const [copied, setCopied] = useState<string | null>(null);
 
   const [captionMsg, setCaptionMsg] = useState("");
+  const [enhancingCaptions, setEnhancingCaptions] = useState(false);
+  const captionEnhanceGen = useRef(0);
 
-  const gen = useMutation({
-    mutationFn: async () => {
-      const title = topic.trim() || "CPBH post";
-      const source = notes.trim() || topic.trim();
+  function generateCaptions() {
+    const title = topic.trim() || "CPBH post";
+    const source = notes.trim() || topic.trim();
+    if (!title && !source) return;
+
+    const local = draftSocialCaptions(title, source);
+    setCaptions(local);
+    setCaptionMsg("Captions ready — copy one below or continue to Send draft.");
+    setTimeout(() => setCaptionMsg(""), 6000);
+
+    const gen = ++captionEnhanceGen.current;
+    setEnhancingCaptions(true);
+    void (async () => {
       try {
-        const fromApi = await api.ideation.captions({ title, source_text: source });
-        if (fromApi.instagram.includes("#") || /[\u{1F300}-\u{1FAFF}]/u.test(fromApi.instagram)) {
-          return fromApi;
-        }
+        const fromApi = await Promise.race([
+          api.ideation.captions({ title, source_text: source }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 4500)
+          ),
+        ]);
+        if (gen !== captionEnhanceGen.current) return;
+        const rich =
+          fromApi.instagram.includes("#") || /[\u{1F300}-\u{1FAFF}]/u.test(fromApi.instagram);
+        if (rich) setCaptions(fromApi);
       } catch {
-        /* use local draft */
+        /* local draft already shown */
+      } finally {
+        if (gen === captionEnhanceGen.current) setEnhancingCaptions(false);
       }
-      return draftSocialCaptions(title, source);
-    },
-    onSuccess: (data) => {
-      setCaptions(data);
-      setCaptionMsg("Captions ready — copy one below or continue to Send draft.");
-      setTimeout(() => setCaptionMsg(""), 6000);
-    },
-    onError: () => setCaptionMsg(""),
-  });
+    })();
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -53,14 +66,14 @@ export default function IdeatePage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  const draftHref = () => {
-    const params = new URLSearchParams();
-    if (topic.trim()) params.set("topic", topic.trim());
-    const cap = captions?.instagram || notes.trim();
-    if (cap) params.set("caption", cap.slice(0, 2000));
-    const q = params.toString();
-    return q ? `/submit?${q}` : "/submit";
-  };
+  function goToSubmit() {
+    saveIdeateDraftForSubmit({
+      topic: topic.trim(),
+      notes: notes.trim() || undefined,
+      captions: captions ?? undefined,
+    });
+    router.push("/submit");
+  }
 
   return (
     <div className="max-w-5xl mx-auto pb-10 animate-fade-in">
@@ -107,20 +120,18 @@ export default function IdeatePage() {
             </label>
             <button
               type="button"
-              disabled={gen.isPending || (!topic.trim() && !notes.trim())}
-              onClick={() => gen.mutate()}
+              disabled={!topic.trim() && !notes.trim()}
+              onClick={generateCaptions}
               className="btn-primary px-5 py-2.5 rounded-xl text-sm font-semibold inline-flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              {gen.isPending ? "Generating…" : "Generate captions"}
+              Generate captions
             </button>
+            {enhancingCaptions && (
+              <p className="text-xs text-muted-foreground">Optional AI polish in the background…</p>
+            )}
             {captionMsg && (
               <p className="text-sm text-teal-900 bg-teal/10 border border-teal/25 px-3 py-2 rounded-lg">{captionMsg}</p>
-            )}
-            {gen.isError && (
-              <p className="text-sm text-red-700">
-                {gen.error instanceof ApiError ? gen.error.message : "Could not generate — add notes and try again."}
-              </p>
             )}
             {captions && (
               <div className="space-y-3 pt-2 border-t border-border">
@@ -144,16 +155,19 @@ export default function IdeatePage() {
             )}
           </section>
 
-          <Link
-            href={draftHref()}
-            className="pulse-card flex items-center justify-between p-5 border-2 border-teal/30 hover:border-teal/50 transition-colors"
+          <button
+            type="button"
+            onClick={goToSubmit}
+            className="pulse-card w-full text-left flex items-center justify-between p-5 border-2 border-teal/30 hover:border-teal/50 transition-colors"
           >
             <div>
               <p className="font-bold">Ready to submit?</p>
-              <p className="text-sm text-muted-foreground">Send draft with your caption and content link.</p>
+              <p className="text-sm text-muted-foreground">
+                Continue to Send draft — your captions come with you (including LinkedIn).
+              </p>
             </div>
             <ArrowRight className="w-5 h-5 text-teal shrink-0" />
-          </Link>
+          </button>
         </div>
       </div>
     </div>

@@ -53,7 +53,7 @@ export function draftSocialCaptions(title: string, sourceText: string): {
 
   const instagram = `${open}\n\n${body}\n\n${CTA}\n\n${HASHTAGS_IG}`.slice(0, 2200);
   const facebook = `${open}\n\n${body}\n\n${CTA}\n\n${HASHTAGS_FB}`.slice(0, 600);
-  const linkedin = `${topic}\n\n${body}\n\n${CTA}\n\n${HASHTAGS_LI}`.slice(0, 1200);
+  const linkedin = `${open}\n\n${body}\n\n${CTA}\n\n${HASHTAGS_LI}`.slice(0, 1200);
 
   return { instagram, facebook, linkedin };
 }

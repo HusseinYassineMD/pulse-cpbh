@@ -107,9 +107,13 @@ dev() {
   export NEXT_PUBLIC_STATIC_MODE="false"
 
   echo "Starting Pulse locally (API + web)…"
-  echo "  App  → http://localhost:${PULSE_WEB_PORT}"
-  echo "  API  → ${LOCAL_API_URL}"
-  echo "  Plan → http://localhost:${PULSE_WEB_PORT}/plan"
+  echo ""
+  echo "  ┌─────────────────────────────────────────────────────────────┐"
+  echo "  │  OPEN THIS IN YOUR BROWSER (not localhost:3000):            │"
+  echo "  │  http://localhost:${PULSE_WEB_PORT}/ideate                      │"
+  echo "  └─────────────────────────────────────────────────────────────┘"
+  echo ""
+  echo "  API  → ${LOCAL_API_URL}/health"
   echo ""
 
   if lsof -ti :"$PULSE_API_PORT" >/dev/null 2>&1; then

@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, Sparkles, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
-import { scanBrainHealthTrends } from "@/lib/trends-scan";
+import { getInstantTrendsPreview, scanBrainHealthTrends } from "@/lib/trends-scan";
 import { deliverableLabel } from "@/lib/plan-team";
-import type { TrendItem } from "@/lib/trends-types";
+import type { TrendItem, TrendScanResponse } from "@/lib/trends-types";
 import type { PlanDeliverable } from "@/lib/types";
 
 const TRENDS_OPEN_KEY = "pulse-trends-scanner-open";
+const API_TRENDS_TIMEOUT_MS = 5500;
 
 function readTrendsOpen(): boolean {
   if (typeof window === "undefined") return true;
@@ -40,41 +41,74 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   const [err, setErr] = useState("");
   const [feedProgress, setFeedProgress] = useState<{ done: number; total: number } | null>(null);
   const sidebarAutoScan = useRef(false);
+  const fullScanStarted = useRef(false);
+
+  const applyScanResult = useCallback((data: TrendScanResponse) => {
+    setTrends(data.items);
+    setSources(data.sources_checked);
+    setScannedAt(data.scanned_at);
+    if (data.sources_checked?.includes("CPBH curated") && data.sources_checked.length === 1) {
+      setMsg("Live headlines unavailable — showing curated brain-health starters.");
+      setTimeout(() => setMsg(""), 6000);
+    }
+  }, []);
+
+  const clientScan = useCallback(
+    (opts?: { force?: boolean; fast?: boolean; bypassCache?: boolean }) =>
+      scanBrainHealthTrends(16, {
+        force: opts?.force,
+        fast: opts?.fast,
+        bypassCache: opts?.bypassCache,
+        onProgress: (p) => {
+          setTrends(p.items);
+          setSources(p.sources_checked);
+          setFeedProgress({ done: p.feeds_done, total: p.feeds_total });
+        },
+      }),
+    []
+  );
 
   const scan = useMutation({
-    mutationFn: async (force?: boolean) => {
-      const clientScan = () =>
-        scanBrainHealthTrends(16, {
-          force,
-          onProgress: (p) => {
-            setTrends(p.items);
-            setSources(p.sources_checked);
-            setFeedProgress({ done: p.feeds_done, total: p.feeds_total });
-          },
-        });
+    mutationFn: async (opts?: { force?: boolean; preferClient?: boolean }) => {
+      const force = opts?.force === true;
+      const preferClient = opts?.preferClient === true || layout === "sidebar";
 
-      if (isStaticMode()) {
-        return clientScan();
+      const runClient = (fast?: boolean) => clientScan({ force, fast });
+
+      const queueFullClientScan = () => {
+        if (fullScanStarted.current) return;
+        fullScanStarted.current = true;
+        void clientScan({ bypassCache: true, fast: false }).then((data) => {
+          if (data.items.length) applyScanResult(data);
+          setFeedProgress(null);
+        });
+      };
+
+      if (preferClient || isStaticMode()) {
+        const fastResult = await runClient(true);
+        queueFullClientScan();
+        return fastResult;
       }
+
       try {
-        return await api.trends.scan({ limit: 12, force });
-      } catch (e) {
-        // Render cold start / 502 — load RSS from the browser instead of failing silently
-        const fallback = await clientScan();
-        if (fallback.items.length === 0) throw e;
+        const apiResult = await Promise.race([
+          api.trends.scan({ limit: 12, force }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Trends API timed out")), API_TRENDS_TIMEOUT_MS)
+          ),
+        ]);
+        return apiResult;
+      } catch {
+        const fallback = await runClient(true);
+        if (fallback.items.length === 0) throw new Error("Could not load trends");
+        queueFullClientScan();
         return fallback;
       }
     },
     onSuccess: (data) => {
-      setTrends(data.items);
-      setSources(data.sources_checked);
-      setScannedAt(data.scanned_at);
+      applyScanResult(data);
       setFeedProgress(null);
       setErr("");
-      if (data.sources_checked?.includes("CPBH curated") && data.sources_checked.length === 1) {
-        setMsg("Live headlines unavailable — showing curated brain-health starters.");
-        setTimeout(() => setMsg(""), 6000);
-      }
     },
     onError: (e) => {
       setFeedProgress(null);
@@ -85,23 +119,26 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   useEffect(() => {
     setExpanded(readTrendsOpen());
     setMounted(true);
+    const instant = getInstantTrendsPreview(16);
+    setTrends(instant.items);
+    setSources(instant.sources_checked);
+    setScannedAt(instant.scanned_at);
   }, []);
 
   useEffect(() => {
     if (!mounted || layout !== "sidebar" || sidebarAutoScan.current) return;
     sidebarAutoScan.current = true;
-    setFeedProgress({ done: 0, total: 4 });
-    scan.mutate(false);
+    setFeedProgress({ done: 0, total: 2 });
+    scan.mutate({ force: false, preferClient: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when sidebar mounts
   }, [mounted, layout]);
 
   function handleScan() {
-    setTrends([]);
-    setSources([]);
-    setScannedAt(null);
     setErr("");
     setMsg("");
-    setFeedProgress({ done: 0, total: 4 });
-    scan.mutate(true);
+    setFeedProgress({ done: 0, total: layout === "sidebar" ? 2 : 4 });
+    fullScanStarted.current = false;
+    scan.mutate({ force: true, preferClient: layout === "sidebar" });
   }
 
   const toggleExpanded = (open: boolean) => {
@@ -133,7 +170,22 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
     onError: (e) => setErr(e instanceof ApiError ? e.message : "Could not add to Plan"),
   });
 
-  if (!mounted) return null;
+  if (!mounted) {
+    if (layout === "sidebar") {
+      return (
+        <section className="pulse-card border border-teal/20 p-4 min-h-[12rem] animate-pulse bg-muted/30" aria-hidden>
+          <div className="h-4 w-24 bg-muted rounded mb-3" />
+          <div className="space-y-2">
+            <div className="h-16 bg-muted rounded-xl" />
+            <div className="h-16 bg-muted rounded-xl" />
+          </div>
+        </section>
+      );
+    }
+    return null;
+  }
+
+  const isRefreshing = scan.isPending && trends.length > 0;
 
   if (layout === "sidebar") {
     return (
@@ -161,9 +213,14 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
           </div>
           {msg && <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 px-2 py-1.5 rounded-lg">{msg}</p>}
           {err && <p className="text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1.5 rounded-lg">{err}</p>}
-          {scannedAt && trends.length > 0 && (
+          {(scannedAt || trends.length > 0) && (
             <p className="text-[10px] text-muted-foreground">
-              {trends.length} topics · {safeFormat(scannedAt)}
+              {trends.length} topics
+              {isRefreshing && feedProgress
+                ? ` · updating ${feedProgress.done}/${feedProgress.total}…`
+                : scannedAt
+                  ? ` · ${safeFormat(scannedAt)}`
+                  : ""}
             </p>
           )}
         </div>

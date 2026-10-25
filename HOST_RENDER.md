@@ -30,8 +30,8 @@ Open the **pulse-cpbh-web** service → copy the URL (example shape):
 
 | Who | Link |
 |-----|------|
-| Students | `https://YOUR-WEB-URL/submit` |
-| Lead review | `https://YOUR-WEB-URL/review` |
+| Students | `https://YOUR-WEB-URL/ideate` (Ideation → Send draft) |
+| Lead review | `https://YOUR-WEB-URL/team` then enter **LEAD_ACCESS_PIN** → Review |
 | Schedule | `https://YOUR-WEB-URL/calendar` |
 
 Replace `YOUR-WEB-URL` with the hostname Render shows (no trailing path).
@@ -71,7 +71,8 @@ Optional fallback: set **`PLAN_TEAM=Tiffany:email@…,...`** on the API if you s
 
 ## 5. Free tier notes
 
-- Services **sleep** after ~15 minutes idle; first visit may take **30–60 seconds** to wake.
+- Services **sleep** after ~15 minutes idle. **`pulse-cpbh-keep-warm`** (cron in `render.yaml`) pings API + web every 14 minutes so student **Send** stays snappy. Student pages also pre-connect in the background while they work.
+- If Submit still hangs once, students can tap **Send** again — the form keeps their answers.
 - **Postgres** keeps drafts; uploaded **images** live on the API disk and can be lost on redeploy on free tier. Captions and metadata stay in the database.
 - For production publishing later, set Meta/LinkedIn env vars on **pulse-cpbh-api** in Render (see `.env.example`).
 

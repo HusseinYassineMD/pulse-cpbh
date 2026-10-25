@@ -17,6 +17,7 @@ import { BestTimeHeatmap } from "@/components/scheduling/best-time-heatmap";
 import { BestTimeWidget } from "@/components/scheduling/best-time-widget";
 import { ContentGapWidget } from "@/components/scheduling/content-gap-widget";
 import { ModalSheet } from "@/components/ui/modal-sheet";
+import { isSimpleUi } from "@/lib/simple-ui";
 
 type ScheduleView = "queue" | "calendar";
 
@@ -30,6 +31,7 @@ function CalendarPageInner() {
   const [view, setView] = useState<ScheduleView>("queue");
   const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleItem | null>(null);
   const [rescheduleAt, setRescheduleAt] = useState("");
+  const simple = isSimpleUi();
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["schedule"],
@@ -39,8 +41,9 @@ function CalendarPageInner() {
   const { data: approvedData, isLoading: approvedLoading } = useQuery({
     queryKey: ["posts", "approved-for-schedule"],
     queryFn: () => api.posts.list({ status: "approved", limit: 50 }),
+    enabled: !simple,
   });
-  const needsTime: Post[] = approvedData?.items ?? [];
+  const needsTime: Post[] = simple ? [] : (approvedData?.items ?? []);
 
   useEffect(() => {
     if (!highlightPostId || needsTime.length === 0) return;
@@ -171,7 +174,7 @@ function CalendarPageInner() {
 
       {view === "queue" && (
       <>
-      {!approvedLoading && needsTime.length > 0 && (
+      {!simple && !approvedLoading && needsTime.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-xs font-bold text-teal uppercase tracking-widest">Pick a date (approved)</h2>
           {needsTime.map((post) => (
@@ -226,11 +229,11 @@ function CalendarPageInner() {
         <div className="pulse-card p-16 text-center">
           <Calendar className="w-12 h-12 mx-auto text-gray-200 mb-4" />
           <p className="text-muted-foreground">
-            Nothing here yet. Approve drafts in{" "}
+            Nothing scheduled yet. In{" "}
             <Link href="/review" className="text-primary hover:underline font-semibold">
               Review
             </Link>
-            , then pick a date in the list above.
+            , use <strong>Approve &amp; schedule</strong> to set platforms and date (lead only).
           </p>
         </div>
       )}

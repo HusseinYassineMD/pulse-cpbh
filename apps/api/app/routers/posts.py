@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,6 +27,16 @@ from app.services.serialize import post_to_response
 from app.services.storage import save_post_source_file
 from app.services.student_draft import create_student_draft
 from app.services.student_review_email import notify_new_student_draft
+
+
+async def _notify_student_draft_background(post_id: UUID) -> None:
+    from app.core.database import async_session
+
+    async with async_session() as session:
+        result = await session.execute(select(Post).where(Post.id == post_id))
+        post = result.scalar_one_or_none()
+        if post:
+            await notify_new_student_draft(post)
 
 ALLOWED_IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp"}
 ALLOWED_SOURCE_EXT = ALLOWED_IMAGE_EXT | {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt"}
@@ -198,6 +208,7 @@ async def generate_content(
 
 @router.post("/student-draft", response_model=PostResponse, status_code=201)
 async def submit_student_draft(
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
     submitted_by: str = Form(...),
     notes: str | None = Form(None),
@@ -288,7 +299,7 @@ async def submit_student_draft(
             cfg["source_materials"] = materials
             post.source_config = cfg
             await db.flush()
-            await notify_new_student_draft(post)
+            background_tasks.add_task(_notify_student_draft_background, post.id)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
     finally:

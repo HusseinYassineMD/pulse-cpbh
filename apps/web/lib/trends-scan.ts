@@ -38,6 +38,7 @@ const TREND_FEEDS: { source: string; url: string; strict: boolean }[] = [
 const CACHE_KEY = "pulse-trends-cache-v2";
 const CACHE_TTL_MS = 20 * 60 * 1000;
 const FEED_TIMEOUT_MS = 9000;
+const FEED_TIMEOUT_FAST_MS = 3500;
 
 const BRAIN_KEYWORDS =
   /\b(brain|alzheimer|dementia|cognitive|memory|neuro|apoe|amyloid|tau|parkinson|stroke|mental\s+health|sleep|exercise|nutrition|mind|aging|prevention|glymphatic)\b/i;
@@ -145,6 +146,11 @@ export function clearTrendsCache(): void {
   }
 }
 
+/** Synchronous starter list — cache or curated — so the UI is never empty while RSS runs. */
+export function getInstantTrendsPreview(limit = 16): TrendScanResponse {
+  return readTrendsCache() ?? curatedTrendsResponse(limit);
+}
+
 export function readTrendsCache(): TrendScanResponse | null {
   if (typeof window === "undefined") return null;
   try {
@@ -167,9 +173,9 @@ function writeTrendsCache(data: TrendScanResponse): void {
   }
 }
 
-async function fetchFeed(source: string, rssUrl: string): Promise<RawTrend[]> {
+async function fetchFeed(source: string, rssUrl: string, timeoutMs = FEED_TIMEOUT_MS): Promise<RawTrend[]> {
   const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`;
-  const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
+  const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(timeoutMs) });
   if (!response.ok) return [];
 
   const data = (await response.json()) as {
@@ -193,12 +199,15 @@ async function fetchFeed(source: string, rssUrl: string): Promise<RawTrend[]> {
 /** Fetch every configured source in parallel — same coverage as the Python API. */
 async function fetchAllFeeds(
   limit: number,
-  onProgress?: (progress: TrendScanProgress) => void
+  onProgress?: (progress: TrendScanProgress) => void,
+  options?: { feeds?: typeof TREND_FEEDS; timeoutMs?: number }
 ): Promise<{ items: TrendItem[]; sources: string[] }> {
+  const feedList = options?.feeds ?? TREND_FEEDS;
+  const timeoutMs = options?.timeoutMs ?? FEED_TIMEOUT_MS;
   const collected: RawTrend[] = [];
   const sourcesOk: string[] = [];
   let feedsDone = 0;
-  const feedsTotal = TREND_FEEDS.length;
+  const feedsTotal = feedList.length;
 
   const emit = async () => {
     if (!onProgress) return;
@@ -211,9 +220,9 @@ async function fetchAllFeeds(
   };
 
   await Promise.all(
-    TREND_FEEDS.map(async ({ source, url, strict }) => {
+    feedList.map(async ({ source, url, strict }) => {
       try {
-        const items = await fetchFeed(source, url);
+        const items = await fetchFeed(source, url, timeoutMs);
         if (items.length) {
           sourcesOk.push(source);
           for (const item of items) {
@@ -236,7 +245,7 @@ async function fetchAllFeeds(
 async function loadBuildSnapshot(): Promise<TrendScanResponse | null> {
   try {
     const res = await fetch(withBasePath("/data/trends-snapshot.json"), {
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(2500),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as TrendScanResponse;
@@ -275,26 +284,37 @@ function mergeTrendResults(
 /** Live RSS scan from the browser — works on GitHub Pages (no backend required). */
 export async function scanBrainHealthTrends(
   limit = 16,
-  options?: { force?: boolean; onProgress?: (progress: TrendScanProgress) => void }
+  options?: {
+    force?: boolean;
+    fast?: boolean;
+    /** Run live feeds even when session cache is warm (does not clear cache first). */
+    bypassCache?: boolean;
+    onProgress?: (progress: TrendScanProgress) => void;
+  }
 ): Promise<TrendScanResponse> {
   const force = options?.force === true;
+  const fast = options?.fast === true;
+  const bypassCache = options?.bypassCache === true;
 
-  if (!force) {
+  if (!force && !bypassCache) {
     const cached = readTrendsCache();
     if (cached?.items.length) return cached;
-  } else {
+  } else if (force) {
     clearTrendsCache();
   }
 
-  if (scanInFlight && !force) {
+  if (scanInFlight && !force && !bypassCache) {
     return scanInFlight;
   }
-  if (force) {
+  if (force || bypassCache) {
     scanInFlight = null;
   }
 
   const run = async (): Promise<TrendScanResponse> => {
-    const { items, sources } = await fetchAllFeeds(limit, options?.onProgress);
+    const feedOpts = fast
+      ? { feeds: TREND_FEEDS.slice(0, 2), timeoutMs: FEED_TIMEOUT_FAST_MS }
+      : undefined;
+    const { items, sources } = await fetchAllFeeds(limit, options?.onProgress, feedOpts);
 
     let result: TrendScanResponse = {
       scanned_at: new Date().toISOString(),

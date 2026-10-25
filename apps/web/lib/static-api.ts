@@ -1131,4 +1131,14 @@ export const staticApi = {
       reply: `Preview mode: try "${data.message.slice(0, 80)}" on the hosted team app for full AI ideation chat.`,
     }),
   },
+
+  notifications: {
+    emailStatus: async () => ({
+      review_lead_email_set: false,
+      resend_configured: false,
+      smtp_configured: false,
+      ready: false,
+      hint: "Preview site — email runs on the hosted API only.",
+    }),
+  },
 };

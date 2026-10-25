@@ -157,15 +157,23 @@ async def send_notification_email(to_email: str, subject: str, body: str) -> tup
         return ok, message
 
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
-        try:
-            await asyncio.to_thread(_send_via_smtp, settings, to_email, subject, body)
-            return True, f"Email sent to {to_email}"
-        except Exception as exc:
-            logger.exception("Notification email via SMTP failed")
-            return False, str(exc)
+        host = settings.smtp_host.lower()
+        edu_mailbox = settings.smtp_user.lower().endswith(".edu")
+        usc_smtp = edu_mailbox or "office365" in host or "outlook" in host
+        if usc_smtp and not settings.resend_api_key.strip():
+            logger.warning(
+                "Skipping USC/Outlook SMTP for notifications — set RESEND_API_KEY on the API service."
+            )
+        else:
+            try:
+                await asyncio.to_thread(_send_via_smtp, settings, to_email, subject, body)
+                return True, f"Email sent to {to_email}"
+            except Exception as exc:
+                logger.exception("Notification email via SMTP failed")
+                return False, str(exc)
 
     logger.info("Notification (no mailer configured)\n  To: %s\n  Subject: %s\n%s", to_email, subject, body)
-    return False, "Email not configured — set RESEND_API_KEY or SMTP in .env"
+    return False, "Email not configured — set REVIEW_LEAD_EMAIL and RESEND_API_KEY on the API (Render)."
 
 
 async def send_plan_assignment(idea: ContentIdea, assignee_email: str) -> tuple[bool, str, bool]:

@@ -78,19 +78,34 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    body: formData,
-    headers,
-    signal: AbortSignal.timeout(90000),
-  });
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method,
+      body: formData,
+      headers,
+      signal: AbortSignal.timeout(75000),
+    });
 
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, body.detail || response.statusText);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const detail = body.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || response.statusText
+            : response.statusText;
+      throw new ApiError(response.status, message);
+    }
+
+    return response.json();
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    if (e instanceof Error && e.name === "TimeoutError") {
+      throw new ApiError(504, "Request timed out — server may still be waking up. Try again in 30 seconds.");
+    }
+    throw e;
   }
-
-  return response.json();
 }
 
 export { ApiError };
@@ -464,6 +479,17 @@ const liveApi = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+  },
+
+  notifications: {
+    emailStatus: () =>
+      request<{
+        review_lead_email_set: boolean;
+        resend_configured: boolean;
+        smtp_configured: boolean;
+        ready: boolean;
+        hint: string;
+      }>("/notifications/email-status"),
   },
 };
 

@@ -1,51 +1,24 @@
 import type { NextRequest } from "next/server";
+import { upstreamApiBase } from "@/lib/upstream-api";
 
 export const runtime = "nodejs";
 
-/** Hosted Pulse API (Render blueprint service name). */
-const RENDER_API_DEFAULT = "https://pulse-cpbh-api.onrender.com";
-
-function upstreamBase(): string {
-  let raw = (process.env.API_URL || "").trim();
-  if (!raw && process.env.RENDER) {
-    raw = RENDER_API_DEFAULT;
-  }
-  if (!raw) {
-    raw = "http://127.0.0.1:8010";
-  }
-  raw = raw.replace(/\/$/, "");
-  if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
-    raw = `https://${raw}`;
-  }
-  try {
-    const host = new URL(raw).hostname;
-    // Render blueprint sometimes sets API_URL to the service name only (no .onrender.com).
-    if (!host.includes(".") && process.env.RENDER) {
-      raw = `https://${host}.onrender.com`;
-    }
-  } catch {
-    /* keep raw */
-  }
-  if (process.env.RENDER && raw.includes("pulse-cpbh-api") && !raw.includes(".onrender.com")) {
-    raw = RENDER_API_DEFAULT;
-  }
-  return raw.replace(/\/api\/v1$/i, "");
-}
-
 async function fetchUpstream(url: string, init: RequestInit): Promise<Response> {
-  const attempts = process.env.RENDER ? 4 : 1;
+  const isMutating = init.method !== "GET" && init.method !== "HEAD";
+  const attempts = process.env.RENDER ? (isMutating ? 2 : 3) : 1;
+  const timeoutMs = isMutating ? 90_000 : 55_000;
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
       return await fetch(url, {
         ...init,
         cache: "no-store",
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       lastError = err;
       if (i < attempts - 1) {
-        await new Promise((r) => setTimeout(r, 8000));
+        await new Promise((r) => setTimeout(r, 3000));
       }
     }
   }
@@ -55,7 +28,7 @@ async function fetchUpstream(url: string, init: RequestInit): Promise<Response> 
 async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response> {
   const suffix = pathSegments.join("/");
   const incoming = new URL(req.url);
-  const base = upstreamBase();
+  const base = upstreamApiBase();
   const target = `${base}/api/v1/${suffix}${incoming.search}`;
 
   const headers = new Headers();

@@ -1,8 +1,57 @@
-# Team links (Render — runs 24/7, no Mac required)
+# Pulse — your working cheat sheet (copy to TEAM-LINK.txt and fill in; TEAM-LINK.txt is gitignored)
 #
-# One-time: ./start.sh host → Apply blueprint → wait until Live
-# Replace YOUR-WEB-URL with pulse-cpbh-web URL from Render dashboard
-#
-Submit:  https://YOUR-WEB-URL.onrender.com/submit
-Review:  https://YOUR-WEB-URL.onrender.com/review
-Schedule: https://YOUR-WEB-URL.onrender.com/calendar
+# Render services: pulse-cpbh-web, pulse-cpbh-api, pulse-cpbh-db
+# Repo: HusseinYassineMD/pulse-cpbh
+
+# --- LIVE URLS (replace YOUR-WEB-URL, e.g. pulse-cpbh-web.onrender.com) ---
+
+Students (no code):
+  Ideate:     https://YOUR-WEB-URL.onrender.com/ideate
+  Send draft: https://YOUR-WEB-URL.onrender.com/submit
+
+You & Tiffany (team code once per browser):
+  Team login: https://YOUR-WEB-URL.onrender.com/team
+  Review:     https://YOUR-WEB-URL.onrender.com/review   (after team login)
+  Schedule:   https://YOUR-WEB-URL.onrender.com/calendar
+
+Local test (./start.sh dev):
+  Ideate:     http://localhost:3010/ideate
+  Send:       http://localhost:3010/submit
+  Team login: http://localhost:3010/team
+
+# --- TEAM CODE (LEAD_ACCESS_PIN) — YOU CHOOSE THIS; IT IS NOT AUTO-GENERATED ---
+
+What it is:
+  A password only leads use to unlock Review & Schedule. Students never need it.
+
+Where to set it:
+  • Render → pulse-cpbh-web → Environment → LEAD_ACCESS_PIN = (your secret phrase)
+  • Local: apps/web/.env.local → LEAD_ACCESS_PIN=your-test-code
+  Then restart web / ./start.sh dev
+
+What to pick:
+  Use something long you can share with Tiffany only (e.g. CPBH-Review-2026-YourInitials).
+  Write the actual value below — never commit TEAM-LINK.txt to git.
+
+MY TEAM CODE (fill in):
+  LEAD_ACCESS_PIN=
+
+# --- RENDER API (pulse-cpbh-api) — email when students submit ---
+
+REVIEW_LEAD_EMAIL=     (lead inbox — set in Render only, not in git)
+RESEND_API_KEY=        (from resend.com — required for email)
+WEB_URL=               https://YOUR-WEB-URL.onrender.com
+REVIEW_REMINDER_HOURS=12   (optional: 1 for faster reminder testing)
+
+# --- SIDEBAR ---
+
+Students see: Ideation · Send draft · Team review (opens /team to enter code)
+After code:   Review · Schedule · Sign out
+
+# --- DEPLOY CHECKLIST ---
+
+1. Push to main → Manual Deploy web + API on Render
+2. Set LEAD_ACCESS_PIN on web, REVIEW_LEAD_EMAIL + RESEND_API_KEY on API
+3. Test: ideate → submit locally first (localhost:3010), then live URL
+
+See also: TEST-LOCALLY.md, HOST_RENDER.md, WORKFLOWS.md

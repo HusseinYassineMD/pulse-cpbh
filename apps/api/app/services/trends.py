@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import re
 import xml.etree.ElementTree as ET
@@ -211,15 +212,18 @@ async def scan_brain_health_trends(*, limit: int = 12) -> tuple[list[dict], list
     sources_ok: list[str] = []
 
     headers = {"User-Agent": USER_AGENT}
-    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, headers=headers) as client:
-        for source, url, strict in TREND_FEEDS:
-            items = await _fetch_feed(client, source, url)
-            if not items:
-                continue
-            sources_ok.append(source)
-            for item in items:
-                if _is_relevant(item, strict=strict):
-                    collected.append(item)
+
+    async def pull(source: str, url: str, strict: bool, client: httpx.AsyncClient) -> None:
+        items = await _fetch_feed(client, source, url)
+        if not items:
+            return
+        sources_ok.append(source)
+        for item in items:
+            if _is_relevant(item, strict=strict):
+                collected.append(item)
+
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers) as client:
+        await asyncio.gather(*(pull(source, url, strict, client) for source, url, strict in TREND_FEEDS))
 
     # Dedupe by title
     seen: set[str] = set()

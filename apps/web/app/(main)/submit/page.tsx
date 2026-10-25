@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2, Link2, Plus, Send, Trash2 } from "lucide-react";
@@ -15,6 +15,8 @@ import {
   SOURCE_MATERIAL_KINDS,
   type SourceMaterialLink,
 } from "@/lib/submit-source-materials";
+import { readIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
+import { submitStudentDraftReliable } from "@/lib/submit-student-draft";
 
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -36,6 +38,13 @@ export default function SubmitDraftPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [lastPost, setLastPost] = useState<Post | null>(null);
+  const [sendHint, setSendHint] = useState("");
+  const [captionsByPlatform, setCaptionsByPlatform] = useState<{
+    instagram: string;
+    facebook: string;
+    linkedin: string;
+  } | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
 
   function togglePlatform(id: string) {
     setPlatforms((prev) => {
@@ -50,11 +59,22 @@ export default function SubmitDraftPage() {
   useEffect(() => {
     setName(readSubmitName());
     if (typeof window === "undefined") return;
+
+    const handoff = readIdeateDraftForSubmit();
+    if (handoff) {
+      if (handoff.topic) setTopic(handoff.topic);
+      if (handoff.notes) setNotes(handoff.notes);
+      if (handoff.captions) {
+        setCaptionsByPlatform(handoff.captions);
+        setCaption(handoff.captions.instagram);
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     const t = params.get("topic");
     const c = params.get("caption");
-    if (t) setTopic(t);
-    if (c) setCaption(c);
+    if (t && !handoff?.topic) setTopic(t);
+    if (c && !handoff?.captions) setCaption(c);
   }, []);
 
   const submit = useMutation({
@@ -64,10 +84,14 @@ export default function SubmitDraftPage() {
       form.set("title", title);
       form.set("submitted_by", name.trim());
       form.set("notes", notes.trim());
-      form.set("unified_caption", caption.trim());
-      form.set("caption_instagram", caption.trim());
-      form.set("caption_facebook", caption.trim());
-      form.set("caption_linkedin", caption.trim());
+      const unified = caption.trim();
+      const ig = captionsByPlatform?.instagram.trim() || unified;
+      const fb = captionsByPlatform?.facebook.trim() || unified;
+      const li = captionsByPlatform?.linkedin.trim() || unified;
+      form.set("unified_caption", unified);
+      form.set("caption_instagram", ig);
+      form.set("caption_facebook", fb);
+      form.set("caption_linkedin", li);
       form.set("deliverable", deliverable);
       form.set("canva_link", canvaLink.trim());
       if (canvaSlides.trim()) form.set("canva_slide_numbers", canvaSlides.trim());
@@ -82,7 +106,7 @@ export default function SubmitDraftPage() {
         }));
       form.set("sources_json", JSON.stringify(sourcesPayload));
       platforms.forEach((p) => form.append("platforms", p));
-      return api.posts.submitStudentDraft(form);
+      return submitStudentDraftReliable((f) => api.posts.submitStudentDraft(f), form);
     },
     onSuccess: (post) => {
       writeSubmitName(name);
@@ -91,14 +115,35 @@ export default function SubmitDraftPage() {
       setError("");
     },
     onError: (e) => {
-      const msg = e instanceof ApiError ? e.message : "Could not send — try again.";
-      setError(
-        msg.includes("500") || msg.toLowerCase().includes("internal")
-          ? "Server error — ask your lead to restart the team app, then try again."
-          : msg
-      );
+      setSendHint("");
+      let msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Could not send — try again.";
+      if (msg.includes("TimeoutError") || msg.toLowerCase().includes("timeout") || msg.toLowerCase().includes("aborted")) {
+        msg = "Connection timed out — tap Send once more. Your answers are still on this page.";
+      } else if (msg.includes("502") || msg.toLowerCase().includes("could not reach pulse api")) {
+        msg = "Could not connect just now — wait a few seconds and tap Send again.";
+      } else if (msg.includes("500") || msg.toLowerCase().includes("internal")) {
+        msg = "Server error — ask your lead to restart the team app, then try again.";
+      }
+      showValidationError(msg);
     },
   });
+
+  useEffect(() => {
+    if (!submit.isPending) {
+      setSendHint("");
+      return;
+    }
+    const t1 = window.setTimeout(() => {
+      setSendHint("Connecting…");
+    }, 2500);
+    const t2 = window.setTimeout(() => {
+      setSendHint("Almost there — saving your draft…");
+    }, 12000);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [submit.isPending]);
 
   function resetForm() {
     setDone(false);
@@ -110,6 +155,14 @@ export default function SubmitDraftPage() {
     setLinkInBio("");
     setLinkSources([{ id: newId(), kind: "yassinelab_substack", label: "", url: "" }]);
     setLastPost(null);
+    setCaptionsByPlatform(null);
+  }
+
+  function showValidationError(message: string) {
+    setError(message);
+    requestAnimationFrame(() => {
+      errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
   }
 
   function validate(): string | null {
@@ -169,12 +222,13 @@ export default function SubmitDraftPage() {
       )}
 
       <form
+        noValidate
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
           const v = validate();
           if (v) {
-            setError(v);
+            showValidationError(v);
             return;
           }
           setError("");
@@ -182,7 +236,13 @@ export default function SubmitDraftPage() {
         }}
       >
         {error && (
-          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">{error}</p>
+          <p
+            ref={errorRef}
+            role="alert"
+            className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5"
+          >
+            {error}
+          </p>
         )}
 
         <label className="block">
@@ -193,7 +253,6 @@ export default function SubmitDraftPage() {
             className="form-input mt-1.5 w-full text-base py-3"
             placeholder="First and last name"
             autoComplete="name"
-            required
           />
         </label>
 
@@ -233,13 +292,21 @@ export default function SubmitDraftPage() {
           <span className="text-sm font-medium">Caption</span>
           <textarea
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
             rows={6}
             className="form-input mt-1.5 w-full text-base"
             placeholder="Paste your post or story text…"
-            required
+            onChange={(e) => {
+              setCaption(e.target.value);
+              setCaptionsByPlatform(null);
+            }}
           />
         </label>
+        {captionsByPlatform && (
+          <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 rounded-lg px-3 py-2 leading-relaxed">
+            Instagram, Facebook, and LinkedIn each keep their own caption from Ideation (including the LinkedIn hook).
+            Edit this box only if you want the same text on all channels.
+          </p>
+        )}
 
         <div className="rounded-xl border border-border p-4 space-y-3 bg-muted/20">
           <p className="text-sm font-semibold flex items-center gap-2">
@@ -254,7 +321,6 @@ export default function SubmitDraftPage() {
               type="url"
               className="form-input mt-1.5 w-full text-base py-3"
               placeholder="Canva design or Drive folder with your slides/images"
-              required
             />
           </label>
           <label className="block">
@@ -388,6 +454,9 @@ export default function SubmitDraftPage() {
           </div>
         </fieldset>
 
+        {sendHint && (
+          <p className="text-sm text-muted-foreground bg-muted/50 border border-border rounded-xl px-3 py-2.5">{sendHint}</p>
+        )}
         <button
           type="submit"
           disabled={submit.isPending}
@@ -400,8 +469,8 @@ export default function SubmitDraftPage() {
 
       <p className="text-center text-xs text-muted-foreground">
         Team lead?{" "}
-        <Link href="/review" className="text-teal font-medium hover:underline">
-          Open review
+        <Link href="/team" className="text-teal font-medium hover:underline">
+          Lead sign-in
         </Link>
       </p>
     </div>

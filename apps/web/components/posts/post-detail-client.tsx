@@ -34,6 +34,7 @@ import { ContentHealthScore } from "@/components/posts/content-health-score";
 import { DownloadImageButtons } from "@/components/ui/download-image-buttons";
 import { celebrate } from "@/lib/celebrate";
 import { StudentDraftDetails } from "@/components/posts/student-draft-details";
+import { ReviewScheduleDialog } from "@/components/review/review-schedule-dialog";
 import { submittedBy } from "@/lib/social-workflow";
 import { isSimpleUi } from "@/lib/simple-ui";
 import { usePostIdContext } from "@/lib/post-id-context";
@@ -56,6 +57,7 @@ export default function PostDetailClient() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [mediaView, setMediaView] = useState<"editor" | "preview">("editor");
   const [simpleCaption, setSimpleCaption] = useState("");
+  const [leadScheduleOpen, setLeadScheduleOpen] = useState(false);
   const simple = isSimpleUi();
 
   const { data: post, isLoading, isError, error: loadError, refetch } = useQuery({
@@ -297,14 +299,24 @@ export default function PostDetailClient() {
               Submit review
             </button>
           )}
-          {canApprove && (
+          {canApprove && !simple && (
             <button
               onClick={() => approve.mutate()}
               disabled={approve.isPending}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] bg-teal text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex-1 sm:flex-none"
             >
               <Check className="w-4 h-4" />
-              {simple ? "Approve for schedule" : "Approve"}
+              Approve
+            </button>
+          )}
+          {canApprove && simple && (
+            <button
+              type="button"
+              onClick={() => setLeadScheduleOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] bg-teal text-white rounded-lg text-sm font-medium hover:opacity-90 flex-1 sm:flex-none"
+            >
+              <Check className="w-4 h-4" />
+              Approve &amp; schedule
             </button>
           )}
           <button
@@ -576,7 +588,7 @@ export default function PostDetailClient() {
 
       {!simple && <PublishAttempts postId={id} />}
 
-      {(canSchedule || (simple && post.status === "approved")) && (
+      {canSchedule && !simple && (
         <div id="schedule">
           <SchedulePanel
             postId={id}
@@ -589,11 +601,37 @@ export default function PostDetailClient() {
               queryClient.invalidateQueries({ queryKey: ["posts", "approved-for-schedule"] });
               queryClient.invalidateQueries({ queryKey: ["publish-attempts", id] });
               setInfoMsg("Scheduled — it will show on your calendar.");
-              if (simple) router.push("/calendar");
               setTimeout(() => setInfoMsg(""), 5000);
             }}
           />
         </div>
+      )}
+
+      {simple && (post.status === "scheduled" || post.status === "approved") && (
+        <p className="text-sm text-muted-foreground bg-muted/40 border border-border rounded-xl px-4 py-3">
+          Date and platforms are set by your lead in Review. To change time, use{" "}
+          <Link href="/calendar" className="text-teal font-medium hover:underline">
+            Schedule
+          </Link>
+          .
+        </p>
+      )}
+
+      {simple && (
+        <ReviewScheduleDialog
+          postId={id}
+          defaultPlatforms={availablePlatforms}
+          open={leadScheduleOpen}
+          onClose={() => setLeadScheduleOpen(false)}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ["post", id] });
+            queryClient.invalidateQueries({ queryKey: ["posts"] });
+            queryClient.invalidateQueries({ queryKey: ["schedule"] });
+            setLeadScheduleOpen(false);
+            setInfoMsg("Approved and scheduled.");
+            setTimeout(() => setInfoMsg(""), 5000);
+          }}
+        />
       )}
     </div>
   );

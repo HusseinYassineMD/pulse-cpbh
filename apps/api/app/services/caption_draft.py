@@ -60,5 +60,5 @@ def draft_social_captions(title: str, source_text: str) -> dict[str, str]:
 
     instagram = f"{open_line}\n\n{body}\n\n{CTA}\n\n{HASHTAGS_IG}"[:2200]
     facebook = f"{open_line}\n\n{body}\n\n{CTA}\n\n{HASHTAGS_FB}"[:600]
-    linkedin = f"{topic}\n\n{body}\n\n{CTA}\n\n{HASHTAGS_LI}"[:1200]
+    linkedin = f"{open_line}\n\n{body}\n\n{CTA}\n\n{HASHTAGS_LI}"[:1200]
     return {"instagram": instagram, "facebook": facebook, "linkedin": linkedin}

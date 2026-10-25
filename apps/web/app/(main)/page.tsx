@@ -26,7 +26,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { PlatformBadges } from "@/components/ui/platform-badges";
 import { ACTIONABLE_STATUSES, getPostNextStep } from "@/lib/post-workflow";
 import { isSimpleUi } from "@/lib/simple-ui";
-import { WorkflowHome } from "@/components/workflow-home";
+import { StudentWorkflowHome } from "@/components/student-workflow-home";
 import type { CommandResult, Post } from "@/lib/types";
 
 const EXAMPLES = ["post my-carousel", "captions draft-id"];
@@ -432,6 +432,6 @@ function ResultCard({
 }
 
 export default function HomePage() {
-  if (isSimpleUi()) return <WorkflowHome />;
+  if (isSimpleUi()) return <StudentWorkflowHome />;
   return <FullHomePage />;
 }

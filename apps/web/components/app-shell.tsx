@@ -10,7 +10,6 @@ import {
   Home,
   LayoutDashboard,
   Circle,
-  Settings,
   ClipboardList,
   ClipboardCheck,
   LayoutGrid,
@@ -20,15 +19,20 @@ import {
   PanelLeftOpen,
   BarChart3,
   Lightbulb,
+  Lock,
   Sparkles,
   X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
 import { isSimpleUi } from "@/lib/simple-ui";
+import { safeLeadReturnPath } from "@/lib/portal-config";
+import { WORKFLOW_NAV, type WorkflowNavItem } from "@/lib/workflow-nav";
 import { readSidebarOpen, writeSidebarOpen } from "@/lib/sidebar-prefs";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/ui/command-palette";
 import { SkipLink } from "@/components/ui/skip-link";
+import { LeadSignOutButton } from "@/components/lead-sign-out-button";
+import { WarmPulseOnMount } from "@/components/warm-pulse-on-mount";
 
 const fullNav = [
   { href: "/", label: "Home", icon: Home },
@@ -41,16 +45,6 @@ const fullNav = [
   { href: "/calendar", label: "Schedule", icon: Calendar },
   { href: "/board", label: "Board", icon: LayoutGrid },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
-
-const simpleNav = [
-  { href: "/", label: "Start", icon: Home },
-  { href: "/ideate", label: "Ideation", icon: Lightbulb },
-  { href: "/submit", label: "Send draft", icon: Send },
-  { href: "/review", label: "Review", icon: ClipboardCheck },
-  { href: "/calendar", label: "Schedule", icon: Calendar },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 const mobileNavFull = [
@@ -59,14 +53,6 @@ const mobileNavFull = [
   { href: "/plan", label: "Plan", icon: ClipboardList },
   { href: "/studio", label: "Create", icon: Sparkles },
   { href: "/board", label: "Board", icon: LayoutGrid },
-  { href: "/calendar", label: "Schedule", icon: Calendar },
-];
-
-const mobileNavSimple = [
-  { href: "/", label: "Start", icon: Home },
-  { href: "/ideate", label: "Ideate", icon: Lightbulb },
-  { href: "/submit", label: "Send", icon: Send },
-  { href: "/review", label: "Review", icon: ClipboardCheck },
   { href: "/calendar", label: "Schedule", icon: Calendar },
 ];
 
@@ -82,7 +68,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/board": "Board",
   "/analytics": "Analytics",
   "/ideas": "Ideas",
-  "/settings": "Settings",
   "/submit": "Submit draft",
   "/review": "Review queue",
 };
@@ -108,12 +93,20 @@ function isNavActive(pathname: string, href: string): boolean {
   return pathname.startsWith(href);
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export type PortalMode = "student" | "lead";
+
+export function AppShell({
+  children,
+  portal = "student",
+}: {
+  children: React.ReactNode;
+  portal?: PortalMode;
+}) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(() => readSidebarOpen());
   const simple = isSimpleUi();
-  const nav = simple ? simpleNav : fullNav;
-  const mobileNav = simple ? mobileNavSimple : mobileNavFull;
+  const isLead = portal === "lead";
+  const brandHref = "/ideate";
 
   const toggleSidebar = () => {
     setSidebarOpen((open) => {
@@ -133,6 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh md:flex md:items-start">
+      {portal === "student" && <WarmPulseOnMount />}
       <SkipLink />
       {/* Desktop sidebar — scrolls independently when nav is long */}
       <aside
@@ -143,8 +137,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         aria-label="Primary navigation"
       >
         <div className="w-64 flex flex-col min-h-full">
-          <ShellBrand />
-          <DesktopNav pathname={pathname} items={nav} />
+          <ShellBrand homeHref={brandHref} />
+          {simple ? (
+            <WorkflowDesktopNav pathname={pathname} isLead={isLead} />
+          ) : (
+            <DesktopNav pathname={pathname} items={fullNav} />
+          )}
           {dashboard && <ShellOverview dashboard={dashboard} />}
           <div className="p-3 border-t border-sidebar-border/60 space-y-2">
             {!simple && <CommandPaletteTrigger className="w-full justify-center" />}
@@ -165,7 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col min-w-0 w-full">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-3 border-b border-border/80 bg-white/90 backdrop-blur-lg pt-[max(0.75rem,env(safe-area-inset-top))] shrink-0">
-          <Link href="/" className="flex items-center gap-2.5 min-w-0">
+          <Link href={brandHref} className="flex items-center gap-2.5 min-w-0">
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
               style={{ background: "linear-gradient(135deg, hsl(var(--foreground)), hsl(196 45% 38%))" }}
@@ -179,15 +177,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex items-center gap-1">
             {!simple && <CommandPaletteTrigger compact />}
-            <Link
-              href="/settings"
-              className={`p-2.5 rounded-xl min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors ${
-                pathname.startsWith("/settings") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
-              }`}
-              aria-label="Settings"
-            >
-              <Settings className="w-5 h-5" />
-            </Link>
+            {isLead ? <LeadSignOutButton variant="chip" /> : null}
           </div>
         </header>
 
@@ -232,25 +222,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border bg-white/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
-        <div className={`grid max-w-lg mx-auto ${mobileNav.length === 4 ? "grid-cols-4" : "grid-cols-6"}`}>
-          {mobileNav.map(({ href, label, icon: Icon }) => {
-            const active = isNavActive(pathname, href);
-            const shortLabel = href === "/calendar" ? "Schedule" : label;
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 py-2.5 px-0.5 min-h-[56px] text-[9px] font-medium transition-colors touch-manipulation ${
-                  active ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
-                <span className="truncate max-w-full px-0.5">{shortLabel}</span>
-              </Link>
-            );
-          })}
-        </div>
+        {simple ? (
+          <WorkflowMobileNav pathname={pathname} isLead={isLead} />
+        ) : (
+          <div
+            className={`grid max-w-lg mx-auto ${
+              mobileNavFull.length <= 4 ? "grid-cols-4" : "grid-cols-6"
+            }`}
+          >
+            {mobileNavFull.map(({ href, label, icon: Icon }) => {
+              const active = isNavActive(pathname, href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex flex-col items-center justify-center gap-0.5 py-2.5 px-0.5 min-h-[56px] text-[9px] font-medium transition-colors touch-manipulation ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
+                  <span className="truncate max-w-full px-0.5">{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
     </div>
   );
@@ -289,10 +286,10 @@ function DemoBanner() {
   );
 }
 
-function ShellBrand() {
+function ShellBrand({ homeHref = "/" }: { homeHref?: string }) {
   return (
     <div className="p-6 border-b border-sidebar-border/60">
-      <Link href="/" className="flex items-center gap-3 group">
+      <Link href={homeHref} className="flex items-center gap-3 group">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform"
           style={{ background: "linear-gradient(135deg, hsl(var(--foreground)), hsl(196 45% 38%))" }}
@@ -308,12 +305,91 @@ function ShellBrand() {
   );
 }
 
+function workflowNavTarget(item: WorkflowNavItem, isLead: boolean): { href: string; locked: boolean } {
+  const locked = item.leadOnly && !isLead;
+  if (locked) {
+    const next = encodeURIComponent(safeLeadReturnPath(item.href));
+    return { href: `/team?blocked=lead&next=${next}`, locked };
+  }
+  return { href: item.href, locked };
+}
+
+function WorkflowDesktopNav({ pathname, isLead }: { pathname: string; isLead: boolean }) {
+  return (
+    <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Main menu">
+      {WORKFLOW_NAV.map((item) => {
+        const { href, locked } = workflowNavTarget(item, isLead);
+        const active = !locked && isNavActive(pathname, item.href);
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            title={locked ? "Team code required — ask Tiffany" : undefined}
+            className={`flex items-center gap-3 px-4 py-3 min-h-[44px] rounded-xl text-sm font-medium transition-all duration-200 touch-manipulation ${
+              active
+                ? "text-white shadow-sm"
+                : locked
+                  ? "text-muted-foreground/70 hover:text-muted-foreground hover:bg-sidebar-accent/60"
+                  : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
+            }`}
+            style={
+              active
+                ? { background: "linear-gradient(135deg, hsl(var(--foreground)), hsl(196 45% 38%))" }
+                : undefined
+            }
+          >
+            <Icon className="w-4 h-4 shrink-0" aria-hidden />
+            <span className="flex-1">{item.label}</span>
+            {locked ? <Lock className="w-3.5 h-3.5 shrink-0 opacity-60" aria-hidden /> : null}
+          </Link>
+        );
+      })}
+      {isLead ? (
+        <div className="pt-3 mt-2 border-t border-sidebar-border/50">
+          <LeadSignOutButton />
+        </div>
+      ) : null}
+    </nav>
+  );
+}
+
+function WorkflowMobileNav({ pathname, isLead }: { pathname: string; isLead: boolean }) {
+  return (
+    <div className="grid grid-cols-4 max-w-lg mx-auto">
+      {WORKFLOW_NAV.map((item) => {
+        const { href, locked } = workflowNavTarget(item, isLead);
+        const active = !locked && isNavActive(pathname, item.href);
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            title={locked ? "Team code required" : item.label}
+            className={`relative flex flex-col items-center justify-center gap-0.5 py-2.5 px-0.5 min-h-[56px] text-[9px] font-medium transition-colors touch-manipulation ${
+              active ? "text-primary" : locked ? "text-muted-foreground/60" : "text-muted-foreground"
+            }`}
+          >
+            <Icon className={`w-[18px] h-[18px] shrink-0 ${active ? "text-primary" : ""}`} aria-hidden />
+            <span className="truncate max-w-full px-0.5">{item.shortLabel}</span>
+            {locked ? (
+              <Lock className="absolute top-1.5 right-2 w-2.5 h-2.5 text-muted-foreground/70" aria-hidden />
+            ) : null}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 function DesktopNav({
   pathname,
   items,
 }: {
   pathname: string;
-  items: typeof simpleNav;
+  items: typeof fullNav;
 }) {
   return (
     <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Main menu">

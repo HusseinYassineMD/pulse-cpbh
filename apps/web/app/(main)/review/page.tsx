@@ -8,6 +8,7 @@ import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { AuthImage } from "@/components/auth-image";
 import { StudentDraftDetails } from "@/components/posts/student-draft-details";
+import { EmailConfigBanner } from "@/components/email-config-banner";
 import { ReviewScheduleDialog } from "@/components/review/review-schedule-dialog";
 import { submittedBy } from "@/lib/social-workflow";
 import { draftTicketLabel } from "@/lib/post-ticket";
@@ -67,6 +68,8 @@ export default function ReviewQueuePage() {
           hours.
         </p>
       </div>
+
+      <EmailConfigBanner />
 
       {msg && <p className="text-sm text-teal-900 bg-teal/10 border border-teal/25 px-4 py-2.5 rounded-xl">{msg}</p>}
       {err && <p className="text-sm text-red-700 bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl">{err}</p>}
