@@ -196,7 +196,7 @@ export default function SubmitDraftPage() {
   function validate(): string | null {
     if (!name.trim()) return "Please enter your name.";
     if (!caption.trim()) return "Please paste your caption.";
-    if (!canvaLink.trim()) return "Add a link or note for where your visuals live (Canva, Drive, etc.).";
+    if (!canvaLink.trim()) return "Write where your visuals live (a link or a short note).";
     if (platforms.length === 0) return "Pick at least one place to post.";
     const hasSource = linkSources.some((s) => s.url.trim() || s.label.trim());
     if (!hasSource) {
@@ -247,7 +247,7 @@ export default function SubmitDraftPage() {
       <div className="text-center space-y-1">
         <h1 className="text-2xl font-bold">Send a draft</h1>
         <p className="text-sm text-muted-foreground">
-          Post or story — one link to your visuals (Canva or Drive), plus source links. No image upload needed.
+          Post or story. Write where the visuals live and where the facts came from — a link or a plain note is fine.
         </p>
         <p className="text-xs">
           <Link href="/ideate" className="text-teal font-medium hover:underline">
@@ -268,7 +268,7 @@ export default function SubmitDraftPage() {
         </p>
       )}
 
-      {/* Not a <form> — avoids Safari/Chrome “string did not match the expected pattern” on link fields */}
+      {/* Plain boxes, not a form — Safari treats “link” inputs as URLs and blocks send. */}
       <div className="space-y-5">
         {error && (
           <p
@@ -349,38 +349,38 @@ export default function SubmitDraftPage() {
             Content &amp; links
           </p>
           <label className="block">
-            <span className="text-sm font-medium">Canva or Google Drive link</span>
-            <input
+            <span className="text-sm font-medium">Where are the visuals?</span>
+            <textarea
               value={canvaLink}
               onChange={(e) => setCanvaLink(e.target.value)}
-              type="text"
-              inputMode="text"
+              rows={3}
               autoComplete="off"
               autoCorrect="off"
-              spellCheck={false}
-              className="form-input mt-1.5 w-full text-base py-3"
-              placeholder="Canva, Drive, or any text describing where slides live"
+              spellCheck
+              className="form-input mt-1.5 w-full text-base py-3 min-h-[96px] resize-y leading-relaxed"
+              placeholder="Paste a Canva or Drive link, or write where the slides are. Example: dept Canva, social folder, slides 3–7"
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium">Slide numbers (dept Canva / social folder)</span>
-            <input
+            <span className="text-sm font-medium">Slide numbers (optional)</span>
+            <textarea
               value={canvaSlides}
               onChange={(e) => setCanvaSlides(e.target.value)}
-              className="form-input mt-1.5 w-full text-base py-3"
-              placeholder="e.g. slides 3–7"
+              rows={2}
+              autoComplete="off"
+              className="form-input mt-1.5 w-full text-base py-3 min-h-[72px] resize-y leading-relaxed"
+              placeholder="e.g. slides 3–7 in the social folder"
             />
           </label>
           <label className="block">
-            <span className="text-sm font-medium">Link in bio (if different)</span>
-            <input
+            <span className="text-sm font-medium">Link in bio (optional)</span>
+            <textarea
               value={linkInBio}
               onChange={(e) => setLinkInBio(e.target.value)}
-              type="text"
-              inputMode="text"
+              rows={2}
               autoComplete="off"
-              className="form-input mt-1.5 w-full text-base py-3"
-              placeholder="Optional — link or note"
+              className="form-input mt-1.5 w-full text-base py-3 min-h-[72px] resize-y leading-relaxed"
+              placeholder="Only if it is different from the visuals note above"
             />
           </label>
         </div>
@@ -388,7 +388,7 @@ export default function SubmitDraftPage() {
         <div className="rounded-xl border border-border p-4 space-y-3">
           <p className="text-sm font-semibold">Source material</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Substack, patient handouts, journal articles, etc. — link only (no file upload).
+            Substack, patient handouts, journal articles, and so on. Paste a link or write a short note. No file upload.
           </p>
 
           <div className="space-y-3">
@@ -431,18 +431,17 @@ export default function SubmitDraftPage() {
                   className="form-input w-full text-sm"
                   placeholder="Short label (optional)"
                 />
-                <input
+                <textarea
                   value={row.url}
                   onChange={(e) =>
                     setLinkSources((prev) =>
                       prev.map((r) => (r.id === row.id ? { ...r, url: e.target.value } : r))
                     )
                   }
-                  type="text"
-                  inputMode="text"
+                  rows={2}
                   autoComplete="off"
-                  className="form-input w-full text-sm"
-                  placeholder="Link or reference (any text)"
+                  className="form-input w-full text-sm min-h-[72px] resize-y leading-relaxed"
+                  placeholder="Link or note — any text"
                 />
               </div>
             ))}

@@ -231,7 +231,7 @@ async def submit_student_draft(
     db: AsyncSession = Depends(get_db),
 ):
     if not canva_link.strip():
-        raise HTTPException(status_code=400, detail="Content link is required (Canva or Google Drive)")
+        raise HTTPException(status_code=400, detail="Say where the visuals live — a link or a short note")
     if deliverable.strip().lower() not in ("post", "story"):
         raise HTTPException(status_code=400, detail="Deliverable must be post or story")
 

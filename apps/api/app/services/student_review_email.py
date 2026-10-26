@@ -65,8 +65,8 @@ Ticket: {tid}
 Student: {student_name(post) or "—"}
 Title: {post.title}
 Type: {deliverable}
-Canva: {cfg.get("canva_link") or "—"}
-Slide #s (dept Canva): {cfg.get("canva_slide_numbers") or "—"}
+Visuals: {cfg.get("canva_link") or "—"}
+Slide numbers: {cfg.get("canva_slide_numbers") or "—"}
 Link in bio: {cfg.get("link_in_bio") or "—"}
 
 Source material:
