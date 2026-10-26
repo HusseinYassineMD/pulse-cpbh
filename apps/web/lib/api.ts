@@ -74,7 +74,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
-async function uploadRequest<T>(path: string, formData: FormData, method = "POST"): Promise<T> {
+async function uploadRequest<T>(
+  path: string,
+  formData: FormData,
+  method = "POST",
+  timeoutMs = 28_000
+): Promise<T> {
   const token = useAuthStore.getState().accessToken;
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -84,7 +89,7 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
       method,
       body: formData,
       headers,
-      signal: fetchAbortTimeout(28_000),
+      signal: fetchAbortTimeout(timeoutMs),
     });
 
     if (!response.ok) {
@@ -110,7 +115,7 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
     return response.json();
   } catch (e) {
     if (e instanceof ApiError) throw e;
-    if (e instanceof Error && e.name === "TimeoutError") {
+    if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError")) {
       throw new ApiError(504, "Request timed out — server may still be waking up. Try again in 30 seconds.");
     }
     throw e;
@@ -159,7 +164,8 @@ const liveApi = {
     create: (data: { title: string; post_creator_id?: string }) =>
       request<Post>("/posts", { method: "POST", body: JSON.stringify(data) }),
 
-    submitStudentDraft: (form: FormData) => uploadRequest<Post>("/posts/student-draft", form),
+    submitStudentDraft: (form: FormData) =>
+      uploadRequest<Post>("/posts/student-draft", form, "POST", 90_000),
 
     get: (id: string) => request<Post>(`/posts/${id}`),
 

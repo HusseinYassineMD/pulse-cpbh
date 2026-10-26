@@ -154,7 +154,7 @@ export default function SubmitDraftPage() {
       return;
     }
     const t1 = window.setTimeout(() => {
-      setSendHint((h) => h || "Connecting to the team server…");
+      setSendHint("Waking the server… your ticket will appear when this finishes.");
     }, 4000);
     const t2 = window.setTimeout(() => {
       setSendHint("Waking the server — first send after idle can take up to a minute…");
@@ -212,7 +212,7 @@ export default function SubmitDraftPage() {
       return;
     }
     setError("");
-    setSendHint("Sending your draft…");
+    setSendHint("Sending your draft… the first send can take a minute while the server wakes up.");
     submit.mutate();
   }
 
@@ -222,7 +222,10 @@ export default function SubmitDraftPage() {
         <CheckCircle2 className="w-14 h-14 text-teal mx-auto" />
         <h1 className="text-2xl font-bold">Sent!</h1>
         {lastPost && (
-          <p className="font-mono text-sm font-semibold text-teal">{draftTicketLabel(lastPost)}</p>
+          <div className="rounded-2xl border-2 border-teal/40 bg-teal/10 px-6 py-5 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-teal">Your ticket ID</p>
+            <p className="font-mono text-2xl font-bold text-teal">{draftTicketLabel(lastPost)}</p>
+          </div>
         )}
         <p className="text-muted-foreground text-sm leading-relaxed">
           Saved to the team <strong>Review</strong> queue. Screenshot or copy your ticket ID for your submission.

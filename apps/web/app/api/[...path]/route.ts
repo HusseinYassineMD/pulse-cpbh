@@ -5,9 +5,9 @@ export const runtime = "nodejs";
 
 async function fetchUpstream(url: string, init: RequestInit): Promise<Response> {
   const isMutating = init.method !== "GET" && init.method !== "HEAD";
-  // Render free tier ~30s per incoming request — one upstream attempt, fail fast so the client can retry after /api/warm.
+  // A cold Render API can take ~30–60s to wake. Stay under Render's 100s request cap.
   const attempts = process.env.RENDER ? 1 : isMutating ? 2 : 3;
-  const timeoutMs = process.env.RENDER ? 27_000 : isMutating ? 120_000 : 55_000;
+  const timeoutMs = process.env.RENDER ? 90_000 : isMutating ? 120_000 : 55_000;
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
     try {

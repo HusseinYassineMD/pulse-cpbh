@@ -1,5 +1,4 @@
 import { ApiError } from "./api";
-import { fetchAbortTimeout } from "./fetch-abort";
 import { warmPulseApi } from "./warm-api";
 import type { Post } from "./types";
 
@@ -31,28 +30,28 @@ function shouldRetrySubmit(error: unknown): boolean {
   return false;
 }
 
-const UPLOAD_TIMEOUT_MS = 28_000;
-const MAX_ATTEMPTS = 5;
+const HARD_TIMEOUT_MS = 95_000;
+const MAX_ATTEMPTS = 2;
 
 /**
- * Send draft without blocking on warm first — Render free tier ~30s per HTTP request.
- * Retries after waking the API when cold start returns 502/timeout.
+ * One long attempt so a sleeping Render API can wake and return the ticket.
+ * A second attempt runs only if the first one fails.
  */
 export async function submitStudentDraftReliable(
   upload: (form: FormData) => Promise<Post>,
   form: FormData
 ): Promise<Post> {
-  void warmPulseApi({ force: false });
+  void warmPulseApi({ force: true, maxWaitMs: 20_000 });
 
   let lastError: unknown;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) {
-      await sleep(800 * attempt);
+      await sleep(1000);
       await warmPulseApi({ force: true, maxWaitMs: 55_000 });
     }
 
     try {
-      return await uploadWithTimeout(upload, form);
+      return await withHardTimeout(upload(form), HARD_TIMEOUT_MS);
     } catch (e) {
       lastError = e;
       if (!shouldRetrySubmit(e) || attempt === MAX_ATTEMPTS - 1) throw e;
@@ -61,18 +60,20 @@ export async function submitStudentDraftReliable(
   throw lastError;
 }
 
-async function uploadWithTimeout(
-  upload: (form: FormData) => Promise<Post>,
-  form: FormData
-): Promise<Post> {
-  const outer = fetchAbortTimeout(UPLOAD_TIMEOUT_MS);
-  return new Promise<Post>((resolve, reject) => {
-    const onAbort = () => {
+function withHardTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
       reject(new ApiError(504, "Request timed out — server may still be waking up. Try again in 30 seconds."));
-    };
-    outer.addEventListener("abort", onAbort, { once: true });
-    upload(form)
-      .then(resolve, reject)
-      .finally(() => outer.removeEventListener("abort", onAbort));
+    }, ms);
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
   });
 }
