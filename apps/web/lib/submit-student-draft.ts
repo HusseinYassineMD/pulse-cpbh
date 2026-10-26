@@ -24,7 +24,9 @@ function shouldRetrySubmit(error: unknown): boolean {
       t.includes("timeout") ||
       t.includes("network") ||
       t.includes("failed to fetch") ||
-      t.includes("load failed")
+      t.includes("load failed") ||
+      t.includes("expected pattern") ||
+      t.includes("requested format")
     );
   }
   return false;
