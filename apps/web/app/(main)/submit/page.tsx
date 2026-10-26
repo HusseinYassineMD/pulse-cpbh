@@ -137,11 +137,15 @@ export default function SubmitDraftPage() {
       setSendHint("Connecting…");
     }, 2500);
     const t2 = window.setTimeout(() => {
-      setSendHint("Almost there — saving your draft…");
+      setSendHint("Waking the server — can take up to a minute on first send…");
     }, 12000);
+    const t3 = window.setTimeout(() => {
+      setSendHint("Still saving — do not close this page…");
+    }, 45000);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
     };
   }, [submit.isPending]);
 

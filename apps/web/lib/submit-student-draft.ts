@@ -17,12 +17,12 @@ function shouldRetrySubmit(error: unknown): boolean {
   return false;
 }
 
-/** Connect in the background, then submit — retries once if the first attempt fails transiently. */
+/** Wake API (bounded wait), then submit — one retry on transient failures. */
 export async function submitStudentDraftReliable(
   upload: (form: FormData) => Promise<Post>,
   form: FormData
 ): Promise<Post> {
-  await warmPulseApi({ force: true, maxWaitMs: 55_000 });
+  await Promise.race([warmPulseApi({ force: true, maxWaitMs: 45_000 }), sleep(12_000)]);
 
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -31,8 +31,8 @@ export async function submitStudentDraftReliable(
     } catch (e) {
       lastError = e;
       if (!shouldRetrySubmit(e) || attempt === 1) throw e;
-      await sleep(2000);
-      await warmPulseApi({ force: true, maxWaitMs: 55_000 });
+      await sleep(1500);
+      await Promise.race([warmPulseApi({ force: true, maxWaitMs: 30_000 }), sleep(8_000)]);
     }
   }
   throw lastError;

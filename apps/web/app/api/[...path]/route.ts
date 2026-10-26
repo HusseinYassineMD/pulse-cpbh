@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 async function fetchUpstream(url: string, init: RequestInit): Promise<Response> {
   const isMutating = init.method !== "GET" && init.method !== "HEAD";
   const attempts = process.env.RENDER ? (isMutating ? 2 : 3) : 1;
-  const timeoutMs = isMutating ? 90_000 : 55_000;
+  const timeoutMs = isMutating ? 120_000 : 55_000;
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
     try {

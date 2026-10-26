@@ -32,7 +32,13 @@ export function TeamAccessClient({ signedIn }: Props) {
       });
       const data = (await res.json().catch(() => ({}))) as { detail?: string };
       if (!res.ok) {
-        setError(data.detail || "Incorrect team code");
+        if (res.status === 503) {
+          setError(
+            "Lead sign-in is not set up on the server yet. In Render → pulse-cpbh-web → Environment, add LEAD_ACCESS_PIN (your team code), Save, then Manual Deploy web."
+          );
+        } else {
+          setError(data.detail || "Incorrect team code");
+        }
         return;
       }
       router.replace(returnTo);

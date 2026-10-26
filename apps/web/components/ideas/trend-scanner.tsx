@@ -13,7 +13,8 @@ import type { TrendItem, TrendScanResponse } from "@/lib/trends-types";
 import type { PlanDeliverable } from "@/lib/types";
 
 const TRENDS_OPEN_KEY = "pulse-trends-scanner-open";
-const API_TRENDS_TIMEOUT_MS = 5500;
+const API_TRENDS_TIMEOUT_MS = 12_000;
+const API_TRENDS_REFRESH_TIMEOUT_MS = 55_000;
 
 function readTrendsOpen(): boolean {
   if (typeof window === "undefined") return true;
@@ -71,9 +72,10 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   const scan = useMutation({
     mutationFn: async (opts?: { force?: boolean; preferClient?: boolean }) => {
       const force = opts?.force === true;
-      const preferClient = opts?.preferClient === true || layout === "sidebar";
+      const hosted = !isStaticMode();
+      const preferClient = opts?.preferClient === true || !hosted;
 
-      const runClient = (fast?: boolean) => clientScan({ force, fast });
+      const runClient = (fast?: boolean) => clientScan({ force, fast, bypassCache: force });
 
       const queueFullClientScan = () => {
         if (fullScanStarted.current) return;
@@ -84,20 +86,38 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
         });
       };
 
-      if (preferClient || isStaticMode()) {
+      const tryApiScan = async () => {
+        const limit = layout === "sidebar" ? 16 : 12;
+        const timeoutMs = force ? API_TRENDS_REFRESH_TIMEOUT_MS : API_TRENDS_TIMEOUT_MS;
+        return Promise.race([
+          api.trends.scan({ limit, force }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Trends API timed out")), timeoutMs)
+          ),
+        ]);
+      };
+
+      if (hosted) {
+        try {
+          return await tryApiScan();
+        } catch {
+          const fallback = await runClient(force ? false : true);
+          if (fallback.items.length === 0) {
+            throw new Error("Live feed unavailable — wait a moment and tap Refresh again.");
+          }
+          if (!force) queueFullClientScan();
+          return fallback;
+        }
+      }
+
+      if (preferClient) {
         const fastResult = await runClient(true);
         queueFullClientScan();
         return fastResult;
       }
 
       try {
-        const apiResult = await Promise.race([
-          api.trends.scan({ limit: 12, force }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Trends API timed out")), API_TRENDS_TIMEOUT_MS)
-          ),
-        ]);
-        return apiResult;
+        return await tryApiScan();
       } catch {
         const fallback = await runClient(true);
         if (fallback.items.length === 0) throw new Error("Could not load trends");
@@ -129,7 +149,7 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
     if (!mounted || layout !== "sidebar" || sidebarAutoScan.current) return;
     sidebarAutoScan.current = true;
     setFeedProgress({ done: 0, total: 2 });
-    scan.mutate({ force: false, preferClient: true });
+    scan.mutate({ force: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when sidebar mounts
   }, [mounted, layout]);
 
@@ -138,7 +158,7 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
     setMsg("");
     setFeedProgress({ done: 0, total: layout === "sidebar" ? 2 : 4 });
     fullScanStarted.current = false;
-    scan.mutate({ force: true, preferClient: layout === "sidebar" });
+    scan.mutate({ force: true });
   }
 
   const toggleExpanded = (open: boolean) => {

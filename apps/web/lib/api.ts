@@ -83,7 +83,7 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
       method,
       body: formData,
       headers,
-      signal: AbortSignal.timeout(75000),
+      signal: AbortSignal.timeout(120_000),
     });
 
     if (!response.ok) {

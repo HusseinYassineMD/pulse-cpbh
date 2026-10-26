@@ -47,7 +47,15 @@ So the old Pages site tells students to use the real app:
 2. Add variable **`HOSTED_APP_URL`** = `https://YOUR-WEB-URL` (no trailing slash).
 3. Re-run the **Deploy GitHub Pages** workflow (or push any commit to `main`).
 
-## 4. Email Tiffany (lead) when students submit (required for notifications)
+## 4. Lead sign-in (web service)
+
+In **Render → pulse-cpbh-web → Environment**, set:
+
+| Variable | What to put |
+|----------|-------------|
+| **`LEAD_ACCESS_PIN`** | Your private team code (e.g. `102026`). **Required** — without it, sign-in always shows “not configured”. Save → redeploy **web**. |
+
+## 5. Email Tiffany (lead) when students submit (required for notifications)
 
 Pulse does **not** store the lead email in GitHub. You add it only in **Render → pulse-cpbh-api → Environment**.
 
@@ -69,7 +77,7 @@ Optional fallback: set **`PLAN_TEAM=Tiffany:email@…,...`** on the API if you s
 
 **Test reminders faster:** set **`REVIEW_REMINDER_HOURS=1`** on the API, submit a draft, wait ~1 hour (API must be awake), then set back to **`12`** for production.
 
-## 5. Free tier notes
+## 6. Free tier notes
 
 - Services **sleep** after ~15 minutes idle. **`pulse-cpbh-keep-warm`** (cron in `render.yaml`) pings API + web every 14 minutes so student **Send** stays snappy. Student pages also pre-connect in the background while they work.
 - If Submit still hangs once, students can tap **Send** again — the form keeps their answers.
