@@ -7,7 +7,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, Sp
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
-import { getInstantTrendsPreview, scanBrainHealthTrends } from "@/lib/trends-scan";
+import { clearTrendsCache, getInstantTrendsPreview, scanBrainHealthTrends } from "@/lib/trends-scan";
 import { deliverableLabel } from "@/lib/plan-team";
 import type { TrendItem, TrendScanResponse } from "@/lib/trends-types";
 import type { PlanDeliverable } from "@/lib/types";
@@ -98,14 +98,29 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
       };
 
       if (hosted) {
+        if (force) {
+          const [apiSettled, clientSettled] = await Promise.allSettled([
+            tryApiScan(),
+            runClient(false),
+          ]);
+          const apiData = apiSettled.status === "fulfilled" ? apiSettled.value : null;
+          const clientData = clientSettled.status === "fulfilled" ? clientSettled.value : null;
+          const liveSources = (sources: string[]) =>
+            sources.filter((s) => s && s !== "CPBH curated").length;
+          if (apiData && liveSources(apiData.sources_checked) > 0) return apiData;
+          if (clientData && liveSources(clientData.sources_checked) > 0) return clientData;
+          if (apiData?.items.length) return apiData;
+          if (clientData?.items.length) return clientData;
+          throw new Error("Live feed unavailable — start the API (./start.sh dev) or try Refresh again.");
+        }
         try {
           return await tryApiScan();
         } catch {
-          const fallback = await runClient(force ? false : true);
+          const fallback = await runClient(true);
           if (fallback.items.length === 0) {
             throw new Error("Live feed unavailable — wait a moment and tap Refresh again.");
           }
-          if (!force) queueFullClientScan();
+          queueFullClientScan();
           return fallback;
         }
       }
@@ -156,7 +171,8 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   function handleScan() {
     setErr("");
     setMsg("");
-    setFeedProgress({ done: 0, total: layout === "sidebar" ? 2 : 4 });
+    clearTrendsCache();
+    setFeedProgress({ done: 0, total: 4 });
     fullScanStarted.current = false;
     scan.mutate({ force: true });
   }

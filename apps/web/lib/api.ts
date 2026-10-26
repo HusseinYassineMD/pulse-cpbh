@@ -93,7 +93,15 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
         typeof detail === "string"
           ? detail
           : Array.isArray(detail)
-            ? detail.map((d: { msg?: string }) => d.msg).filter(Boolean).join("; ") || response.statusText
+            ? detail
+                .map((d: { msg?: string; loc?: (string | number)[] }) => {
+                  const field = d.loc?.filter((x) => typeof x === "string").pop();
+                  const msg = d.msg || "";
+                  if (field && msg) return `${field}: ${msg}`;
+                  return msg;
+                })
+                .filter(Boolean)
+                .join("; ") || response.statusText
             : response.statusText;
       throw new ApiError(response.status, message);
     }

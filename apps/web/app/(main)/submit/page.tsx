@@ -16,6 +16,7 @@ import {
   type SourceMaterialLink,
 } from "@/lib/submit-source-materials";
 import { readIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
+import { isLikelyUrl, normalizeOptionalUrl, normalizeRequiredUrl } from "@/lib/normalize-url";
 import { submitStudentDraftReliable } from "@/lib/submit-student-draft";
 
 function newId() {
@@ -93,16 +94,17 @@ export default function SubmitDraftPage() {
       form.set("caption_facebook", fb);
       form.set("caption_linkedin", li);
       form.set("deliverable", deliverable);
-      form.set("canva_link", canvaLink.trim());
+      form.set("canva_link", normalizeRequiredUrl(canvaLink));
       if (canvaSlides.trim()) form.set("canva_slide_numbers", canvaSlides.trim());
-      if (linkInBio.trim()) form.set("link_in_bio", linkInBio.trim());
+      const bio = normalizeOptionalUrl(linkInBio);
+      if (bio) form.set("link_in_bio", bio);
 
       const sourcesPayload = linkSources
         .filter((s) => s.url.trim())
         .map(({ kind, label, url }) => ({
           kind,
           label: label.trim() || undefined,
-          url: url.trim(),
+          url: normalizeRequiredUrl(url),
         }));
       form.set("sources_json", JSON.stringify(sourcesPayload));
       platforms.forEach((p) => form.append("platforms", p));
@@ -173,9 +175,21 @@ export default function SubmitDraftPage() {
     if (!name.trim()) return "Please enter your name.";
     if (!caption.trim()) return "Please paste your caption.";
     if (!canvaLink.trim()) return "Add a Canva or Google Drive link to your visuals.";
+    if (!isLikelyUrl(canvaLink)) {
+      return "Canva / Drive link: paste a full link (e.g. https://www.canva.com/design/…). https:// is added for you if you forget it.";
+    }
+    if (linkInBio.trim() && !isLikelyUrl(linkInBio)) {
+      return "Link in bio: use a full web address or leave that field empty.";
+    }
     if (platforms.length === 0) return "Pick at least one place to post.";
-    if (!linkSources.some((s) => s.url.trim())) {
+    const filledSources = linkSources.filter((s) => s.url.trim());
+    if (filledSources.length === 0) {
       return "Add at least one source material link (Substack, handout, article, etc.).";
+    }
+    for (const row of filledSources) {
+      if (!isLikelyUrl(row.url)) {
+        return "Source material: each link needs to be a real URL (https://…). Check the row that says “" + (row.label.trim() || "source link") + "”.";
+      }
     }
     return null;
   }
@@ -228,6 +242,20 @@ export default function SubmitDraftPage() {
       <form
         noValidate
         className="space-y-5"
+        onInvalid={(e) => {
+          e.preventDefault();
+          const el = e.target;
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            const label =
+              el.labels?.[0]?.textContent?.trim() ||
+              el.getAttribute("aria-label") ||
+              "One of the link fields";
+            showValidationError(
+              `${label}: use a full link starting with https:// (or paste canva.com/… and we’ll fix it on send).`
+            );
+            el.focus();
+          }
+        }}
         onSubmit={(e) => {
           e.preventDefault();
           const v = validate();
@@ -322,9 +350,11 @@ export default function SubmitDraftPage() {
             <input
               value={canvaLink}
               onChange={(e) => setCanvaLink(e.target.value)}
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
               className="form-input mt-1.5 w-full text-base py-3"
-              placeholder="Canva design or Drive folder with your slides/images"
+              placeholder="https://www.canva.com/design/… or Drive link"
             />
           </label>
           <label className="block">
@@ -341,9 +371,10 @@ export default function SubmitDraftPage() {
             <input
               value={linkInBio}
               onChange={(e) => setLinkInBio(e.target.value)}
-              type="url"
+              type="text"
+              inputMode="url"
               className="form-input mt-1.5 w-full text-base py-3"
-              placeholder="Optional — profile link for this campaign"
+              placeholder="Optional — https://…"
             />
           </label>
         </div>
@@ -401,7 +432,8 @@ export default function SubmitDraftPage() {
                       prev.map((r) => (r.id === row.id ? { ...r, url: e.target.value } : r))
                     )
                   }
-                  type="url"
+                  type="text"
+                  inputMode="url"
                   className="form-input w-full text-sm"
                   placeholder="https://…"
                 />
