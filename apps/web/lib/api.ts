@@ -90,6 +90,11 @@ function postFormXhr<T>(path: string, formData: FormData, timeoutMs = 100_000): 
         }
       }
       if (xhr.status >= 200 && xhr.status < 300) {
+        const saved = body as { id?: string };
+        if (!saved?.id) {
+          reject(new ApiError(502, "The server replied without a ticket. Tap Send once more."));
+          return;
+        }
         resolve(body as T);
         return;
       }

@@ -49,24 +49,6 @@ function NoteBox({
   );
 }
 
-/** Safari shows “string did not match the expected pattern” on link-like inputs. Strip that. */
-function disarmBrowserValidation(root: ParentNode) {
-  root.querySelectorAll("form").forEach((form) => {
-    if (!form.noValidate) form.noValidate = true;
-  });
-  root.querySelectorAll("input, textarea").forEach((el) => {
-    if (el.hasAttribute("pattern")) el.removeAttribute("pattern");
-    if (el.hasAttribute("required")) el.removeAttribute("required");
-    if (el instanceof HTMLInputElement) {
-      const kind = (el.getAttribute("type") || "text").toLowerCase();
-      if (kind === "url" || kind === "email" || kind === "tel") el.setAttribute("type", "text");
-      el.setCustomValidity("");
-    }
-    const auto = (el.getAttribute("autocomplete") || "").toLowerCase();
-    if (auto && auto !== "off") el.setAttribute("autocomplete", "off");
-  });
-}
-
 export default function SubmitDraftPage() {
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
@@ -91,20 +73,6 @@ export default function SubmitDraftPage() {
   } | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [wrongSite, setWrongSite] = useState(false);
-
-  useEffect(() => {
-    const blockInvalid = (event: Event) => {
-      event.preventDefault();
-    };
-    document.addEventListener("invalid", blockInvalid, true);
-    disarmBrowserValidation(document);
-    const observer = new MutationObserver(() => disarmBrowserValidation(document));
-    observer.observe(document.body, { subtree: true, childList: true, attributes: true });
-    return () => {
-      document.removeEventListener("invalid", blockInvalid, true);
-      observer.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
