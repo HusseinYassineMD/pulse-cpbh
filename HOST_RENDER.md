@@ -61,7 +61,7 @@ Pulse does **not** store the lead email in GitHub. You add it only in **Render �
 
 | Variable | What to put |
 |----------|-------------|
-| **`REVIEW_LEAD_EMAIL`** | Tiffany’s work email — who gets “new draft” + 12h reminders |
+| **`REVIEW_LEAD_EMAIL`** | Lead inbox for new drafts (blueprint: `ajagadis@usc.edu`) |
 | **`RESEND_API_KEY`** | From [resend.com](https://resend.com) → API Keys (free tier is enough to start) |
 | **`WEB_URL`** | Should be `https://pulse-cpbh-web.onrender.com` (blueprint links web host; confirm after deploy) |
 

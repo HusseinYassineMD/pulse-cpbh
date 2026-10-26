@@ -24,7 +24,11 @@ export function EmailConfigBanner() {
         <p className="font-semibold">Email alerts are off</p>
         <p className="text-amber-900/90 mt-1">{data.hint}</p>
         <p className="text-xs text-amber-800/80 mt-2">
-          Drafts still save here — check this page after students submit until mail is configured.
+          {!data.review_lead_email_set
+            ? "Set REVIEW_LEAD_EMAIL on pulse-cpbh-api (Render), then redeploy."
+            : !data.resend_configured
+              ? "Lead email is set — add RESEND_API_KEY on pulse-cpbh-api (from resend.com), Save, redeploy."
+              : "Drafts still save here — check this page after students submit until mail is configured."}
         </p>
       </div>
     </div>

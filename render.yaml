@@ -57,9 +57,9 @@ services:
           type: web
           name: pulse-cpbh-web
           property: host
-      # Set in Render dashboard (never commit real values):
       - key: REVIEW_LEAD_EMAIL
-        sync: false
+        value: ajagadis@usc.edu
+      # Create at resend.com → API Keys — paste in Render if not synced from blueprint:
       - key: RESEND_API_KEY
         sync: false
       - key: REVIEW_REMINDER_HOURS
