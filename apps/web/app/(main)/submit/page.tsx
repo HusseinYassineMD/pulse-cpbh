@@ -46,6 +46,16 @@ export default function SubmitDraftPage() {
     linkedin: string;
   } | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const [wrongSite, setWrongSite] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setWrongSite(
+      isStaticMode() ||
+        window.location.hostname.includes("github.io") ||
+        window.location.pathname.startsWith("/pulse-cpbh")
+    );
+  }, []);
 
   function togglePlatform(id: string) {
     setPlatforms((prev) => {
@@ -195,6 +205,17 @@ export default function SubmitDraftPage() {
     return null;
   }
 
+  function sendDraft() {
+    const v = validate();
+    if (v) {
+      showValidationError(v);
+      return;
+    }
+    setError("");
+    setSendHint("Sending your draft…");
+    submit.mutate();
+  }
+
   if (done) {
     return (
       <div className="max-w-md mx-auto py-10 space-y-6 animate-fade-in text-center">
@@ -235,34 +256,20 @@ export default function SubmitDraftPage() {
         </p>
       </div>
 
-      {isStaticMode() && (
+      {wrongSite && (
         <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 leading-relaxed">
-          Preview site only — drafts are not saved for the team.{" "}
-          {HOSTED_APP_URL ? (
-            <a href={`${HOSTED_APP_URL}/submit/`} className="font-semibold underline">
-              Use the team link instead
-            </a>
-          ) : (
-            "Ask your lead for the team app link."
-          )}
+          Wrong site for saving drafts — use the hosted team app.{" "}
+          <a
+            href={HOSTED_APP_URL ? `${HOSTED_APP_URL}/submit` : "https://pulse-cpbh-web.onrender.com/submit"}
+            className="font-semibold underline"
+          >
+            Open pulse-cpbh-web.onrender.com/submit
+          </a>
         </p>
       )}
 
-      <form
-        noValidate
-        className="space-y-5"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const v = validate();
-          if (v) {
-            showValidationError(v);
-            return;
-          }
-          setError("");
-          setSendHint("Sending your draft…");
-          submit.mutate();
-        }}
-      >
+      {/* Not a <form> — avoids Safari/Chrome “string did not match the expected pattern” on link fields */}
+      <div className="space-y-5">
         {error && (
           <p
             ref={errorRef}
@@ -347,6 +354,10 @@ export default function SubmitDraftPage() {
               value={canvaLink}
               onChange={(e) => setCanvaLink(e.target.value)}
               type="text"
+              inputMode="text"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
               className="form-input mt-1.5 w-full text-base py-3"
               placeholder="Canva, Drive, or any text describing where slides live"
             />
@@ -366,6 +377,8 @@ export default function SubmitDraftPage() {
               value={linkInBio}
               onChange={(e) => setLinkInBio(e.target.value)}
               type="text"
+              inputMode="text"
+              autoComplete="off"
               className="form-input mt-1.5 w-full text-base py-3"
               placeholder="Optional — link or note"
             />
@@ -426,6 +439,8 @@ export default function SubmitDraftPage() {
                     )
                   }
                   type="text"
+                  inputMode="text"
+                  autoComplete="off"
                   className="form-input w-full text-sm"
                   placeholder="Link or reference (any text)"
                 />
@@ -486,14 +501,15 @@ export default function SubmitDraftPage() {
           <p className="text-sm text-muted-foreground bg-muted/50 border border-border rounded-xl px-3 py-2.5">{sendHint}</p>
         )}
         <button
-          type="submit"
+          type="button"
           disabled={submit.isPending}
+          onClick={sendDraft}
           className="btn-primary w-full py-4 rounded-xl text-base font-semibold inline-flex items-center justify-center gap-2"
         >
           <Send className="w-5 h-5" />
           {submit.isPending ? "Sending…" : "Send to my lead"}
         </button>
-      </form>
+      </div>
 
       <p className="text-center text-xs text-muted-foreground">
         Team lead?{" "}
