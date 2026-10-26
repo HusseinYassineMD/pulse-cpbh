@@ -51,10 +51,17 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
       headers,
       body,
     });
-    return new Response(res.body, {
+    // Node already unzipped the body. Passing the compressed Content-Length
+    // makes the browser stop halfway through the JSON, so the ticket ID never arrives.
+    const payload = await res.arrayBuffer();
+    const outHeaders = new Headers(res.headers);
+    outHeaders.delete("content-encoding");
+    outHeaders.delete("content-length");
+    outHeaders.delete("transfer-encoding");
+    return new Response(payload, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers: outHeaders,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Upstream request failed";
