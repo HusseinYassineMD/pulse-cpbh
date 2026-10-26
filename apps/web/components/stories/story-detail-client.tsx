@@ -214,7 +214,7 @@ export default function StoryDetailClient() {
             Paste the article URL — copy it when you post this story to Instagram or Facebook.
           </p>
           <input
-            type="url"
+            type="text"
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://yoursubstack.substack.com/p/..."

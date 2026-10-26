@@ -110,7 +110,7 @@ export default function NewStoryPage() {
         <div>
           <label className="block text-sm font-medium mb-2">Substack link</label>
           <input
-            type="url"
+            type="text"
             value={sourceUrl}
             onChange={(e) => setSourceUrl(e.target.value)}
             placeholder="https://yoursubstack.substack.com/p/..."

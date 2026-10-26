@@ -65,7 +65,7 @@ def _parse_link_sources(sources_json: str) -> list[dict]:
             kind = "other"
         label = str(entry.get("label") or "").strip() or kind.replace("_", " ").title()
         url = str(entry.get("url") or "").strip()
-        if not url:
+        if not url and not label:
             continue
         out.append({"kind": kind, "label": label, "url": url})
     return out

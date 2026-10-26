@@ -185,7 +185,7 @@ export function PlanIdeaForm({
         <>
           <Field label="Substack source link">
             <input
-              type="url"
+              type="text"
               value={form.substack_url}
               onChange={(e) => setForm({ ...form, substack_url: e.target.value })}
               placeholder="https://yourname.substack.com/p/..."
