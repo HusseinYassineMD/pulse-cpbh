@@ -1,3 +1,4 @@
+import { fetchAbortTimeout } from "./fetch-abort";
 import { isStaticMode } from "./base-path";
 
 let inFlight: Promise<boolean> | null = null;
@@ -25,7 +26,7 @@ export async function warmPulseApi(options?: { force?: boolean; maxWaitMs?: numb
     try {
       const res = await fetch("/api/warm", {
         cache: "no-store",
-        signal: AbortSignal.timeout(maxWaitMs),
+        signal: fetchAbortTimeout(maxWaitMs),
       });
       const ok = res.ok;
       if (ok) lastOkAt = Date.now();

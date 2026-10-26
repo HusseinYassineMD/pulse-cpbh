@@ -1,3 +1,4 @@
+import { fetchAbortTimeout } from "./fetch-abort";
 import { useAuthStore } from "./auth-store";
 import { isStaticMode } from "./base-path";
 import type {
@@ -58,7 +59,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
-    signal: AbortSignal.timeout(typeof window !== "undefined" ? 90000 : 15000),
+    signal: fetchAbortTimeout(typeof window !== "undefined" ? 90000 : 15000),
   });
 
   if (!response.ok) {
@@ -83,7 +84,7 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
       method,
       body: formData,
       headers,
-      signal: AbortSignal.timeout(120_000),
+      signal: fetchAbortTimeout(32_000),
     });
 
     if (!response.ok) {

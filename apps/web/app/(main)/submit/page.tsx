@@ -121,8 +121,13 @@ export default function SubmitDraftPage() {
       let msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Could not send — try again.";
       if (msg.includes("TimeoutError") || msg.toLowerCase().includes("timeout") || msg.toLowerCase().includes("aborted")) {
         msg = "Connection timed out — tap Send once more. Your answers are still on this page.";
-      } else if (msg.includes("502") || msg.toLowerCase().includes("could not reach pulse api")) {
-        msg = "Could not connect just now — wait a few seconds and tap Send again.";
+      } else if (
+        msg.includes("502") ||
+        msg.includes("503") ||
+        msg.includes("504") ||
+        msg.toLowerCase().includes("could not reach pulse api")
+      ) {
+        msg = "Server was asleep — tap Send again once. Your answers are still here.";
       } else if (msg.includes("500") || msg.toLowerCase().includes("internal")) {
         msg = "Server error — ask your lead to restart the team app, then try again.";
       }
@@ -136,18 +141,22 @@ export default function SubmitDraftPage() {
       return;
     }
     const t1 = window.setTimeout(() => {
-      setSendHint("Connecting…");
-    }, 2500);
+      setSendHint((h) => h || "Connecting to the team server…");
+    }, 4000);
     const t2 = window.setTimeout(() => {
-      setSendHint("Waking the server — can take up to a minute on first send…");
-    }, 12000);
+      setSendHint("Waking the server — first send after idle can take up to a minute…");
+    }, 18_000);
     const t3 = window.setTimeout(() => {
-      setSendHint("Still saving — do not close this page…");
-    }, 45000);
+      setSendHint("Still trying — leave this page open…");
+    }, 45_000);
+    const t4 = window.setTimeout(() => {
+      setSendHint("Almost there — retrying automatically…");
+    }, 75_000);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      window.clearTimeout(t4);
     };
   }, [submit.isPending]);
 
@@ -264,6 +273,7 @@ export default function SubmitDraftPage() {
             return;
           }
           setError("");
+          setSendHint("Sending your draft…");
           submit.mutate();
         }}
       >
