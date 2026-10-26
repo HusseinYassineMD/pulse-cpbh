@@ -190,9 +190,6 @@ export default function SubmitDraftPage() {
     onError: (e) => {
       setSendHint("");
       let msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : "Could not send — try again.";
-      if (/expected pattern|requested format/i.test(msg)) {
-        msg = "The browser blocked the send. Tap Send to my lead once more.";
-      }
       if (msg.includes("TimeoutError") || msg.toLowerCase().includes("timeout") || msg.toLowerCase().includes("aborted")) {
         msg = "Connection timed out — tap Send once more. Your answers are still on this page.";
       } else if (

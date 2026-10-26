@@ -74,6 +74,40 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
+/** Safari throws “The string did not match the expected pattern” on fetch() with an abort signal. */
+function postFormXhr<T>(path: string, formData: FormData, timeoutMs = 100_000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}${path}`);
+    xhr.timeout = timeoutMs;
+    xhr.onload = () => {
+      let body: { detail?: unknown } = {};
+      if (xhr.responseText) {
+        try {
+          body = JSON.parse(xhr.responseText) as { detail?: unknown };
+        } catch {
+          body = {};
+        }
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as T);
+        return;
+      }
+      const detail = body.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : `Could not send (${xhr.status || "network"}). Tap Send once more.`;
+      reject(new ApiError(xhr.status || 500, message));
+    };
+    xhr.onerror = () =>
+      reject(new ApiError(0, "Could not reach the server. Tap Send once more and leave this page open."));
+    xhr.ontimeout = () =>
+      reject(new ApiError(504, "The server is still waking up. Tap Send once more and leave this page open."));
+    xhr.send(formData);
+  });
+}
+
 async function uploadRequest<T>(
   path: string,
   formData: FormData,
@@ -164,8 +198,7 @@ const liveApi = {
     create: (data: { title: string; post_creator_id?: string }) =>
       request<Post>("/posts", { method: "POST", body: JSON.stringify(data) }),
 
-    submitStudentDraft: (form: FormData) =>
-      uploadRequest<Post>("/posts/student-draft", form, "POST", 90_000),
+    submitStudentDraft: (form: FormData) => postFormXhr<Post>("/posts/student-draft", form),
 
     get: (id: string) => request<Post>(`/posts/${id}`),
 
