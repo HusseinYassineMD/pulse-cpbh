@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type TextareaHTMLAttributes } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle2, Link2, Plus, Send, Trash2 } from "lucide-react";
@@ -21,6 +21,50 @@ import { warmPulseApi } from "@/lib/warm-api";
 
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function NoteBox({
+  className = "",
+  rows = 2,
+  onInvalid,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      rows={rows}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
+      data-1p-ignore="true"
+      data-lpignore="true"
+      data-form-type="other"
+      onInvalid={(event) => {
+        event.preventDefault();
+        onInvalid?.(event);
+      }}
+      className={`form-input resize-y leading-relaxed ${className}`}
+    />
+  );
+}
+
+/** Safari shows “string did not match the expected pattern” on link-like inputs. Strip that. */
+function disarmBrowserValidation(root: ParentNode) {
+  root.querySelectorAll("form").forEach((form) => {
+    if (!form.noValidate) form.noValidate = true;
+  });
+  root.querySelectorAll("input, textarea").forEach((el) => {
+    if (el.hasAttribute("pattern")) el.removeAttribute("pattern");
+    if (el.hasAttribute("required")) el.removeAttribute("required");
+    if (el instanceof HTMLInputElement) {
+      const kind = (el.getAttribute("type") || "text").toLowerCase();
+      if (kind === "url" || kind === "email" || kind === "tel") el.setAttribute("type", "text");
+      el.setCustomValidity("");
+    }
+    const auto = (el.getAttribute("autocomplete") || "").toLowerCase();
+    if (auto && auto !== "off") el.setAttribute("autocomplete", "off");
+  });
 }
 
 export default function SubmitDraftPage() {
@@ -47,6 +91,20 @@ export default function SubmitDraftPage() {
   } | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   const [wrongSite, setWrongSite] = useState(false);
+
+  useEffect(() => {
+    const blockInvalid = (event: Event) => {
+      event.preventDefault();
+    };
+    document.addEventListener("invalid", blockInvalid, true);
+    disarmBrowserValidation(document);
+    const observer = new MutationObserver(() => disarmBrowserValidation(document));
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+    return () => {
+      document.removeEventListener("invalid", blockInvalid, true);
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -285,12 +343,12 @@ export default function SubmitDraftPage() {
 
         <label className="block">
           <span className="text-sm font-medium">Your name</span>
-          <input
+          <NoteBox
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="form-input mt-1.5 w-full text-base py-3"
+            rows={1}
+            className="mt-1.5 w-full text-base py-3 min-h-[48px] resize-none"
             placeholder="First and last name"
-            autoComplete="name"
           />
         </label>
 
@@ -318,27 +376,28 @@ export default function SubmitDraftPage() {
 
         <label className="block">
           <span className="text-sm font-medium">Topic (optional)</span>
-          <input
+          <NoteBox
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            className="form-input mt-1.5 w-full text-base py-3"
+            rows={1}
+            className="mt-1.5 w-full text-base py-3 min-h-[48px] resize-none"
             placeholder="e.g. Sleep and brain health"
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium">Caption</span>
-          <textarea
-            value={caption}
-            rows={6}
-            className="form-input mt-1.5 w-full text-base"
-            placeholder="Paste your post or story text…"
-            onChange={(e) => {
-              setCaption(e.target.value);
-              setCaptionsByPlatform(null);
-            }}
-          />
-        </label>
+          <label className="block">
+            <span className="text-sm font-medium">Caption</span>
+            <NoteBox
+              value={caption}
+              rows={6}
+              className="mt-1.5 w-full text-base"
+              placeholder="Paste your post or story text…"
+              onChange={(e) => {
+                setCaption(e.target.value);
+                setCaptionsByPlatform(null);
+              }}
+            />
+          </label>
         {captionsByPlatform && (
           <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 rounded-lg px-3 py-2 leading-relaxed">
             Instagram, Facebook, and LinkedIn each keep their own caption from Ideation (including the LinkedIn hook).
@@ -353,36 +412,31 @@ export default function SubmitDraftPage() {
           </p>
           <label className="block">
             <span className="text-sm font-medium">Where are the visuals?</span>
-            <textarea
+            <NoteBox
               value={canvaLink}
               onChange={(e) => setCanvaLink(e.target.value)}
               rows={3}
-              autoComplete="off"
-              autoCorrect="off"
-              spellCheck
-              className="form-input mt-1.5 w-full text-base py-3 min-h-[96px] resize-y leading-relaxed"
+              className="mt-1.5 w-full text-base py-3 min-h-[96px]"
               placeholder="Paste a Canva or Drive link, or write where the slides are. Example: dept Canva, social folder, slides 3–7"
             />
           </label>
           <label className="block">
             <span className="text-sm font-medium">Slide numbers (optional)</span>
-            <textarea
+            <NoteBox
               value={canvaSlides}
               onChange={(e) => setCanvaSlides(e.target.value)}
               rows={2}
-              autoComplete="off"
-              className="form-input mt-1.5 w-full text-base py-3 min-h-[72px] resize-y leading-relaxed"
+              className="mt-1.5 w-full text-base py-3 min-h-[72px]"
               placeholder="e.g. slides 3–7 in the social folder"
             />
           </label>
           <label className="block">
             <span className="text-sm font-medium">Link in bio (optional)</span>
-            <textarea
+            <NoteBox
               value={linkInBio}
               onChange={(e) => setLinkInBio(e.target.value)}
               rows={2}
-              autoComplete="off"
-              className="form-input mt-1.5 w-full text-base py-3 min-h-[72px] resize-y leading-relaxed"
+              className="mt-1.5 w-full text-base py-3 min-h-[72px]"
               placeholder="Only if it is different from the visuals note above"
             />
           </label>
@@ -424,17 +478,18 @@ export default function SubmitDraftPage() {
                     </button>
                   )}
                 </div>
-                <input
+                <NoteBox
                   value={row.label}
                   onChange={(e) =>
                     setLinkSources((prev) =>
                       prev.map((r) => (r.id === row.id ? { ...r, label: e.target.value } : r))
                     )
                   }
-                  className="form-input w-full text-sm"
+                  rows={1}
+                  className="w-full text-sm min-h-[44px] resize-none"
                   placeholder="Short label (optional)"
                 />
-                <textarea
+                <NoteBox
                   value={row.url}
                   onChange={(e) =>
                     setLinkSources((prev) =>
@@ -442,8 +497,7 @@ export default function SubmitDraftPage() {
                     )
                   }
                   rows={2}
-                  autoComplete="off"
-                  className="form-input w-full text-sm min-h-[72px] resize-y leading-relaxed"
+                  className="w-full text-sm min-h-[72px]"
                   placeholder="Link or note — any text"
                 />
               </div>
@@ -464,11 +518,11 @@ export default function SubmitDraftPage() {
 
         <label className="block">
           <span className="text-sm font-medium">Notes for your lead (optional)</span>
-          <textarea
+          <NoteBox
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="form-input mt-1.5 w-full text-base"
+            className="mt-1.5 w-full text-base"
             placeholder="Anything else they should know"
           />
         </label>
