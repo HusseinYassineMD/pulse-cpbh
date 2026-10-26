@@ -7,6 +7,7 @@ import { ChevronDown, ChevronUp, ExternalLink, Globe, Plus, Radar, RefreshCw, Sp
 import { format, parseISO } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { isStaticMode } from "@/lib/base-path";
+import { IDEATE_HOT_TOPICS_COUNT } from "@/lib/trend-list-compose";
 import { clearTrendsCache, getInstantTrendsPreview, scanBrainHealthTrends } from "@/lib/trends-scan";
 import { deliverableLabel } from "@/lib/plan-team";
 import type { TrendItem, TrendScanResponse } from "@/lib/trends-types";
@@ -29,9 +30,11 @@ function writeTrendsOpen(open: boolean) {
 type TrendScannerProps = {
   /** Left rail on Plan/Ideas — always-visible hot topics list */
   layout?: "default" | "sidebar";
+  /** Ideate: fill topic + notes (students — no Plan/Studio links). */
+  onUseTopic?: (trend: TrendItem) => void;
 };
 
-export function TrendScanner({ layout = "default" }: TrendScannerProps) {
+export function TrendScanner({ layout = "default", onUseTopic }: TrendScannerProps) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -43,6 +46,16 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   const [feedProgress, setFeedProgress] = useState<{ done: number; total: number } | null>(null);
   const sidebarAutoScan = useRef(false);
   const fullScanStarted = useRef(false);
+  const batchBeforeRefresh = useRef("");
+
+  function trendBatchKey(items: TrendItem[]): string {
+    return items
+      .map((t) => t.id)
+      .sort()
+      .join("|");
+  }
+
+  const isLiveFeed = sources.some((s) => s && s !== "CPBH curated");
 
   const applyScanResult = useCallback((data: TrendScanResponse) => {
     setTrends(data.items);
@@ -54,19 +67,21 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
     }
   }, []);
 
+  const topicLimit = layout === "sidebar" ? IDEATE_HOT_TOPICS_COUNT : 12;
+
   const clientScan = useCallback(
     (opts?: { force?: boolean; fast?: boolean; bypassCache?: boolean }) =>
-      scanBrainHealthTrends(16, {
+      scanBrainHealthTrends(topicLimit, {
         force: opts?.force,
         fast: opts?.fast,
         bypassCache: opts?.bypassCache,
         onProgress: (p) => {
-          setTrends(p.items);
+          setTrends(p.items.slice(0, topicLimit));
           setSources(p.sources_checked);
           setFeedProgress({ done: p.feeds_done, total: p.feeds_total });
         },
       }),
-    []
+    [topicLimit]
   );
 
   const scan = useMutation({
@@ -87,10 +102,9 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
       };
 
       const tryApiScan = async () => {
-        const limit = layout === "sidebar" ? 16 : 12;
         const timeoutMs = force ? API_TRENDS_REFRESH_TIMEOUT_MS : API_TRENDS_TIMEOUT_MS;
         return Promise.race([
-          api.trends.scan({ limit, force }),
+          api.trends.scan({ limit: topicLimit, shuffleTail: force }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Trends API timed out")), timeoutMs)
           ),
@@ -98,6 +112,13 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
       };
 
       if (hosted) {
+        if (force && layout === "sidebar") {
+          return scanBrainHealthTrends(topicLimit, {
+            force: true,
+            bypassCache: true,
+            fast: false,
+          });
+        }
         if (force) {
           const [apiSettled, clientSettled] = await Promise.allSettled([
             tryApiScan(),
@@ -140,8 +161,21 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
         return fallback;
       }
     },
-    onSuccess: (data) => {
-      applyScanResult(data);
+    onSuccess: (data, variables) => {
+      const items = data.items.slice(0, topicLimit);
+      applyScanResult({ ...data, items });
+      if (variables?.force && layout === "sidebar") {
+        const nextKey = trendBatchKey(items);
+        if (batchBeforeRefresh.current && nextKey === batchBeforeRefresh.current) {
+          setMsg(
+            "That's all we could find for the time being — headlines update as live feeds refresh. Try again later."
+          );
+          window.setTimeout(() => setMsg(""), 8000);
+        } else {
+          setMsg("");
+        }
+        batchBeforeRefresh.current = nextKey;
+      }
       setFeedProgress(null);
       setErr("");
     },
@@ -154,11 +188,12 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   useEffect(() => {
     setExpanded(readTrendsOpen());
     setMounted(true);
-    const instant = getInstantTrendsPreview(16);
-    setTrends(instant.items);
+    const previewLimit = layout === "sidebar" ? IDEATE_HOT_TOPICS_COUNT : 12;
+    const instant = getInstantTrendsPreview(previewLimit);
+    setTrends(instant.items.slice(0, previewLimit));
     setSources(instant.sources_checked);
     setScannedAt(instant.scanned_at);
-  }, []);
+  }, [layout]);
 
   useEffect(() => {
     if (!mounted || layout !== "sidebar" || sidebarAutoScan.current) return;
@@ -171,6 +206,7 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
   function handleScan() {
     setErr("");
     setMsg("");
+    batchBeforeRefresh.current = trendBatchKey(trends);
     clearTrendsCache();
     setFeedProgress({ done: 0, total: 4 });
     fullScanStarted.current = false;
@@ -234,8 +270,16 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
                 Hot topics
               </p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Brain-health headlines — add any to the parking lot.
+                Live brain-health headlines — tap refresh for another set.
               </p>
+              {isLiveFeed ? (
+                <p className="text-[10px] text-teal font-medium mt-1 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal animate-pulse-soft" aria-hidden />
+                  Connected to live feeds
+                </p>
+              ) : (
+                <p className="text-[10px] text-amber-800/90 mt-1">Using backup starters until live feeds connect.</p>
+              )}
             </div>
             <button
               type="button"
@@ -243,11 +287,23 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
               disabled={scan.isPending}
               className="p-2 rounded-lg border border-teal/25 text-teal hover:bg-teal/10 disabled:opacity-50 shrink-0"
               aria-label="Refresh hot topics"
+              title="Load another set of headlines"
             >
               <RefreshCw className={`w-4 h-4 ${scan.isPending ? "animate-spin" : ""}`} />
             </button>
           </div>
-          {msg && <p className="text-xs text-teal-900 bg-teal/10 border border-teal/25 px-2 py-1.5 rounded-lg">{msg}</p>}
+          {msg && (
+            <p
+              className={`text-xs px-2 py-1.5 rounded-lg leading-relaxed ${
+                msg.startsWith("That's all")
+                  ? "text-amber-950 bg-amber-50 border border-amber-200/90"
+                  : "text-teal-900 bg-teal/10 border border-teal/25"
+              }`}
+              role="status"
+            >
+              {msg}
+            </p>
+          )}
           {err && <p className="text-xs text-red-700 bg-red-50 border border-red-200 px-2 py-1.5 rounded-lg">{err}</p>}
           {(scannedAt || trends.length > 0) && (
             <p className="text-[10px] text-muted-foreground">
@@ -282,32 +338,53 @@ export function TrendScanner({ layout = "default" }: TrendScannerProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-primary p-0.5"
-                  aria-label="Open article"
+                  aria-label="Open article in new tab"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
-              <h3 className="text-xs font-semibold leading-snug line-clamp-3">{trend.title}</h3>
+              <a
+                href={trend.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs font-semibold leading-snug line-clamp-3 hover:text-teal hover:underline"
+              >
+                {trend.title}
+              </a>
               <p className="text-[10px] text-muted-foreground line-clamp-2 italic">{trend.suggested_hook}</p>
               <div className="flex flex-wrap gap-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => addToPlan.mutate(trend)}
-                  disabled={addToPlan.isPending}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-teal/10 text-teal border border-teal/20 hover:bg-teal/15 disabled:opacity-50"
-                >
-                  <Plus className="w-3 h-3" />
-                  Add to Plan
-                </button>
-                <Link
-                  href={`/studio?title=${encodeURIComponent(trend.title.slice(0, 200))}&sourceText=${encodeURIComponent(
-                    [trend.suggested_hook, trend.summary, `Source: ${trend.source}`, trend.url].filter(Boolean).join("\n\n")
-                  )}`}
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium border border-border hover:bg-secondary"
-                >
-                  <Sparkles className="w-3 h-3" />
-                  Studio
-                </Link>
+                {onUseTopic ? (
+                  <button
+                    type="button"
+                    onClick={() => onUseTopic(trend)}
+                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-teal/10 text-teal border border-teal/20 hover:bg-teal/15 w-full justify-center min-h-[36px]"
+                  >
+                    Use this topic →
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => addToPlan.mutate(trend)}
+                      disabled={addToPlan.isPending}
+                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium bg-teal/10 text-teal border border-teal/20 hover:bg-teal/15 disabled:opacity-50"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Add to Plan
+                    </button>
+                    <Link
+                      href={`/studio?title=${encodeURIComponent(trend.title.slice(0, 200))}&sourceText=${encodeURIComponent(
+                        [trend.suggested_hook, trend.summary, `Source: ${trend.source}`, trend.url]
+                          .filter(Boolean)
+                          .join("\n\n")
+                      )}`}
+                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium border border-border hover:bg-secondary"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Studio
+                    </Link>
+                  </>
+                )}
               </div>
             </article>
           ))}

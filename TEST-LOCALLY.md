@@ -32,7 +32,7 @@ LEAD_ACCESS_PIN=your-test-code
 
 Restart `./start.sh dev` after adding that file.
 
-## Blank white page?
+## “Internal Server Error” or blank page?
 
 1. **Wrong port** — use **3010**, not 3000.
 2. **Server not running** — terminal must show `Ready` and `API ready ✓`. Leave that terminal open.
@@ -42,11 +42,12 @@ Restart `./start.sh dev` after adding that file.
    cd apps/web && npm run dev:webpack
    ```
    (API still needs `./start.sh api` in another terminal, or run `./start.sh dev` again.)
-5. **Clean rebuild**:
+5. **Corrupt Next cache** (common after `npm run build` while dev is running):
    ```bash
-   ./start.sh web clean
+   # stop dev (Ctrl+C), then:
+   ./start.sh dev clean
    ```
-   (with API already running in another terminal)
+   Or: `rm -rf apps/web/.next && ./start.sh dev`
 
 ## Production-like test (optional)
 

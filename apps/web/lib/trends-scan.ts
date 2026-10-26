@@ -1,4 +1,9 @@
 import { curatedTrendsResponse } from "./curated-trends";
+import {
+  buildTrendRotationPool,
+  composeTrendList,
+  TREND_ROTATION_POOL_SIZE,
+} from "./trend-list-compose";
 import { withBasePath } from "./base-path";
 import type { PlanDeliverable } from "./types";
 import type { TrendItem, TrendScanResponse } from "./trends-types";
@@ -35,7 +40,7 @@ const TREND_FEEDS: { source: string; url: string; strict: boolean }[] = [
   },
 ];
 
-const CACHE_KEY = "pulse-trends-cache-v2";
+const CACHE_KEY = "pulse-trends-cache-v4-pool16";
 const CACHE_TTL_MS = 20 * 60 * 1000;
 const FEED_TIMEOUT_MS = 9000;
 const FEED_TIMEOUT_FAST_MS = 3500;
@@ -102,7 +107,9 @@ function isRelevant(item: RawTrend, strict: boolean): boolean {
   return strict ? STRICT_BRAIN_KEYWORDS.test(blob) : BRAIN_KEYWORDS.test(blob);
 }
 
-async function rawToTrendItems(raw: RawTrend[], limit: number): Promise<TrendItem[]> {
+const TREND_CANDIDATE_POOL = 80;
+
+async function mapRawTrendPool(raw: RawTrend[]): Promise<TrendItem[]> {
   const seen = new Set<string>();
   const unique: RawTrend[] = [];
   for (const item of raw) {
@@ -118,7 +125,7 @@ async function rawToTrendItems(raw: RawTrend[], limit: number): Promise<TrendIte
     return tb - ta;
   });
 
-  const slice = unique.slice(0, Math.max(limit, 1));
+  const slice = unique.slice(0, TREND_CANDIDATE_POOL);
   return Promise.all(
     slice.map(async (item) => {
       const theme = guessTheme(item.title, item.summary);
@@ -135,6 +142,33 @@ async function rawToTrendItems(raw: RawTrend[], limit: number): Promise<TrendIte
       };
     })
   );
+}
+
+async function displayFromLiveRaw(
+  collected: RawTrend[],
+  displayLimit: number,
+  shuffleTail: boolean,
+  snapshot: TrendScanResponse | null,
+  liveSources: string[]
+): Promise<TrendScanResponse> {
+  const mapped = await mapRawTrendPool(collected);
+  const extras = [
+    ...(snapshot?.items ?? []),
+    ...curatedTrendsResponse(TREND_ROTATION_POOL_SIZE).items,
+  ];
+  const pool = buildTrendRotationPool(mapped, extras, TREND_ROTATION_POOL_SIZE);
+  const items = composeTrendList(pool, displayLimit, { shuffleTail });
+  let sources_checked = liveSources;
+  if (mapped.length === 0 && snapshot?.items.length) {
+    sources_checked = snapshot.sources_checked;
+  } else if (mapped.length === 0) {
+    sources_checked = ["CPBH curated"];
+  }
+  return {
+    scanned_at: new Date().toISOString(),
+    sources_checked,
+    items,
+  };
 }
 
 export function clearTrendsCache(): void {
@@ -200,8 +234,12 @@ async function fetchFeed(source: string, rssUrl: string, timeoutMs = FEED_TIMEOU
 async function fetchAllFeeds(
   limit: number,
   onProgress?: (progress: TrendScanProgress) => void,
-  options?: { feeds?: typeof TREND_FEEDS; timeoutMs?: number }
-): Promise<{ items: TrendItem[]; sources: string[] }> {
+  options?: {
+    feeds?: typeof TREND_FEEDS;
+    timeoutMs?: number;
+    shuffleTail?: boolean;
+  }
+): Promise<{ mapped: TrendItem[]; sources: string[]; collected: RawTrend[] }> {
   const feedList = options?.feeds ?? TREND_FEEDS;
   const timeoutMs = options?.timeoutMs ?? FEED_TIMEOUT_MS;
   const collected: RawTrend[] = [];
@@ -211,9 +249,16 @@ async function fetchAllFeeds(
 
   const emit = async () => {
     if (!onProgress) return;
+    const partial = await displayFromLiveRaw(
+      collected,
+      limit,
+      false,
+      null,
+      [...sourcesOk]
+    );
     onProgress({
-      items: await rawToTrendItems(collected, limit),
-      sources_checked: [...sourcesOk],
+      items: partial.items,
+      sources_checked: partial.sources_checked,
       feeds_done: feedsDone,
       feeds_total: feedsTotal,
     });
@@ -238,8 +283,8 @@ async function fetchAllFeeds(
     })
   );
 
-  const items = await rawToTrendItems(collected, limit);
-  return { items, sources: sourcesOk };
+  const mapped = await mapRawTrendPool(collected);
+  return { mapped, sources: sourcesOk, collected };
 }
 
 async function loadBuildSnapshot(): Promise<TrendScanResponse | null> {
@@ -255,31 +300,6 @@ async function loadBuildSnapshot(): Promise<TrendScanResponse | null> {
   }
 }
 
-function mergeTrendResults(
-  live: TrendScanResponse,
-  snapshot: TrendScanResponse,
-  limit: number
-): TrendScanResponse {
-  const seen = new Set(live.items.map((i) => i.title.toLowerCase().trim()));
-  const merged = [...live.items];
-  for (const item of snapshot.items) {
-    const key = item.title.toLowerCase().trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(item);
-  }
-  merged.sort((a, b) => {
-    const ta = a.published_at ? Date.parse(a.published_at) : 0;
-    const tb = b.published_at ? Date.parse(b.published_at) : 0;
-    return tb - ta;
-  });
-  const sources = Array.from(new Set([...live.sources_checked, ...snapshot.sources_checked]));
-  return {
-    scanned_at: live.scanned_at,
-    sources_checked: sources,
-    items: merged.slice(0, limit),
-  };
-}
 
 /** Live RSS scan from the browser — works on GitHub Pages (no backend required). */
 export async function scanBrainHealthTrends(
@@ -311,32 +331,23 @@ export async function scanBrainHealthTrends(
   }
 
   const run = async (): Promise<TrendScanResponse> => {
+    const shuffleTail = force;
     const feedOpts = fast
-      ? { feeds: TREND_FEEDS.slice(0, 2), timeoutMs: FEED_TIMEOUT_FAST_MS }
-      : undefined;
-    const { items, sources } = await fetchAllFeeds(limit, options?.onProgress, feedOpts);
-
-    let result: TrendScanResponse = {
-      scanned_at: new Date().toISOString(),
-      sources_checked: sources,
-      items,
-    };
-
+      ? {
+          feeds: TREND_FEEDS.slice(0, 2),
+          timeoutMs: FEED_TIMEOUT_FAST_MS,
+          shuffleTail,
+        }
+      : { shuffleTail };
+    const { collected, sources } = await fetchAllFeeds(limit, options?.onProgress, feedOpts);
     const snapshot = await loadBuildSnapshot();
-
-    if (!items.length && snapshot?.items.length) {
-      result = {
-        scanned_at: new Date().toISOString(),
-        sources_checked: snapshot.sources_checked,
-        items: snapshot.items.slice(0, limit),
-      };
-    } else if (items.length > 0 && snapshot?.items.length && items.length < limit) {
-      result = mergeTrendResults(result, snapshot, limit);
-    }
-
-    if (!result.items.length) {
-      result = curatedTrendsResponse(limit);
-    }
+    const result = await displayFromLiveRaw(
+      collected,
+      limit,
+      shuffleTail,
+      snapshot,
+      sources
+    );
 
     writeTrendsCache(result);
     return result;

@@ -15,9 +15,10 @@ router = APIRouter(prefix="/trends", tags=["trends"])
 @router.get("/scan", response_model=TrendScanResponse)
 async def scan_trends(
     limit: int = Query(default=12, ge=1, le=24),
+    shuffle_tail: bool = Query(default=False, description="Shuffle full feed pool and return `limit` items"),
     _user: User = Depends(get_current_user),
 ):
-    items, sources = await scan_brain_health_trends(limit=limit)
+    items, sources = await scan_brain_health_trends(limit=limit, shuffle_tail=shuffle_tail)
     return TrendScanResponse(
         scanned_at=datetime.now(timezone.utc),
         sources_checked=sources,

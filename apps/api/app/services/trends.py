@@ -13,6 +13,7 @@ from email.utils import parsedate_to_datetime
 import httpx
 
 from app.models import PlanDeliverable
+from app.services.trend_compose import compose_trend_list
 
 USER_AGENT = "Pulse-CPBH/1.0 (USC brain health content tool)"
 
@@ -206,7 +207,7 @@ def _is_relevant(item: RawTrend, *, strict: bool) -> bool:
     return bool(pattern.search(blob))
 
 
-async def scan_brain_health_trends(*, limit: int = 12) -> tuple[list[dict], list[str]]:
+async def scan_brain_health_trends(*, limit: int = 12, shuffle_tail: bool = False) -> tuple[list[dict], list[str]]:
     """Return trend dicts and list of sources that returned results."""
     collected: list[RawTrend] = []
     sources_ok: list[str] = []
@@ -236,10 +237,9 @@ async def scan_brain_health_trends(*, limit: int = 12) -> tuple[list[dict], list
         unique.append(item)
 
     unique.sort(key=lambda t: t.published_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
-    trimmed = unique[: max(limit, 1)]
 
     results = []
-    for item in trimmed:
+    for item in unique:
         theme = _guess_theme(item.title, item.summary)
         deliverable = _guess_deliverable(theme)
         results.append(
@@ -255,4 +255,4 @@ async def scan_brain_health_trends(*, limit: int = 12) -> tuple[list[dict], list
                 "deliverable": deliverable.value,
             }
         )
-    return results, sources_ok
+    return compose_trend_list(results, limit, shuffle_tail=shuffle_tail), sources_ok

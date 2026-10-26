@@ -7,6 +7,7 @@ import { saveIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
 import { TrendScanner } from "@/components/ideas/trend-scanner";
 import { api } from "@/lib/api";
 import { draftSocialCaptions } from "@/lib/caption-draft";
+import type { TrendItem } from "@/lib/trends-types";
 
 export default function IdeatePage() {
   const router = useRouter();
@@ -66,6 +67,17 @@ export default function IdeatePage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
+  function useHotTopic(trend: TrendItem) {
+    setTopic(trend.title);
+    setNotes(
+      [trend.suggested_hook, trend.summary, trend.url ? `Source: ${trend.url}` : ""]
+        .filter(Boolean)
+        .join("\n\n")
+    );
+    setCaptions(null);
+    document.getElementById("ideate-topic")?.focus();
+  }
+
   function goToSubmit() {
     saveIdeateDraftForSubmit({
       topic: topic.trim(),
@@ -86,7 +98,7 @@ export default function IdeatePage() {
 
       <div className="grid lg:grid-cols-[minmax(240px,280px)_1fr] gap-6 items-start">
         <aside className="lg:sticky lg:top-4">
-          <TrendScanner layout="sidebar" />
+          <TrendScanner layout="sidebar" onUseTopic={useHotTopic} />
         </aside>
 
         <div className="space-y-6 min-w-0">
@@ -102,6 +114,7 @@ export default function IdeatePage() {
             <label className="block">
               <span className="text-sm font-medium">Topic</span>
               <input
+                id="ideate-topic"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
                 className="form-input mt-1.5 w-full"

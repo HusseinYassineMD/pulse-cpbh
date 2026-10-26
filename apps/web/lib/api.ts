@@ -464,9 +464,10 @@ const liveApi = {
   },
 
   trends: {
-    scan: (params?: { limit?: number; force?: boolean }) => {
+    scan: (params?: { limit?: number; force?: boolean; shuffleTail?: boolean }) => {
       const search = new URLSearchParams();
       if (params?.limit) search.set("limit", String(params.limit));
+      if (params?.shuffleTail) search.set("shuffle_tail", "true");
       const qs = search.toString();
       return request<import("./trends-types").TrendScanResponse>(`/trends/scan${qs ? `?${qs}` : ""}`);
     },

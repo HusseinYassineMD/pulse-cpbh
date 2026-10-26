@@ -131,7 +131,12 @@ dev() {
   fi
   echo "API ready ✓"
 
-  web
+  if [ "${2:-}" = "clean" ]; then
+    rm -rf apps/web/.next
+    echo "Cleared .next (fixes blank page / Internal Server Error after npm run build)"
+  fi
+
+  web "" "${2:-}"
 }
 
 stable() {
