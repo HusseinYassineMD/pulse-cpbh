@@ -84,7 +84,7 @@ async function uploadRequest<T>(path: string, formData: FormData, method = "POST
       method,
       body: formData,
       headers,
-      signal: fetchAbortTimeout(32_000),
+      signal: fetchAbortTimeout(28_000),
     });
 
     if (!response.ok) {

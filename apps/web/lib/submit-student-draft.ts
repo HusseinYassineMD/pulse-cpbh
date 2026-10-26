@@ -31,8 +31,8 @@ function shouldRetrySubmit(error: unknown): boolean {
   return false;
 }
 
-const UPLOAD_TIMEOUT_MS = 32_000;
-const MAX_ATTEMPTS = 4;
+const UPLOAD_TIMEOUT_MS = 28_000;
+const MAX_ATTEMPTS = 5;
 
 /**
  * Send draft without blocking on warm first — Render free tier ~30s per HTTP request.

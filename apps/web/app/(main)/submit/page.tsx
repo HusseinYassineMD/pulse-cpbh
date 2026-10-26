@@ -17,6 +17,7 @@ import {
 } from "@/lib/submit-source-materials";
 import { readIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
 import { submitStudentDraftReliable } from "@/lib/submit-student-draft";
+import { warmPulseApi } from "@/lib/warm-api";
 
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -55,6 +56,10 @@ export default function SubmitDraftPage() {
       return [...prev, id];
     });
   }
+
+  useEffect(() => {
+    void warmPulseApi({ force: true, maxWaitMs: 55_000 });
+  }, []);
 
   useEffect(() => {
     setName(readSubmitName());
@@ -199,7 +204,15 @@ export default function SubmitDraftPage() {
           <p className="font-mono text-sm font-semibold text-teal">{draftTicketLabel(lastPost)}</p>
         )}
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Your lead was emailed. Save your ticket ID — they may reference it in feedback.
+          Saved to the team <strong>Review</strong> queue. Screenshot or copy your ticket ID for your submission.
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Leads open{" "}
+          <Link href="/team" className="text-teal font-medium hover:underline">
+            Lead sign-in
+          </Link>{" "}
+          → <Link href="/review" className="text-teal font-medium hover:underline">Review</Link>. Email alerts are
+          optional — drafts always appear on Review.
         </p>
         <button type="button" onClick={resetForm} className="btn-primary px-6 py-3 rounded-xl font-medium">
           Send another

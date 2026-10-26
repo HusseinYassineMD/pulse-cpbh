@@ -1,5 +1,19 @@
 # Host Pulse on Render (shared team database)
 
+## Before you submit / demo (5 minutes)
+
+1. **Render → pulse-cpbh-web → Manual Deploy** (latest `main`).
+2. **Render → pulse-cpbh-api → Manual Deploy** (latest `main`).
+3. **Web env:** `LEAD_ACCESS_PIN` = your team code (e.g. `102026`). Save → redeploy web if you changed it.
+4. **API env:** `REVIEW_LEAD_EMAIL` = `ajagadis@usc.edu`, `RESEND_API_KEY` = `re_…` from Resend (optional for demo — drafts still save without it).
+5. **Smoke test:**
+   - Open `https://pulse-cpbh-web.onrender.com/ideate` → **Send draft** → fill name, caption, visuals note, one source → **Send** → see **Sent!** + ticket (e.g. `CPBH-…`).
+   - Open `/team` → PIN → **Review** → your draft is listed.
+
+Student app URL for the write-up: **`https://pulse-cpbh-web.onrender.com/ideate`**
+
+---
+
 Use this instead of running Pulse on your Mac or Cloudflare tunnel. After setup, **you can shut down your laptop** — the team uses Render’s URL.
 
 Student drafts live in **PostgreSQL** for everyone on the same links.
