@@ -7,7 +7,6 @@ import logging
 
 from app.core.database import async_session
 from app.services.publish import check_and_publish_due
-from app.services.student_review_email import process_review_reminders
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +18,9 @@ async def _scheduler_loop() -> None:
         try:
             async with async_session() as db:
                 count = await check_and_publish_due(db)
-                reminders = await process_review_reminders(db)
                 await db.commit()
                 if count:
                     logger.info("Processed %d scheduled post(s)", count)
-                if reminders:
-                    logger.info("Sent %d student draft review reminder(s)", reminders)
         except Exception:
             logger.exception("Scheduler tick failed")
         await asyncio.sleep(60)

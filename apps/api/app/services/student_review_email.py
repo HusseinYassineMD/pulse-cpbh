@@ -134,9 +134,10 @@ async def process_review_reminders(db: AsyncSession) -> int:
         tid = ticket_id(post) or "draft"
         subject = f"[Pulse] Reminder {tid} — please review: {post.title}"
         ok, _ = await send_notification_email(to, subject, _email_body(post, reminder=True))
+        # Record the attempt even when sending fails, so a mail error cannot repeat every minute.
+        cfg["last_review_reminder_at"] = datetime.now(timezone.utc).isoformat()
+        post.source_config = cfg
         if ok:
-            cfg["last_review_reminder_at"] = datetime.now(timezone.utc).isoformat()
-            post.source_config = cfg
             sent += 1
 
     return sent
