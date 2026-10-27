@@ -98,6 +98,10 @@ function postFormXhr<T>(path: string, formData: FormData, timeoutMs = 100_000): 
         resolve(body as T);
         return;
       }
+      if (xhr.status === 429) {
+        reject(new ApiError(429, "The server is waking up. Leave this page open."));
+        return;
+      }
       const detail = body.detail;
       const message =
         typeof detail === "string"

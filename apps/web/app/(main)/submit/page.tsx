@@ -17,7 +17,6 @@ import {
 } from "@/lib/submit-source-materials";
 import { readIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
 import { submitStudentDraftReliable } from "@/lib/submit-student-draft";
-import { warmPulseApi } from "@/lib/warm-api";
 
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -94,10 +93,6 @@ export default function SubmitDraftPage() {
   }
 
   useEffect(() => {
-    void warmPulseApi({ force: true, maxWaitMs: 55_000 });
-  }, []);
-
-  useEffect(() => {
     setName(readSubmitName());
     if (typeof window === "undefined") return;
 
@@ -169,6 +164,8 @@ export default function SubmitDraftPage() {
         msg = "Server was asleep — tap Send again once. Your answers are still here.";
       } else if (msg.includes("500") || msg.toLowerCase().includes("internal")) {
         msg = "Server error — ask your lead to restart the team app, then try again.";
+      } else if (msg.includes("429") || msg.toLowerCase().includes("waking up")) {
+        msg = "The server is still waking up. Wait 20 seconds, then tap Send once more. Your answers are still here.";
       }
       showValidationError(msg);
     },

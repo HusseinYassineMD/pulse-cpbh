@@ -44,10 +44,17 @@ export async function warmPulseApi(options?: { force?: boolean; maxWaitMs?: numb
 export function startPulseApiKeepWarm(): () => void {
   if (isStaticMode()) return () => undefined;
 
-  void warmPulseApi();
+  // Wait so this ping does not land in the same burst as the first page load.
+  // A free server answers that burst with 429 and the draft never sends.
+  const first = window.setTimeout(() => {
+    void warmPulseApi();
+  }, 25_000);
   const id = window.setInterval(() => {
     void warmPulseApi();
   }, WARM_STALE_MS);
 
-  return () => window.clearInterval(id);
+  return () => {
+    window.clearTimeout(first);
+    window.clearInterval(id);
+  };
 }

@@ -1,5 +1,4 @@
 import { ApiError } from "./api";
-import { warmPulseApi } from "./warm-api";
 import type { Post } from "./types";
 
 function sleep(ms: number) {
@@ -9,6 +8,7 @@ function sleep(ms: number) {
 function shouldRetrySubmit(error: unknown): boolean {
   if (error instanceof ApiError) {
     return (
+      error.status === 429 ||
       error.status === 502 ||
       error.status === 503 ||
       error.status === 504 ||
@@ -33,23 +33,21 @@ function shouldRetrySubmit(error: unknown): boolean {
 }
 
 const HARD_TIMEOUT_MS = 95_000;
-const MAX_ATTEMPTS = 2;
+const MAX_ATTEMPTS = 4;
 
 /**
- * One long attempt so a sleeping Render API can wake and return the ticket.
- * A second attempt runs only if the first one fails.
+ * A free server rejects extra requests with 429 while it is waking up.
+ * Wait and send again. Do not ping a second URL at the same time — that is what gets Send blocked.
  */
 export async function submitStudentDraftReliable(
   upload: (form: FormData) => Promise<Post>,
   form: FormData
 ): Promise<Post> {
-  void warmPulseApi({ force: true, maxWaitMs: 20_000 });
-
   let lastError: unknown;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (attempt > 0) {
-      await sleep(1000);
-      await warmPulseApi({ force: true, maxWaitMs: 55_000 });
+      const waking = lastError instanceof ApiError && lastError.status === 429;
+      await sleep(waking ? 15_000 : 4_000);
     }
 
     try {
