@@ -74,6 +74,8 @@ function CalendarPageInner() {
       setTimeout(() => setMsg(""), 5000);
     },
     onError: (err) => {
+      queryClient.invalidateQueries({ queryKey: ["schedule"] });
+      setRemoveTarget(null);
       setError(err instanceof ApiError ? err.message : "Could not remove from schedule");
       setTimeout(() => setError(""), 5000);
     },
@@ -430,6 +432,7 @@ function ScheduleRow({
         )}
         {onRemove && (
           <button
+            type="button"
             onClick={onRemove}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 min-h-[40px]"
             title={item.status === "pending" ? "Remove and revert to Plan" : "Remove from history"}

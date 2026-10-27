@@ -58,7 +58,9 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
     outHeaders.delete("content-encoding");
     outHeaders.delete("content-length");
     outHeaders.delete("transfer-encoding");
-    return new Response(payload, {
+    // 204/304 cannot carry a body. An empty buffer still counts as one, and Remove then fails.
+    const nullBody = res.status === 204 || res.status === 205 || res.status === 304;
+    return new Response(nullBody ? null : payload, {
       status: res.status,
       statusText: res.statusText,
       headers: outHeaders,
