@@ -194,10 +194,7 @@ async def send_notification_email(to_email: str, subject: str, body: str) -> tup
         ok, message = resend_result
         return ok, message
 
-    relay_ok, relay_message = await _send_via_form_relay(settings, to_email, subject, body)
-    if relay_ok or "Confirm the inbox" in relay_message:
-        return relay_ok, relay_message
-
+    # The mail relay blocks this server. The submit page sends the notice from the browser.
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
         host = settings.smtp_host.lower()
         edu_mailbox = settings.smtp_user.lower().endswith(".edu")

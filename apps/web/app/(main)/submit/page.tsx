@@ -16,6 +16,7 @@ import {
   type SourceMaterialLink,
 } from "@/lib/submit-source-materials";
 import { readIdeateDraftForSubmit } from "@/lib/ideate-submit-handoff";
+import { notifyLeadOfSubmission } from "@/lib/notify-lead";
 import { submitStudentDraftReliable } from "@/lib/submit-student-draft";
 
 function newId() {
@@ -149,6 +150,13 @@ export default function SubmitDraftPage() {
       setLastPost(post);
       setDone(true);
       setError("");
+      notifyLeadOfSubmission({
+        ticket: draftTicketLabel(post),
+        name: name.trim(),
+        title: post.title,
+        visuals: canvaLink.trim(),
+        caption: caption.trim(),
+      });
     },
     onError: (e) => {
       setSendHint("");
