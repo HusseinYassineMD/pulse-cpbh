@@ -14,15 +14,15 @@ async def email_status():
     lead = s.review_lead_email.strip()
     resend = bool(s.resend_api_key.strip())
     smtp = bool(s.smtp_host.strip() and s.smtp_user.strip() and s.smtp_password.strip())
-    ready = bool(lead and resend)
+    ready = bool(lead)
     return {
         "review_lead_email_set": bool(lead),
         "resend_configured": resend,
         "smtp_configured": smtp,
         "ready": ready,
         "hint": (
-            "Set REVIEW_LEAD_EMAIL and RESEND_API_KEY on pulse-cpbh-api (Render), then redeploy."
+            "Set REVIEW_LEAD_EMAIL on pulse-cpbh-api (Render), then redeploy."
             if not ready
-            else "Email is configured — new student submits should notify the lead."
+            else "Submission mail goes to the lead inbox. The first time, that inbox must open Activate Form."
         ),
     }

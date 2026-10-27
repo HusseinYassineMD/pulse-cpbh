@@ -148,6 +148,44 @@ def _send_via_smtp(settings: Settings, assignee_email: str, subject: str, body: 
         server.send_message(message)
 
 
+async def _send_via_form_relay(settings: Settings, to_email: str, subject: str, body: str) -> tuple[bool, str]:
+    """Mail the lead without Resend. The inbox must click Activate Form once."""
+    referer = (settings.web_url or "https://pulse-cpbh-web.onrender.com").rstrip("/") + "/"
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                f"https://formsubmit.co/ajax/{to_email}",
+                json={
+                    "_subject": subject,
+                    "_template": "box",
+                    "_captcha": "false",
+                    "message": body,
+                },
+                headers={
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    "Referer": referer,
+                    # The relay rejects non-browser clients.
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+                    ),
+                },
+            )
+        data = response.json()
+    except Exception as exc:
+        logger.exception("Form mail relay failed")
+        return False, f"Could not send mail ({exc})"
+
+    ok = str(data.get("success", "")).lower() == "true"
+    message = str(data.get("message") or "")
+    if ok:
+        return True, f"Email sent to {to_email}"
+    if "activation" in message.lower():
+        return False, f"Confirm the inbox: open the Activate Form email sent to {to_email}"
+    return False, message or "Email was not accepted"
+
+
 async def send_notification_email(to_email: str, subject: str, body: str) -> tuple[bool, str]:
     """Send a plain-text notification (no compose fallback)."""
     settings = Settings()
@@ -155,6 +193,10 @@ async def send_notification_email(to_email: str, subject: str, body: str) -> tup
     if resend_result is not None:
         ok, message = resend_result
         return ok, message
+
+    relay_ok, relay_message = await _send_via_form_relay(settings, to_email, subject, body)
+    if relay_ok or "Confirm the inbox" in relay_message:
+        return relay_ok, relay_message
 
     if settings.smtp_host and settings.smtp_user and settings.smtp_password:
         host = settings.smtp_host.lower()
